@@ -1,0 +1,91 @@
+<!-- Styles.html -->
+<style>
+  body{font-family:sans-serif;margin:20px;}
+  label{display:block;margin-top:10px;}
+  select,input{width:100%;padding:6px;margin-top:4px;}
+  button{margin-top:15px;padding:8px 12px;font-size:16px;}
+  #message{margin-top:15px;color:green;}
+  #error{margin-top:15px;color:red;}
+
+  nav{margin-bottom:15px;}
+  nav button{
+    margin-right:5px;
+    padding:6px 12px;
+    font-size:16px;
+    min-height:36px;       /* 高さを統一 */
+    line-height:1.2;       /* テキストの縦揃え */
+    vertical-align:middle; /* 縦位置を中央に */
+  }
+  .tab-group {
+    margin-bottom: 20px;
+  }
+
+  .tab-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: #555;
+  }
+
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tabs button {
+    flex: 1 1 auto;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    background: #1976d2;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    transition: 0.2s;
+  }
+
+  .tabs button:hover {
+    background: #125ea8;
+  }
+
+  /* 管理系は少し色を変える */
+  .admin-tabs button {
+    background: #6c757d;
+  }
+
+  .admin-tabs button:hover {
+    background: #545b62;
+  }
+
+  .tabs button.active {
+    background: #0d47a1 !important;
+  }
+
+  .master-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .master-toolbar button {
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: none;
+    background: #1976d2;
+    color: white;
+    cursor: pointer;
+  }
+
+  .master-form {
+    margin-bottom: 12px;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 8px;
+  }
+
+  /* view はそのまま */
+  .view{display:none;margin-top:10px;}
+  table{border-collapse:collapse;width:100%;margin-top:10px;}
+  th,td{border:1px solid #ccc;padding:4px;text-align:left;}
+</style>

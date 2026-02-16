@@ -1,0 +1,51 @@
+<!-- Series.html -->
+<script>
+//////////////////////////////
+// シリーズ一覧
+//////////////////////////////
+function showSeries(){
+
+  const id = document.getElementById('seriesSelect').value;
+  if(!id) return alert('シリーズを選択してください');
+
+  callGAS('getSeriesDetail', function(data){
+    renderTableReadOnly('seriesTable', data, ['name','count']);
+  }, id);
+}
+
+//////////////////////////////
+// Master表示
+//////////////////////////////
+function loadSeriesMaster(){
+  callGAS('getSeriesMaster', function(data){
+    renderTable('seriesMasterTable', data, ['id','name']);
+  });
+}
+
+//////////////////////////////
+// 追加
+//////////////////////////////
+function addSeriesMaster(){
+
+  const name = document.getElementById('newSeriesName').value.trim();
+  if(!name) return showError("シリーズ名は必須です");
+
+  callGAS('addSeriesMasterWeb', function(res){
+    if(res.success){
+      showSuccess(res.message);
+      document.getElementById('newSeriesName').value = '';
+      loadSeriesMaster();
+      populateSeriesSelects();
+    }else{
+      showError(res.message);
+    }
+  }, name);
+}
+
+//////////////////////////////
+// 検索
+//////////////////////////////
+function filterSeries(){
+  filterMaster('seriesMasterTableBody','seriesSearchKeyword');
+}
+</script>

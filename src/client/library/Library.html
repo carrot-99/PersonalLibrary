@@ -1,0 +1,93 @@
+<!-- Library.html -->
+<script>
+const PAGE_SIZE = 100;
+let currentLibraryPage = 1;
+
+//////////////////////////////
+// 新刊追加処理
+//////////////////////////////
+function addVolume() {
+  const titleId = document.getElementById('titleSelect').value;
+  const volume  = document.getElementById('volumeInput').value.trim();
+  const boxId   = document.getElementById('boxSelect').value;
+
+  if(!titleId || !volume || !boxId) return showError('入力が不完全です');
+
+  callGAS('addNewVolumeWeb', function(res){
+    if(res.success){
+      showSuccess(res.message);
+      document.getElementById('volumeInput').value = '';
+      loadRecentLibrary();
+    } else {
+      showError(res.message);
+    }
+  }, titleId, volume, boxId);
+}
+
+//////////////////////////////
+// 最近追加ライブラリ読み込み
+//////////////////////////////
+function loadRecentLibrary() {
+  callGAS('getRecentLibrary', function(data){
+    renderRecentLibrary(data);
+  });
+}
+
+//////////////////////////////
+// 最近追加テーブル描画
+//////////////////////////////
+function renderRecentLibrary(data) {
+  const tbody = document.getElementById('recentLibraryTable').querySelector('tbody');
+  tbody.innerHTML = '';
+
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+
+    ['date','title','volume','box'].forEach(key => {
+      const td = document.createElement('td');
+      td.textContent = row[key] ?? '';
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+//////////////////////////////
+// 初期化時に呼ぶ
+//////////////////////////////
+function loadLibraryMasterView() {
+  // 作品・Box選択肢取得
+  callGAS('getTitles', function(titles){
+    populateSelect(['titleSelect'], titles, t => t.name);
+  });
+  callGAS('getBoxes', function(boxes){
+    populateSelect(['boxSelect'], boxes, b => `${b.id} : ${b.place}`);
+  });
+
+  // 最近5件表示
+  loadRecentLibrary();
+}
+
+//////////////////////////////
+// 初期化時に呼ぶ（全件表示版）
+//////////////////////////////
+function loadLibraryMaster(page = 1){
+  currentLibraryPage = page;
+
+  callGAS('getLibraryPage', function(res){
+
+    renderPagedTableDOM({
+      tableId: 'libraryMasterTable',
+      data: res.items,
+      columns: ['id', 'title', 'volume', 'box', 'date'],
+      currentPage: page,
+      pageSize: PAGE_SIZE,
+      totalRows: res.total,
+      editable: true,
+      onPageChange: loadLibraryMaster
+    });
+
+  }, page, PAGE_SIZE);
+}
+</script>

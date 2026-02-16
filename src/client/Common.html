@@ -1,0 +1,484 @@
+<!-- Common.html -->
+<script>
+//////////////////////////////
+// 初期化
+//////////////////////////////
+function init(){
+  callGAS('getTitleMaster', populateTitle);
+  callGAS('getBoxMaster', populateBoxes);
+  callGAS('getSeriesMaster', populateSeries);
+}
+
+//////////////////////////////
+// GAS 呼び出し共通
+//////////////////////////////
+function callGAS(funcName, successHandler, ...args){
+  google.script.run
+    .withSuccessHandler(successHandler)[funcName](...args);
+}
+
+//////////////////////////////
+// タブ切替
+//////////////////////////////
+function showTab(tabId){
+
+  document.querySelectorAll('.tabs button')
+    .forEach(b => b.classList.remove('active'));
+
+  document.querySelectorAll('.view')
+    .forEach(v => v.style.display = 'none');
+
+  document.getElementById(tabId).style.display = 'block';
+
+  clearGlobalMessage();
+
+  const loaders = {
+    LibraryMasterView: () => {
+      loadRecentLibrary();
+      loadLibraryMaster();
+    },
+    BoxMasterView: loadBoxMaster,
+    SeriesMasterView: loadSeriesMaster,
+    TitleMasterView: () => {
+      loadTitleMaster();
+    }
+  };
+
+  if(loaders[tabId]) loaders[tabId]();
+}
+
+//////////////////////////////
+// メッセージ管理
+//////////////////////////////
+function clearGlobalMessage(){
+  document.getElementById('globalMessage').textContent = '';
+  document.getElementById('globalError').textContent = '';
+}
+
+function showSuccess(message){
+  clearGlobalMessage();
+  document.getElementById('globalMessage').textContent = message;
+}
+
+function showError(message){
+  clearGlobalMessage();
+  document.getElementById('globalError').textContent = message;
+}
+
+//////////////////////////////
+// テーブル描画共通（編集あり）
+//////////////////////////////
+function renderTable(tableId, data, columns){
+
+  const tbody = document
+    .getElementById(tableId)
+    .querySelector('tbody');
+
+  tbody.innerHTML = '';
+
+  data.forEach(row => {
+
+    const tr = document.createElement('tr');
+
+    columns.forEach(col=>{
+      const td = document.createElement('td');
+      td.textContent = row[col] ?? '';
+      td.dataset.field = col;
+      tr.appendChild(td);
+    });
+
+    // 編集ボタン列
+    const actionTd = document.createElement('td');
+    const btn = document.createElement('button');
+    btn.textContent = '編集';
+    btn.onclick = function(){
+      startEdit(this);
+    };
+    actionTd.appendChild(btn);
+    tr.appendChild(actionTd);
+
+    tbody.appendChild(tr);
+  });
+}
+
+//////////////////////////////
+// テーブル描画（編集なし・検索用）
+//////////////////////////////
+function renderTableReadOnly(tableId, data, columns) {
+  const tbody = document.getElementById(tableId).querySelector('tbody');
+  tbody.innerHTML = '';
+
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+
+    columns.forEach(col => {
+      const td = document.createElement('td');
+      td.textContent = row[col] ?? '';
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+//////////////////////////////
+// ページネーション付きマスタ描画
+//////////////////////////////
+function renderPagedTableDOM(options){
+  // options:
+  // tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable
+
+  const { tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable } = options;
+
+  const tbody = document.getElementById(tableId).querySelector('tbody');
+  tbody.innerHTML = ''; // tbody は clear してもOK
+
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+
+    columns.forEach(col => {
+      const td = document.createElement('td');
+      td.textContent = row[col] ?? '';
+      td.dataset.field = col;
+      tr.appendChild(td);
+    });
+
+    if(editable){
+      const actionTd = document.createElement('td');
+      const editBtn = document.createElement('button');
+      editBtn.textContent = '編集';
+      editBtn.onclick = () => startEdit(editBtn);
+      actionTd.appendChild(editBtn);
+      tr.appendChild(actionTd);
+    }
+
+    tbody.appendChild(tr);
+  });
+
+  // ページネーション表示
+  const paginationDivId = tableId + "_pagination";
+  let paginationDiv = document.getElementById(paginationDivId);
+
+  if(!paginationDiv){
+    paginationDiv = document.createElement('div');
+    paginationDiv.id = paginationDivId;
+    paginationDiv.style.marginTop = "10px";
+    document.getElementById(tableId).after(paginationDiv);
+  }
+
+  paginationDiv.innerHTML = '';
+
+  const totalPages = Math.ceil(totalRows / pageSize);
+  if(totalPages <= 1) return;
+
+  const maxButtons = 5; // ← 表示する中央ページ数
+  const half = Math.floor(maxButtons / 2);
+
+  let startPage = Math.max(1, currentPage - half);
+  let endPage   = Math.min(totalPages, currentPage + half);
+
+  if(endPage - startPage < maxButtons - 1){
+    if(startPage === 1){
+      endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    } else if(endPage === totalPages){
+      startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+  }
+
+  // 「前へ」
+  if(currentPage > 1){
+    const prevBtn = document.createElement('button');
+    prevBtn.textContent = '« 前へ';
+    prevBtn.onclick = () => onPageChange(currentPage - 1);
+    prevBtn.style.marginRight = '5px';
+    paginationDiv.appendChild(prevBtn);
+  }
+
+  // 先頭ページ + 省略
+  if(startPage > 1){
+    const firstBtn = document.createElement('button');
+    firstBtn.textContent = 1;
+    firstBtn.onclick = () => onPageChange(1);
+    firstBtn.style.marginRight = '5px';
+    paginationDiv.appendChild(firstBtn);
+
+    if(startPage > 2){
+      const dots = document.createElement('span');
+      dots.textContent = '...';
+      dots.style.marginRight = '5px';
+      paginationDiv.appendChild(dots);
+    }
+  }
+
+  // 中央ページ群
+  for(let p = startPage; p <= endPage; p++){
+    if(p === currentPage){
+      const span = document.createElement('span');
+      span.textContent = p;
+      span.style.fontWeight = 'bold';
+      span.style.marginRight = '5px';
+      paginationDiv.appendChild(span);
+    } else {
+      const btn = document.createElement('button');
+      btn.textContent = p;
+      btn.style.marginRight = '5px';
+      btn.onclick = () => onPageChange(p);
+      paginationDiv.appendChild(btn);
+    }
+  }
+
+  // 末尾ページ + 省略
+  if(endPage < totalPages){
+    if(endPage < totalPages - 1){
+      const dots = document.createElement('span');
+      dots.textContent = '...';
+      dots.style.marginRight = '5px';
+      paginationDiv.appendChild(dots);
+    }
+
+    const lastBtn = document.createElement('button');
+    lastBtn.textContent = totalPages;
+    lastBtn.onclick = () => onPageChange(totalPages);
+    lastBtn.style.marginRight = '5px';
+    paginationDiv.appendChild(lastBtn);
+  }
+
+  // 「次へ」
+  if(currentPage < totalPages){
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = '次へ »';
+    nextBtn.onclick = () => onPageChange(currentPage + 1);
+    paginationDiv.appendChild(nextBtn);
+  }
+
+}
+
+//////////////////////////////
+// 日付フォーマット
+//////////////////////////////
+function formatDate(date){
+  if(!date) return '';
+  const d = new Date(date);
+  if(isNaN(d)) return '';
+  return d.getFullYear() + '/' +
+         String(d.getMonth()+1).padStart(2,'0') + '/' +
+         String(d.getDate()).padStart(2,'0');
+}
+
+//////////////////////////////
+// トグル切り替え
+//////////////////////////////
+function toggleAddForm(id){
+  document.querySelectorAll('.master-form')
+    .forEach(f => f.style.display = 'none');
+
+  const form = document.getElementById(id);
+  form.style.display = 'block';
+}
+
+function toggleSearchForm(id){
+  document.querySelectorAll('.master-form')
+    .forEach(f => f.style.display = 'none');
+    
+  const form = document.getElementById(id);
+  form.style.display = (form.style.display === 'none') ? 'block' : 'none';
+}
+
+///////////////////////////////
+// 選択肢取得
+///////////////////////////////
+function populateSelect(selectIds, data, labelFn, valueKey = 'id', clear = false){
+
+  if(!Array.isArray(selectIds)) {
+    selectIds = [selectIds];
+  }
+
+  selectIds.forEach(id => {
+    const sel = document.getElementById(id);
+    if(!sel) return;
+
+    if(clear) sel.innerHTML = '';
+
+    data.forEach(item => {
+      const option = new Option(
+        labelFn(item),
+        item[valueKey]
+      );
+      sel.add(option);
+    });
+  });
+}
+
+// シリーズ選択肢取得
+function populateSeries(series){
+  populateSelect(
+    ['seriesSelect', 'newTitleSeries'],
+    series,
+    s => s.name
+  );
+}
+
+// タイトル選択肢取得
+function populateTitle(titles){
+  populateSelect(
+    ['titleSelect','titleViewSelect'],
+    titles,
+    t => t.name
+  );
+}
+
+// 箱選択肢取得
+function populateBoxes(boxes){
+  populateSelect(
+    ['boxSelect','boxViewSelect'],
+    boxes,
+    b => `${b.id} : ${b.place}`
+  );
+}
+
+///////////////////////////////
+// CRUD共通
+///////////////////////////////
+// 検索
+function filterMaster(tbodyId, keywordInputId){
+
+  const keyword = document
+    .getElementById(keywordInputId)
+    .value
+    .toLowerCase();
+
+  const rows = document
+    .getElementById(tbodyId)
+    .getElementsByTagName('tr');
+
+  Array.from(rows).forEach(row => {
+
+    const match = Array.from(row.cells).some(cell =>
+      cell.textContent.toLowerCase().includes(keyword)
+    );
+
+    row.style.display = match ? '' : 'none';
+  });
+}
+
+// 更新
+function startEdit(btn){
+
+  const tr = btn.closest('tr');
+
+  Array.from(tr.cells).forEach((td, index)=>{
+
+    // 最後の列（操作列）は除外
+    if(index === tr.cells.length - 1) return;
+
+    const value = td.textContent;
+    td.dataset.original = value;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = value;
+
+    td.textContent = '';
+    td.appendChild(input);
+  });
+
+  // 操作ボタン列を書き換え
+  const actionTd = tr.cells[tr.cells.length - 1];
+  actionTd.textContent = '';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = '保存';
+  saveBtn.addEventListener('click', function(){
+    saveEdit(this);
+  });
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = '取消';
+  cancelBtn.style.marginLeft = '5px';
+  cancelBtn.addEventListener('click', function(){
+    cancelEdit(this);
+  });
+
+  actionTd.appendChild(saveBtn);
+  actionTd.appendChild(cancelBtn);
+}
+
+function cancelEdit(btn){
+
+  const tr = btn.closest('tr');
+
+  Array.from(tr.cells).forEach((td, index)=>{
+
+    if(index === tr.cells.length - 1) return;
+
+    td.textContent = td.dataset.original || '';
+  });
+
+  // 操作列を戻す
+  const actionTd = tr.cells[tr.cells.length - 1];
+  actionTd.textContent = '';
+
+  const editBtn = document.createElement('button');
+  editBtn.textContent = '編集';
+  editBtn.addEventListener('click', function(){
+    startEdit(this);
+  });
+
+  actionTd.appendChild(editBtn);
+}
+
+function saveEdit(btn){
+
+  const tr = btn.closest('tr');
+  const tableId = tr.closest('table').id;
+
+  const cells = Array.from(tr.cells);
+
+  // IDは1列目
+  const idCell = cells[0];
+  const idInput = idCell.querySelector('input');
+  const id = idInput ? idInput.value : idCell.textContent;
+
+  const values = cells.slice(1, cells.length - 1)
+    .map(td => {
+      const input = td.querySelector('input');
+      return input ? input.value : td.textContent;
+    });
+
+  let gasFunction = null;
+  let reloadFunction = null;
+
+  if(tableId === 'boxMasterTable'){
+    gasFunction = 'updateBoxMaster';
+    reloadFunction = loadBoxMaster;
+  }
+
+  if(tableId === 'seriesMasterTable'){
+    gasFunction = 'updateSeriesMaster';
+    reloadFunction = loadSeriesMaster;
+  }
+
+  if(tableId === 'titleMasterTable'){
+    gasFunction = 'updateTitleMaster';
+    reloadFunction = loadTitleMaster;
+  }
+
+  if(!gasFunction) return;
+
+  callGAS(gasFunction, function(res){
+
+    if(res && res.success){
+      showSuccess(res.message);
+      reloadFunction();
+    } else {
+      showError(res?.message || '更新に失敗しました');
+    }
+
+  }, id, values);
+}
+
+function initApp(){
+  init();
+}
+
+</script>
