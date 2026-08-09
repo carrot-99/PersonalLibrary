@@ -1,0 +1,55 @@
+<!-- Box.html -->
+<script>
+//////////////////////////////
+// 箱一覧
+//////////////////////////////
+function showBox() {
+  const id = document.getElementById('boxViewSelect').value;
+  if(!id) return alert('Boxを選択してください');
+
+  callGAS('getBoxDetail', function(data){
+    renderTableReadOnly('boxTable', data, ['name','volume']);
+  }, id);
+}
+
+//////////////////////////////
+// Master表示
+//////////////////////////////
+function loadBoxMaster(){
+  callGAS('getBoxMaster', function(data){
+    renderTable('boxMasterTable', data, ['id','place']);
+  });
+}
+
+//////////////////////////////
+// 追加
+//////////////////////////////
+function addBoxMaster(){
+
+  const id    = document.getElementById('newBoxId').value.trim();
+  const place = document.getElementById('newBoxPlace').value.trim();
+
+  if(!id || !place)
+    return showError("BoxIDと保管場所は必須です");
+
+  callGAS('addBoxMasterWeb', function(res){
+    if(res.success){
+      showSuccess(res.message);
+      document.getElementById('newBoxId').value = '';
+      document.getElementById('newBoxPlace').value = '';
+      loadBoxMaster();
+      refreshMasterData();
+    }else{
+      showError(res.message);
+    }
+  }, id, place);
+}
+
+//////////////////////////////
+// 検索
+//////////////////////////////
+function filterBox(){
+  filterMaster('boxMasterTableBody','boxSearchKeyword');
+}
+
+</script>

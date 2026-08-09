@@ -19,6 +19,14 @@ function getBoxMaster(){
 
 
 // ----------------------
+// 選択肢用取得
+// ----------------------
+function getBoxes(){
+  return getBoxMaster();
+}
+
+
+// ----------------------
 // 追加
 // ----------------------
 function addBoxMasterWeb(id, place){

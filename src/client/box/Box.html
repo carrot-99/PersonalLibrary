@@ -38,6 +38,7 @@ function addBoxMaster(){
       document.getElementById('newBoxId').value = '';
       document.getElementById('newBoxPlace').value = '';
       loadBoxMaster();
+      refreshMasterData();
     }else{
       showError(res.message);
     }
