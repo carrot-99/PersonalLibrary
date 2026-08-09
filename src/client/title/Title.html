@@ -48,6 +48,7 @@ function addTitleMaster(){
       document.getElementById('newTitleType').value = '';
       document.getElementById('newTitleCompleted').value = '未完';
       loadTitleMaster();
+      refreshMasterData();
     }else{
       showError(res.message);
     }

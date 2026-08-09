@@ -35,7 +35,7 @@ function addSeriesMaster(){
       showSuccess(res.message);
       document.getElementById('newSeriesName').value = '';
       loadSeriesMaster();
-      populateSeriesSelects();
+      refreshMasterData();
     }else{
       showError(res.message);
     }

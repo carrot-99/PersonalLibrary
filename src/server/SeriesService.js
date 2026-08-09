@@ -19,6 +19,14 @@ function getSeriesMaster(){
 
 
 // ----------------------
+// 選択肢用取得
+// ----------------------
+function getSeries(){
+  return getSeriesMaster();
+}
+
+
+// ----------------------
 // 追加
 // ----------------------
 function addSeriesMasterWeb(name){

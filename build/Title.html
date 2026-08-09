@@ -1,0 +1,65 @@
+<!-- Title.html -->
+<script>
+//////////////////////////////
+// タイトル一覧
+//////////////////////////////
+function showTitle(){
+
+  const id = document.getElementById('titleViewSelect').value;
+  if(!id) return alert('作品を選択してください');
+
+  callGAS('getTitleDetail', function(data){
+    renderTableReadOnly('titleTable', data, ['volume','box']);
+  }, id);
+}
+
+//////////////////////////////
+// Master表示
+//////////////////////////////
+function loadTitleMaster(){
+  callGAS('getTitleMaster', function(data){
+    renderTable('titleMasterTable', data, [
+      'id',
+      'name',
+      'seriesName',
+      'type',
+      'completed'
+    ]);
+  });
+}
+
+//////////////////////////////
+// 追加
+//////////////////////////////
+function addTitleMaster(){
+
+  const name      = document.getElementById('newTitleName').value.trim();
+  const seriesId  = document.getElementById('newTitleSeries').value;
+  const type      = document.getElementById('newTitleType').value.trim();
+  const completed = document.getElementById('newTitleCompleted').value;
+
+  if(!name || !seriesId)
+    return showError("作品名とシリーズは必須です");
+
+  callGAS('addTitleMasterWeb', function(res){
+    if(res.success){
+      showSuccess(res.message);
+      document.getElementById('newTitleName').value = '';
+      document.getElementById('newTitleType').value = '';
+      document.getElementById('newTitleCompleted').value = '未完';
+      loadTitleMaster();
+      refreshMasterData();
+    }else{
+      showError(res.message);
+    }
+  }, name, seriesId, type, completed);
+}
+
+//////////////////////////////
+// 検索
+//////////////////////////////
+function filterTitle(){
+  filterMaster('titleMasterTableBody','titleSearchKeyword');
+}
+
+</script>

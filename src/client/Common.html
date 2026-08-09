@@ -4,6 +4,14 @@
 // 初期化
 //////////////////////////////
 function init(){
+  refreshMasterData();
+  showTab('SeriesView');
+}
+
+//////////////////////////////
+// マスタ選択肢再読み込み
+//////////////////////////////
+function refreshMasterData(){
   callGAS('getTitleMaster', populateTitle);
   callGAS('getBoxMaster', populateBoxes);
   callGAS('getSeriesMaster', populateSeries);
@@ -14,7 +22,10 @@ function init(){
 //////////////////////////////
 function callGAS(funcName, successHandler, ...args){
   google.script.run
-    .withSuccessHandler(successHandler)[funcName](...args);
+    .withSuccessHandler(successHandler)
+    .withFailureHandler(function(error){
+      showError(error && error.message ? error.message : '通信に失敗しました');
+    })[funcName](...args);
 }
 
 //////////////////////////////
@@ -22,8 +33,11 @@ function callGAS(funcName, successHandler, ...args){
 //////////////////////////////
 function showTab(tabId){
 
-  document.querySelectorAll('.tabs button')
-    .forEach(b => b.classList.remove('active'));
+  const buttons = document.querySelectorAll('.tabs button');
+  buttons.forEach(b => b.classList.remove('active'));
+
+  const activeButton = document.querySelector(`.tabs button[data-tab="${tabId}"]`);
+  if(activeButton) activeButton.classList.add('active');
 
   document.querySelectorAll('.view')
     .forEach(v => v.style.display = 'none');
@@ -33,15 +47,10 @@ function showTab(tabId){
   clearGlobalMessage();
 
   const loaders = {
-    LibraryMasterView: () => {
-      loadRecentLibrary();
-      loadLibraryMaster();
-    },
+    LibraryMasterView: loadLibraryMaster,
     BoxMasterView: loadBoxMaster,
     SeriesMasterView: loadSeriesMaster,
-    TitleMasterView: () => {
-      loadTitleMaster();
-    }
+    TitleMasterView: loadTitleMaster
   };
 
   if(loaders[tabId]) loaders[tabId]();
@@ -68,11 +77,7 @@ function showError(message){
 //////////////////////////////
 // テーブル描画共通（編集あり）
 //////////////////////////////
-function renderTable(tableId, data, columns){
-
-  const tbody = document
-    .getElementById(tableId)
-    .querySelector('tbody');
+function renderTableRows(tbody, data, columns, editable){
 
   tbody.innerHTML = '';
 
@@ -87,18 +92,27 @@ function renderTable(tableId, data, columns){
       tr.appendChild(td);
     });
 
-    // 編集ボタン列
-    const actionTd = document.createElement('td');
-    const btn = document.createElement('button');
-    btn.textContent = '編集';
-    btn.onclick = function(){
-      startEdit(this);
-    };
-    actionTd.appendChild(btn);
-    tr.appendChild(actionTd);
+    if(editable){
+      const actionTd = document.createElement('td');
+      const btn = document.createElement('button');
+      btn.textContent = '編集';
+      btn.onclick = function(){
+        startEdit(this);
+      };
+      actionTd.appendChild(btn);
+      tr.appendChild(actionTd);
+    }
 
     tbody.appendChild(tr);
   });
+}
+
+function renderTable(tableId, data, columns){
+  const tbody = document
+    .getElementById(tableId)
+    .querySelector('tbody');
+
+  renderTableRows(tbody, data, columns, true);
 }
 
 //////////////////////////////
@@ -287,7 +301,7 @@ function toggleSearchForm(id){
 ///////////////////////////////
 // 選択肢取得
 ///////////////////////////////
-function populateSelect(selectIds, data, labelFn, valueKey = 'id', clear = false){
+function populateSelect(selectIds, data, labelFn, valueKey = 'id', clear = true){
 
   if(!Array.isArray(selectIds)) {
     selectIds = [selectIds];
@@ -470,6 +484,9 @@ function saveEdit(btn){
     if(res && res.success){
       showSuccess(res.message);
       reloadFunction();
+      if(tableId === 'titleMasterTable' || tableId === 'seriesMasterTable' || tableId === 'boxMasterTable'){
+        refreshMasterData();
+      }
     } else {
       showError(res?.message || '更新に失敗しました');
     }

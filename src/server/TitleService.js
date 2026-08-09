@@ -28,6 +28,18 @@ function getTitleMaster(){
 
 
 // ----------------------
+// 選択肢用取得
+// ----------------------
+function getTitles(){
+  const data = getData(SHEETS.TITLE);
+  return data.map(row => ({
+    id: row[0],
+    name: row[1]
+  }));
+}
+
+
+// ----------------------
 // 追加
 // ----------------------
 function addTitleMasterWeb(name, seriesId, type, completed){

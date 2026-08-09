@@ -18,6 +18,7 @@ function addVolume() {
       showSuccess(res.message);
       document.getElementById('volumeInput').value = '';
       loadRecentLibrary();
+      loadLibraryMaster(currentLibraryPage);
     } else {
       showError(res.message);
     }
@@ -54,26 +55,11 @@ function renderRecentLibrary(data) {
 }
 
 //////////////////////////////
-// 初期化時に呼ぶ
-//////////////////////////////
-function loadLibraryMasterView() {
-  // 作品・Box選択肢取得
-  callGAS('getTitles', function(titles){
-    populateSelect(['titleSelect'], titles, t => t.name);
-  });
-  callGAS('getBoxes', function(boxes){
-    populateSelect(['boxSelect'], boxes, b => `${b.id} : ${b.place}`);
-  });
-
-  // 最近5件表示
-  loadRecentLibrary();
-}
-
-//////////////////////////////
-// 初期化時に呼ぶ（全件表示版）
+// 初期表示時に呼ぶ
 //////////////////////////////
 function loadLibraryMaster(page = 1){
   currentLibraryPage = page;
+  loadRecentLibrary();
 
   callGAS('getLibraryPage', function(res){
 
@@ -90,4 +76,5 @@ function loadLibraryMaster(page = 1){
 
   }, page, PAGE_SIZE);
 }
+
 </script>
