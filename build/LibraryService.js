@@ -4,16 +4,70 @@
 // ======================================================
 
 
+function parseVolumeExpression(volumeExpression){
+  const input = String(volumeExpression || '').trim();
+  if(!input){
+    return { valid: false, message: '巻数を入力してください' };
+  }
+
+  const tokens = input.split(',').map(token => token.trim()).filter(Boolean);
+  if(tokens.length === 0){
+    return { valid: false, message: '巻数の形式が不正です' };
+  }
+
+  const values = [];
+  const seen = new Set();
+
+  for(const token of tokens){
+    const rangeMatch = token.match(/^([1-9]\d*)\s*-\s*([1-9]\d*)$/);
+    if(rangeMatch){
+      const start = Number(rangeMatch[1]);
+      const end = Number(rangeMatch[2]);
+
+      if(end <= start){
+        return { valid: false, message: `巻数 ${token} は A<B の形式で入力してください` };
+      }
+
+      for(let value = start; value <= end; value++){
+        if(seen.has(value)){
+          return { valid: false, message: `巻数 ${value} が重複しています` };
+        }
+        seen.add(value);
+        values.push(value);
+      }
+      continue;
+    }
+
+    if(!/^([1-9]\d*)$/.test(token)){
+      return { valid: false, message: `巻数 ${token} は 1, 2, 5-7 のような自然数で入力してください` };
+    }
+
+    const value = Number(token);
+    if(seen.has(value)){
+      return { valid: false, message: `巻数 ${value} が重複しています` };
+    }
+
+    seen.add(value);
+    values.push(value);
+  }
+
+  return { valid: true, values, text: values.join(', ') };
+}
+
 // ----------------------
 // 新刊追加
 // ----------------------
 function addNewVolumeWeb(titleId, volume, boxId){
 
   const normalizedTitleId = String(titleId || '').trim();
-  const normalizedVolume = String(volume || '').trim();
 
-  if(!normalizedTitleId || !normalizedVolume || !boxId){
+  if(!normalizedTitleId || !boxId){
     return failure('入力が不完全です');
+  }
+
+  const parsedVolume = parseVolumeExpression(volume);
+  if(!parsedVolume.valid){
+    return failure(parsedVolume.message);
   }
 
   try{
@@ -21,32 +75,42 @@ function addNewVolumeWeb(titleId, volume, boxId){
     const sheet = getSheet(SHEETS.LIBRARY);
     const data  = getData(SHEETS.LIBRARY);
 
-    // 重複チェック
-    if(data.some(row =>
-      String(row[1]).trim() === normalizedTitleId &&
-      String(row[3]).trim() === normalizedVolume
-    )){
-      return failure('同じ作品・巻が既に登録されています');
+    const duplicates = [];
+    parsedVolume.values.forEach(value => {
+      const exists = data.some(row =>
+        String(row[1]).trim() === normalizedTitleId &&
+        String(row[3]).trim() === String(value)
+      );
+
+      if(exists) duplicates.push(value);
+    });
+
+    if(duplicates.length > 0){
+      return failure(`同じ作品に既に登録済みの巻数があります: ${duplicates.join(', ')}`);
     }
 
-    const lastId = getLastId(SHEETS.LIBRARY);
-    const newId  = generateNextId('L', lastId);
-
+    let lastId = getLastId(SHEETS.LIBRARY);
     const today = Utilities.formatDate(
       new Date(),
       Session.getScriptTimeZone(),
       'yyyy-MM-dd'
     );
 
-    sheet.appendRow([
-      newId,
-      titleId,
-      boxId,
-      volume,
-      today
-    ]);
+    parsedVolume.values.forEach(value => {
+      lastId = lastId || null;
+      const newId = generateNextId('L', lastId);
+      lastId = newId;
 
-    return success(`${titleId} 巻:${volume} を追加しました（${newId}）`);
+      sheet.appendRow([
+        newId,
+        normalizedTitleId,
+        boxId,
+        String(value),
+        today
+      ]);
+    });
+
+    return success(`${normalizedTitleId} に巻 ${parsedVolume.text} を追加しました（${parsedVolume.values.length}件）`);
 
   } catch(e){
 
