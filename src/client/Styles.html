@@ -265,8 +265,8 @@
   }
 
   .recent-history-panel {
-    width: 640px;
-    flex: 0 0 640px;
+    width: min(640px, 34vw);
+    flex: 0 0 min(640px, 34vw);
     background: rgba(15, 23, 42, 0.9);
     border: 2px solid #67e8f9;
     border-radius: 10px;
@@ -443,7 +443,11 @@
     .app-layout { flex-direction: column; }
     .left-panel-column { width: 100%; }
     .top-summary-panel { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
-    .recent-history-panel { width: 100%; flex-basis: auto; }
+    .recent-history-panel {
+      width: min(100%, 35vw);
+      flex-basis: auto;
+      align-self: stretch;
+    }
     .content-area { flex-direction: column; }
     .master-toolbar { flex-direction: column; align-items: stretch; }
     .master-toolbar button { width: 100%; }
