@@ -7,33 +7,49 @@ function showBox() {
   const id = getAutocompleteValue('boxViewSelectInput') || document.getElementById('boxViewSelect').value;
   if(!id) return showError('Boxを選択してください');
 
-  callGAS('getBoxDetail', function(data){
-    renderTableReadOnly('boxTable', data, ['name','volume']);
-  }, id);
+  showInlineLoading('BoxView', '検索中...');
+
+  google.script.run
+    .withSuccessHandler(function(data){
+      hideInlineLoading('BoxView');
+      renderTableReadOnly('boxTable', data, ['name','volume']);
+    })
+    .withFailureHandler(function(error){
+      hideInlineLoading('BoxView');
+      showError(error && error.message ? error.message : '検索に失敗しました');
+    })
+    .getBoxDetail(id);
 }
 
 function loadBoxList(page = 1){
   const pageSize = 20;
-  callGAS('getBoxMaster', function(data){
-    const rows = (data || []).map(item => ({
-      id: item.id,
-      place: item.place
-    }));
+  google.script.run
+    .withSuccessHandler(function(data){
+      hideInlineLoading('BoxListView');
+      const rows = (data || []).map(item => ({
+        id: item.id,
+        place: item.place
+      }));
 
-    const start = (page - 1) * pageSize;
-    const pageRows = rows.slice(start, start + pageSize);
+      const start = (page - 1) * pageSize;
+      const pageRows = rows.slice(start, start + pageSize);
 
-    renderPagedTableDOM({
-      tableId: 'boxListTable',
-      data: pageRows,
-      columns: ['id', 'place'],
-      currentPage: page,
-      pageSize: pageSize,
-      totalRows: rows.length,
-      editable: false,
-      onPageChange: loadBoxList
-    });
-  });
+      renderPagedTableDOM({
+        tableId: 'boxListTable',
+        data: pageRows,
+        columns: ['id', 'place'],
+        currentPage: page,
+        pageSize: pageSize,
+        totalRows: rows.length,
+        editable: false,
+        onPageChange: loadBoxList
+      });
+    })
+    .withFailureHandler(function(error){
+      hideInlineLoading('BoxListView');
+      showError(error && error.message ? error.message : '箱一覧の読み込みに失敗しました');
+    })
+    .getBoxMaster();
 }
 
 //////////////////////////////

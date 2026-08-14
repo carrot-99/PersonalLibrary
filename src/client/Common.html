@@ -73,10 +73,10 @@ function showTab(tabId){
     BoxMasterView: loadBoxMaster,
     SeriesMasterView: loadSeriesMaster,
     TitleMasterView: loadTitleMaster,
-    SeriesListView: loadSeriesList,
-    TitleListView: loadTitleList,
-    BoxListView: loadBoxList,
-    LibraryListView: loadLibraryList
+    SeriesListView: function(){ showInlineLoading('SeriesListView', '読み込み中...'); loadSeriesList(1); },
+    TitleListView: function(){ showInlineLoading('TitleListView', '読み込み中...'); loadTitleList(1); },
+    BoxListView: function(){ showInlineLoading('BoxListView', '読み込み中...'); loadBoxList(1); },
+    LibraryListView: function(){ showInlineLoading('LibraryListView', '読み込み中...'); loadLibraryList(1); }
   };
 
   if(loaders[tabId]) loaders[tabId]();
@@ -118,6 +118,39 @@ function showError(message){
   if(messageTimeout) clearTimeout(messageTimeout);
   messageTimeout = setTimeout(clearGlobalMessage, 6000);
 }
+
+function showInlineLoading(containerId, message = '検索中...'){
+  const container = document.getElementById(containerId);
+  if(!container) return null;
+
+  let loader = container.querySelector('.inline-loading');
+  if(!loader){
+    loader = document.createElement('div');
+    loader.className = 'inline-loading';
+    loader.innerHTML = `
+      <span class="inline-spinner"></span>
+      <span class="inline-loading-text">${message}</span>
+    `;
+    container.appendChild(loader);
+  } else {
+    const text = loader.querySelector('.inline-loading-text');
+    if(text) text.textContent = message;
+    loader.style.display = 'inline-flex';
+  }
+
+  return loader;
+}
+
+function hideInlineLoading(containerId){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+
+  const loader = container.querySelector('.inline-loading');
+  if(loader) loader.remove();
+}
+
+window.showInlineLoading = showInlineLoading;
+window.hideInlineLoading = hideInlineLoading;
 
 //////////////////////////////
 // テーブル描画共通（編集あり）

@@ -111,26 +111,41 @@ function loadLibraryMaster(page = 1){
 
 function loadLibraryList(page = 1){
   const pageSize = 20;
-  callGAS('getLibraryPage', function(res){
-    const rows = (res.items || []).map(item => ({
-      id: item.id,
-      title: item.title,
-      volume: item.volume,
-      box: item.box,
-      date: item.date
-    }));
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideInlineLoading('LibraryListView');
+      const rows = (res.items || []).map(item => ({
+        id: item.id,
+        title: item.title,
+        volume: item.volume,
+        box: item.box,
+        date: item.date
+      }));
 
-    renderPagedTableDOM({
-      tableId: 'libraryListTable',
-      data: rows,
-      columns: ['id', 'title', 'volume', 'box', 'date'],
-      currentPage: page,
-      pageSize: pageSize,
-      totalRows: res.total || rows.length,
-      editable: false,
-      onPageChange: loadLibraryList
-    });
-  }, page, pageSize);
+      renderPagedTableDOM({
+        tableId: 'libraryListTable',
+        data: rows,
+        columns: ['id', 'title', 'volume', 'box', 'date'],
+        currentPage: page,
+        pageSize: pageSize,
+        totalRows: res.total || rows.length,
+        editable: false,
+        onPageChange: loadLibraryList
+      });
+    })
+    .withFailureHandler(function(error){
+      hideInlineLoading('LibraryListView');
+      showError(error && error.message ? error.message : '書籍一覧の読み込みに失敗しました');
+    })
+    .getLibraryPage(page, pageSize);
 }
+
+window.addVolume = addVolume;
+window.loadRecentLibrary = loadRecentLibrary;
+window.loadLibrarySummary = loadLibrarySummary;
+window.updateLibrarySummary = updateLibrarySummary;
+window.loadLibraryEntry = loadLibraryEntry;
+window.loadLibraryMaster = loadLibraryMaster;
+window.loadLibraryList = loadLibraryList;
 
 </script>

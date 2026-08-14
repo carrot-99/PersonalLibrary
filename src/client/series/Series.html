@@ -7,33 +7,49 @@ function showSeries(){
   const id = getAutocompleteValue('seriesSelectInput') || document.getElementById('seriesSelect').value;
   if(!id) return showError('シリーズを選択してください');
 
-  callGAS('getSeriesDetail', function(data){
-    renderTableReadOnly('seriesTable', data, ['name','count']);
-  }, id);
+  showInlineLoading('SeriesView', '検索中...');
+
+  google.script.run
+    .withSuccessHandler(function(data){
+      hideInlineLoading('SeriesView');
+      renderTableReadOnly('seriesTable', data, ['name','count']);
+    })
+    .withFailureHandler(function(error){
+      hideInlineLoading('SeriesView');
+      showError(error && error.message ? error.message : '検索に失敗しました');
+    })
+    .getSeriesDetail(id);
 }
 
 function loadSeriesList(page = 1){
   const pageSize = 20;
-  callGAS('getSeriesMaster', function(data){
-    const rows = (data || []).map(item => ({
-      id: item.id,
-      name: item.name
-    }));
+  google.script.run
+    .withSuccessHandler(function(data){
+      hideInlineLoading('SeriesListView');
+      const rows = (data || []).map(item => ({
+        id: item.id,
+        name: item.name
+      }));
 
-    const start = (page - 1) * pageSize;
-    const pageRows = rows.slice(start, start + pageSize);
+      const start = (page - 1) * pageSize;
+      const pageRows = rows.slice(start, start + pageSize);
 
-    renderPagedTableDOM({
-      tableId: 'seriesListTable',
-      data: pageRows,
-      columns: ['id', 'name'],
-      currentPage: page,
-      pageSize: pageSize,
-      totalRows: rows.length,
-      editable: false,
-      onPageChange: loadSeriesList
-    });
-  });
+      renderPagedTableDOM({
+        tableId: 'seriesListTable',
+        data: pageRows,
+        columns: ['id', 'name'],
+        currentPage: page,
+        pageSize: pageSize,
+        totalRows: rows.length,
+        editable: false,
+        onPageChange: loadSeriesList
+      });
+    })
+    .withFailureHandler(function(error){
+      hideInlineLoading('SeriesListView');
+      showError(error && error.message ? error.message : 'シリーズ一覧の読み込みに失敗しました');
+    })
+    .getSeriesMaster();
 }
 
 //////////////////////////////
