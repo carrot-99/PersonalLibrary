@@ -9,7 +9,10 @@
 // ----------------------
 function addNewVolumeWeb(titleId, volume, boxId){
 
-  if(!titleId || !volume || !boxId){
+  const normalizedTitleId = String(titleId || '').trim();
+  const normalizedVolume = String(volume || '').trim();
+
+  if(!normalizedTitleId || !normalizedVolume || !boxId){
     return failure('入力が不完全です');
   }
 
@@ -20,8 +23,8 @@ function addNewVolumeWeb(titleId, volume, boxId){
 
     // 重複チェック
     if(data.some(row =>
-      String(row[1]) === String(titleId) &&
-      String(row[3]) === String(volume)
+      String(row[1]).trim() === normalizedTitleId &&
+      String(row[3]).trim() === normalizedVolume
     )){
       return failure('同じ作品・巻が既に登録されています');
     }
@@ -81,6 +84,93 @@ function getRecentLibrary(){
     )
 
   }));
+}
+
+// ----------------------
+// バルク追加（複数行）
+// entries: [{titleId, volume, boxId}, ...]
+// 戻り値: { added: number, errors: [{line, message}], messages: [] }
+// ----------------------
+function addBulkVolumesWeb(entries){
+
+  if(!Array.isArray(entries) || entries.length === 0){
+    return failure('入力データが不正です');
+  }
+
+  const sheet = getSheet(SHEETS.LIBRARY);
+  const data  = getData(SHEETS.LIBRARY);
+  const titles = getData(SHEETS.TITLE).map(r => r[0]);
+  const boxes  = getData(SHEETS.BOX).map(r => r[0]);
+
+  const errors = [];
+  let added = 0;
+  let lastId = getLastId(SHEETS.LIBRARY);
+
+  try{
+    entries.forEach((e, idx) => {
+      const line = idx + 1;
+      const titleId = String(e.titleId || '').trim();
+      const volume = String(e.volume || '').trim();
+      const boxId = e.boxId;
+
+      if(!titleId || !volume || !boxId){
+        errors.push({ line, message: '入力が不完全です' });
+        return;
+      }
+
+      // 簡易チェック: title/box の存在
+      if(titles.indexOf(titleId) === -1){
+        errors.push({ line, message: `作品ID ${titleId} が存在しません` });
+        return;
+      }
+      if(boxes.indexOf(boxId) === -1){
+        errors.push({ line, message: `BoxID ${boxId} が存在しません` });
+        return;
+      }
+
+      // 重複チェック
+      if(data.some(row =>
+        String(row[1]).trim() === titleId &&
+        String(row[3]).trim() === volume
+      )){
+        errors.push({ line, message: `重複: ${titleId} 巻${volume}` });
+        return;
+      }
+
+      // 新規ID生成
+      lastId = lastId || null;
+      const newId = generateNextId('L', lastId);
+      lastId = newId;
+
+      const today = Utilities.formatDate(
+        new Date(),
+        Session.getScriptTimeZone(),
+        'yyyy-MM-dd'
+      );
+
+      sheet.appendRow([
+        newId,
+        titleId,
+        boxId,
+        volume,
+        today
+      ]);
+
+      // 追従データにも追加して重複チェックに反映
+      data.push([newId, titleId, boxId, volume, today]);
+      added++;
+    });
+
+    const messages = [];
+    if(added > 0) messages.push(`${added} 件を追加しました`);
+    if(errors.length > 0) messages.push(`${errors.length} 件は登録されませんでした`);
+
+    return { success: true, added, errors, messages };
+
+  } catch(e){
+    return failure(e.message);
+  }
+
 }
 
 function getLibraryPage(page, pageSize) {

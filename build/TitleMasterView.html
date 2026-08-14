@@ -14,7 +14,9 @@
 
     <input type="text" id="newTitleName" placeholder="作品名">
 
-    <select id="newTitleSeries"></select>
+    <input id="newTitleSeriesInput" list="newTitleSeriesList" placeholder="シリーズを入力">
+    <datalist id="newTitleSeriesList"></datalist>
+    <select id="newTitleSeries" style="display:none;"></select>
 
     <select id="newTitleType">
       <option value="漫画">漫画</option>
@@ -37,7 +39,7 @@
   </div>
 
   <!-- 一覧テーブル -->
-  <table class="table table-striped" id="titleMasterTable">
+  <table class="table table-striped" id="titleMasterTable" style="display:none;">
     <thead>
       <tr>
         <th>TitleID</th>

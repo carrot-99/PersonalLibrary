@@ -2,7 +2,9 @@
 <div id="SeriesView" class="view">
   <h3>シリーズ表示</h3>
   <label>シリーズ
-    <select id="seriesSelect"></select>
+    <input id="seriesSelectInput" list="seriesSelectList" placeholder="シリーズ名を入力">
+    <datalist id="seriesSelectList"></datalist>
+    <select id="seriesSelect" style="display:none;"></select>
   </label>
   <button onclick="showSeries()">表示</button>
   <table id="seriesTable">

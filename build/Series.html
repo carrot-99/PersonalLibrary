@@ -4,21 +4,49 @@
 // シリーズ一覧
 //////////////////////////////
 function showSeries(){
-
-  const id = document.getElementById('seriesSelect').value;
-  if(!id) return alert('シリーズを選択してください');
+  const id = getAutocompleteValue('seriesSelectInput') || document.getElementById('seriesSelect').value;
+  if(!id) return showError('シリーズを選択してください');
 
   callGAS('getSeriesDetail', function(data){
     renderTableReadOnly('seriesTable', data, ['name','count']);
   }, id);
 }
 
+function loadSeriesList(page = 1){
+  const pageSize = 20;
+  callGAS('getSeriesMaster', function(data){
+    const rows = (data || []).map(item => ({
+      id: item.id,
+      name: item.name
+    }));
+
+    const start = (page - 1) * pageSize;
+    const pageRows = rows.slice(start, start + pageSize);
+
+    renderPagedTableDOM({
+      tableId: 'seriesListTable',
+      data: pageRows,
+      columns: ['id', 'name'],
+      currentPage: page,
+      pageSize: pageSize,
+      totalRows: rows.length,
+      editable: false,
+      onPageChange: loadSeriesList
+    });
+  });
+}
+
 //////////////////////////////
 // Master表示
 //////////////////////////////
 function loadSeriesMaster(){
+  document.getElementById('seriesMasterTable').style.display = 'none';
   callGAS('getSeriesMaster', function(data){
-    renderTable('seriesMasterTable', data, ['id','name']);
+    masterCache.series = data;
+    const keyword = document.getElementById('seriesSearchKeyword').value.trim();
+    if(keyword){
+      filterSeries();
+    }
   });
 }
 
@@ -46,6 +74,7 @@ function addSeriesMaster(){
 // 検索
 //////////////////////////////
 function filterSeries(){
-  filterMaster('seriesMasterTableBody','seriesSearchKeyword');
+  const data = masterCache.series || [];
+  renderFilteredTable('seriesMasterTable', data, ['id','name'], 'seriesSearchKeyword');
 }
 </script>

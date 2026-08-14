@@ -7,9 +7,9 @@ let currentLibraryPage = 1;
 // 新刊追加処理
 //////////////////////////////
 function addVolume() {
-  const titleId = document.getElementById('titleSelect').value;
+  const titleId = getAutocompleteValue('titleSelectInput') || document.getElementById('titleSelect').value;
   const volume  = document.getElementById('volumeInput').value.trim();
-  const boxId   = document.getElementById('boxSelect').value;
+  const boxId   = getAutocompleteValue('boxSelectInput') || document.getElementById('boxSelect').value;
 
   if(!titleId || !volume || !boxId) return showError('入力が不完全です');
 
@@ -17,7 +17,8 @@ function addVolume() {
     if(res.success){
       showSuccess(res.message);
       document.getElementById('volumeInput').value = '';
-      loadRecentLibrary();
+      loadRecentLibrary('recentLibraryTableEntry');
+      loadLibrarySummary('libraryEntry');
       loadLibraryMaster(currentLibraryPage);
     } else {
       showError(res.message);
@@ -28,17 +29,44 @@ function addVolume() {
 //////////////////////////////
 // 最近追加ライブラリ読み込み
 //////////////////////////////
-function loadRecentLibrary() {
+function loadRecentLibrary(tableId = 'recentLibraryTable') {
   callGAS('getRecentLibrary', function(data){
-    renderRecentLibrary(data);
+    renderRecentLibrary(data, tableId);
   });
+}
+
+function loadLibrarySummary(prefix = 'library') {
+  callGAS('getLibrarySummary', function(summary){
+    updateLibrarySummary(summary, prefix);
+  });
+}
+
+function updateLibrarySummary(summary, prefix) {
+  const idMap = {
+    total: `${prefix}Total`,
+    uniqueTitles: `${prefix}Unique`,
+    uniqueBoxes: `${prefix}Boxes`,
+    lastAdded: `${prefix}LastAdded`
+  };
+
+  Object.keys(idMap).forEach(key => {
+    const el = document.getElementById(idMap[key]);
+    if(el){
+      el.textContent = summary[key] || (key === 'lastAdded' ? '-' : '0');
+    }
+  });
+}
+
+function loadLibraryEntry(){
+  loadRecentLibrary('recentLibraryTableEntry');
+  loadLibrarySummary('libraryEntry');
 }
 
 //////////////////////////////
 // 最近追加テーブル描画
 //////////////////////////////
-function renderRecentLibrary(data) {
-  const tbody = document.getElementById('recentLibraryTable').querySelector('tbody');
+function renderRecentLibrary(data, tableId = 'recentLibraryTable') {
+  const tbody = document.getElementById(tableId).querySelector('tbody');
   tbody.innerHTML = '';
 
   data.forEach(row => {
@@ -59,7 +87,11 @@ function renderRecentLibrary(data) {
 //////////////////////////////
 function loadLibraryMaster(page = 1){
   currentLibraryPage = page;
+  const table = document.getElementById('libraryMasterTable');
+  if(table) table.style.display = 'none';
+
   loadRecentLibrary();
+  loadLibrarySummary('libraryMaster');
 
   callGAS('getLibraryPage', function(res){
 
@@ -75,6 +107,30 @@ function loadLibraryMaster(page = 1){
     });
 
   }, page, PAGE_SIZE);
+}
+
+function loadLibraryList(page = 1){
+  const pageSize = 20;
+  callGAS('getLibraryPage', function(res){
+    const rows = (res.items || []).map(item => ({
+      id: item.id,
+      title: item.title,
+      volume: item.volume,
+      box: item.box,
+      date: item.date
+    }));
+
+    renderPagedTableDOM({
+      tableId: 'libraryListTable',
+      data: rows,
+      columns: ['id', 'title', 'volume', 'box', 'date'],
+      currentPage: page,
+      pageSize: pageSize,
+      totalRows: res.total || rows.length,
+      editable: false,
+      onPageChange: loadLibraryList
+    });
+  }, page, pageSize);
 }
 
 </script>

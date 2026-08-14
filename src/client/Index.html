@@ -7,22 +7,36 @@
     <?!= include('Styles') ?>
   </head>
   <body onload="initApp()">
-    <h2 style="display:flex; align-items:center;">
-      漫画ライブラリ管理
-      <span id="globalMessage" style="margin-left:20px; color:green;"></span>
-      <span id="globalError" style="margin-left:20px; color:red;"></span>
-    </h2>
+    <div class="app-shell">
+      <button id="menuToggle" class="menu-toggle" aria-label="メニューを開く" onclick="toggleSidebar()">
+        ☰
+      </button>
 
-    <?!= include('Navbar') ?>
+      <aside id="sideMenu" class="side-menu">
+        <?!= include('Navbar') ?>
+      </aside>
 
-    <div id="tabContent">
-      <?!= include('SeriesView') ?>
-      <?!= include('TitleView') ?>
-      <?!= include('BoxView') ?>
-      <?!= include('LibraryMasterView') ?>
-      <?!= include('SeriesMasterView') ?>
-      <?!= include('TitleMasterView') ?>
-      <?!= include('BoxMasterView') ?>
+      <main class="main-content">
+        <div class="page-header">
+          <h2>漫画ライブラリ管理</h2>
+          <div id="globalNotification" class="notification" aria-live="polite"></div>
+        </div>
+
+            <div id="tabContent">
+          <?!= include('SeriesView') ?>
+          <?!= include('TitleView') ?>
+          <?!= include('BoxView') ?>
+          <?!= include('SeriesListView') ?>
+          <?!= include('TitleListView') ?>
+          <?!= include('BoxListView') ?>
+          <?!= include('LibraryListView') ?>
+          <?!= include('LibraryEntryView') ?>
+          <?!= include('LibraryMasterView') ?>
+          <?!= include('SeriesMasterView') ?>
+          <?!= include('TitleMasterView') ?>
+          <?!= include('BoxMasterView') ?>
+        </div>
+      </main>
     </div>
 
     <?!= include('Common') ?>
@@ -30,6 +44,5 @@
     <?!= include('Series') ?>
     <?!= include('Title') ?>
     <?!= include('Box') ?>
-
   </body>
 </html>

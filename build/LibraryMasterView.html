@@ -3,38 +3,36 @@
   <h3>書籍マスタ管理</h3>
 
   <!-- ツールバー -->
-  <div class="master-toolbar" style="margin-bottom:10px;">
-    <button onclick="toggleAddForm('libraryAddForm')">追加</button>
-    <button onclick="loadRecentLibrary()">読込</button>
-  </div>
-
-  <!-- 追加フォーム（最初は非表示） -->
-  <div id="libraryAddForm" class="master-form" style="display:none;">
-    <select id="titleSelect"></select>
-
-    <input type="text" id="volumeInput" placeholder="巻数を入力">
-
-    <select id="boxSelect"></select>
-
-    <div>
-      <button onclick="addVolume()">追加</button>
+  <div class="master-toolbar" style="margin-bottom:10px; align-items: center; display: flex; flex-wrap: wrap; gap: 10px;">
+    <button onclick="showTab('LibraryEntryView')">登録画面へ</button>
+    <div class="search-field">
+      <input id="librarySearchInput" type="text" placeholder="テーブルを検索..." oninput="filterMaster('libraryMasterTable','librarySearchInput')">
     </div>
   </div>
 
+  <div class="summary-panel" id="libraryMasterSummary">
+    <div class="summary-item">所蔵冊数: <strong id="libraryMasterTotal">0</strong></div>
+    <div class="summary-item">登録作品数: <strong id="libraryMasterUnique">0</strong></div>
+    <div class="summary-item">登録Box数: <strong id="libraryMasterBoxes">0</strong></div>
+    <div class="summary-item">最新登録: <strong id="libraryMasterLastAdded">-</strong></div>
+  </div>
+
   <!-- 全件表示テーブル -->
-  <table class="table table-striped" id="libraryMasterTable">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>作品名</th>
-        <th>巻数</th>
-        <th>Box</th>
-        <th>追加日</th>
-        <th>操作</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="table-responsive">
+    <table class="table table-striped" id="libraryMasterTable" style="display:none;">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>作品名</th>
+          <th>巻数</th>
+          <th>Box</th>
+          <th>追加日</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
   <!-- 最近追加履歴 -->
   <h4>最近追加した漫画（最大5件）</h4>

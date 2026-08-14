@@ -265,18 +265,35 @@ src/
 - ボタン: `表示`
 - 使用 API: `getBoxDetail(boxId)`
 
-### 8.4 LibraryMasterView
+### 8.4 LibraryEntryView
 
-- 新刊追加フォーム
+- 専用の購入登録タブ
+- クイック登録フォーム
   - `titleSelect`
   - `volumeInput`
   - `boxSelect`
-  - `追加` ボタン
-- 最新 5 件の追加履歴表示
-- ライブラリ全件表示テーブル (`libraryMasterTable`) とページング
-- 使用 API: `getLibraryPage(page, pageSize)` / `getRecentLibrary()` / `addNewVolumeWeb(...)`
+  - `登録する` ボタン
+- 登録直後に最新登録履歴を `recentLibraryTableEntry` で表示
+- サマリーパネル
+  - 所蔵冊数
+  - 登録作品数
+  - 登録Box数
+  - 最新登録日
+- 使用 API: `getLibrarySummary()` / `getRecentLibrary()` / `addNewVolumeWeb(...)`
 
-### 8.5 SeriesMasterView
+### 8.5 LibraryMasterView
+
+- マスタ管理用一覧表示
+- 即時検索フィールド: `librarySearchInput`
+- サマリーパネル
+  - 所蔵冊数
+  - 登録作品数
+  - 登録Box数
+  - 最新登録日
+- ライブラリ全件表示テーブル (`libraryMasterTable`) とページング
+- 使用 API: `getLibraryPage(page, pageSize)` / `getLibrarySummary()`
+
+### 8.6 SeriesMasterView
 
 - 追加フォーム: `newSeriesName`
 - 検索フォーム: `seriesSearchKeyword`
@@ -310,6 +327,8 @@ src/
 - `M_Title` の 6 列目は `0` 固定の予備列で、現在は用途がありません。
 
 - `Common.html` の HTML 構造は `<html><head><base>` のみで、実質的に JavaScript の埋め込み用テンプレートとして利用されています。
+- 各管理画面の一覧を画面下部に表示する設計は、即時更新や専用登録タブがあれば不要になる可能性がある。
+- まとめて追加できるバルク登録機能は、次フェーズの優先度が高い改善候補。
 
 ## 10. 重要ファイル一覧
 
@@ -336,6 +355,38 @@ src/
 - `getTitles` / `getBoxes` の整合性を確認し、不要なら削除
 - SPREADSHEET シートスキーマを README などにも明記
 - ページ遷移/タブ管理の初期状態を明示的に制御
+
+## 12. フェーズ1: モバイル優先 UX とクイック追加
+
+### 12.1 目的
+
+- スマホからの素早い書籍登録を実現する
+- 日常的な購入登録とマスタ管理を分離し、操作を直感的にする
+- 内部通知・エラーを統一して画面内でわかりやすくする
+
+### 12.2 取り組み内容
+
+- `Index.html` の通知 UI を `globalNotification` に統一
+- `Styles.html` をモバイル優先に調整し、タブやフォームをタッチフレンドリーに
+- `LibraryMasterView` の追加フォームをより明確にし、ラベル付き入力を追加
+- `Common.html` のメッセージ表示を自動消去付きに変更
+- `alert()` をすべて `showError()` に置き換え
+- `select` のプレースホルダーを導入し、選択のわかりやすさを向上
+
+### 12.3 今後の優先タスク
+
+1. 購入登録専用の簡易タブ/画面を作成する
+2. 検索フィルタを即時反映に改善する
+3. バルク登録の要件整理と UI 設計を行う
+
+## 13. フェーズ2: 登録専用タブと即時検索強化
+
+- `LibraryEntryView` を追加し、購入登録と管理一覧を明確に分離する。
+- `LibraryMasterView` には即時検索入力を追加し、一覧絞り込みをテーブル内で行えるようにする。
+- サマリーを一覧パネルまで拡張し、所蔵冊数 / 登録作品数 / 登録Box数 / 最新登録日を常時確認できるようにする。
+- まとめて追加機能はこのフェーズの次段階で検討する。
+3. Box/シリーズのサマリー表示を追加する
+4. 画面遷移と表示切り替えを整理し、タブの初期表示を明確にする
 
 ---
 

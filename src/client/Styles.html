@@ -1,11 +1,101 @@
 <!-- Styles.html -->
 <style>
-  body{font-family:sans-serif;margin:20px;}
+  body{font-family:sans-serif;margin:0;background:#f3f4f6;}
   label{display:block;margin-top:10px;}
-  select,input{width:100%;padding:6px;margin-top:4px;}
-  button{margin-top:15px;padding:8px 12px;font-size:16px;}
-  #message{margin-top:15px;color:green;}
-  #error{margin-top:15px;color:red;}
+  select,input{width:100%;padding:10px;margin-top:6px;border:1px solid #ccc;border-radius:6px;}
+  button{margin-top:15px;padding:10px 16px;font-size:16px;border:none;border-radius:8px;cursor:pointer;}
+  button:disabled{opacity:0.6;cursor:not-allowed;}
+  .app-shell {
+    display: flex;
+    min-height: 100vh;
+  }
+  .menu-toggle {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 1100;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    border-radius: 10px;
+    background: #111827;
+    color: white;
+    font-size: 24px;
+    line-height: 1;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  .side-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 64px 12px 20px;
+    background: #ffffff;
+    border-right: 1px solid #e5e7eb;
+    box-shadow: 4px 0 16px rgba(0,0,0,0.08);
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+    z-index: 1000;
+  }
+  .side-menu.open {
+    transform: translateX(0);
+  }
+  .main-content {
+    flex: 1;
+    margin-left: 0;
+    padding: 24px 20px 20px 72px;
+  }
+  .edit-action,
+  .autocomplete-item {
+    background: #2e7d32;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 0;
+  }
+  .edit-action:hover,
+  .autocomplete-item:hover {
+    background: #1b5e20;
+  }
+  .autocomplete-suggestions {
+    display: none;
+    margin-top: 4px;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    z-index: 50;
+  }
+  .autocomplete-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 0;
+    background: #fff;
+    color: #1f2937;
+    border-bottom: 1px solid #eef2f7;
+  }
+  .autocomplete-item:hover {
+    background: #f3f4f6;
+    color: #111827;
+  }
+  .autocomplete-empty {
+    padding: 10px 12px;
+    color: #6b7280;
+    background: #f9fafb;
+    font-size: 0.95rem;
+  }
+  .notification{margin-top:15px;padding:12px 14px;border-radius:8px;display:none;font-weight:600;}
+  .notification.success{background:#e8f5e9;color:#256029;border:1px solid #c8e6c9;display:block;}
+  .notification.error{background:#ffebee;color:#b71c1c;border:1px solid #ffcdd2;display:block;}
 
   nav{margin-bottom:15px;}
   nav button{
@@ -17,64 +107,169 @@
     vertical-align:middle; /* 縦位置を中央に */
   }
   .tab-group {
-    margin-bottom: 20px;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #f8fafc;
   }
 
+  .search-group { background: #eef6ff; border-color: #cfe2ff; }
+  .list-group { background: #eefaf3; border-color: #cfeadf; }
+  .master-group { background: #fff7e9; border-color: #f9ddb5; }
+  .entry-group { background: #f5f0ff; border-color: #ddd1ff; }
+
   .tab-title {
-    font-weight: bold;
-    margin-bottom: 6px;
-    font-size: 14px;
-    color: #555;
+    font-weight: 700;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #4b5563;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
   .tabs {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-direction: column;
+    gap: 6px;
   }
 
   .tabs button {
-    flex: 1 1 auto;
-    padding: 10px 14px;
+    width: 100%;
+    padding: 10px 12px;
     border: none;
-    border-radius: 8px;
-    background: #1976d2;
+    border-radius: 10px;
     color: white;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
+    line-height: 1.2;
     transition: 0.2s;
+    text-align: left;
+    margin-top: 0;
   }
 
-  .tabs button:hover {
-    background: #125ea8;
+  .page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
   }
 
-  /* 管理系は少し色を変える */
-  .admin-tabs button {
-    background: #6c757d;
+  .page-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
   }
 
-  .admin-tabs button:hover {
-    background: #545b62;
+  .master-form {
+    margin-bottom: 16px;
+    padding: 14px;
+    background: #fafafa;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   }
+
+  .summary-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+    padding: 12px;
+    background: #ffffff;
+    border: 1px solid #dde2e6;
+    border-radius: 10px;
+  }
+
+  .summary-item {
+    font-size: 0.95rem;
+    color: #333;
+  }
+
+  .summary-item strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 1.1rem;
+    color: #111;
+  }
+
+  .master-form input,
+  .master-form select {
+    width: 100%;
+    margin-bottom: 12px;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 10px;
+    min-width: 320px;
+  }
+
+  th, td {
+    border: 1px solid #ccc;
+    padding: 10px;
+    text-align: left;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+  }
+
+  @media (max-width: 720px) {
+    .main-content { padding: 20px 12px 20px 56px; }
+    .page-header { flex-direction: column; align-items: flex-start; }
+    .master-toolbar { flex-direction: column; align-items: stretch; }
+    .master-toolbar button { width: 100%; }
+    .master-form { padding: 12px; }
+    th, td { padding: 8px; }
+  }
+
+  .search-tabs button { background: #2563eb; }
+  .search-tabs button:hover { background: #1d4ed8; }
+
+  .list-tabs button { background: #16a34a; }
+  .list-tabs button:hover { background: #15803d; }
+
+  .master-tabs button { background: #f59e0b; }
+  .master-tabs button:hover { background: #d97706; }
+
+  .entry-tabs button { background: #7c3aed; }
+  .entry-tabs button:hover { background: #6d28d9; }
 
   .tabs button.active {
-    background: #0d47a1 !important;
+    filter: brightness(0.96);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25);
   }
 
   .master-toolbar {
     display: flex;
     gap: 8px;
     margin-bottom: 10px;
+    flex-wrap: wrap;
+    align-items: center;
   }
 
   .master-toolbar button {
-    padding: 8px 14px;
-    border-radius: 6px;
+    padding: 12px 16px;
+    border-radius: 8px;
     border: none;
     background: #1976d2;
     color: white;
     cursor: pointer;
+    min-width: 120px;
+  }
+
+  .search-field {
+    flex: 1 1 auto;
+    min-width: 200px;
+  }
+
+  .search-field input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
   }
 
   .master-form {
@@ -86,6 +281,7 @@
 
   /* view はそのまま */
   .view{display:none;margin-top:10px;}
+  #LibraryEntryView{display:block;}
   table{border-collapse:collapse;width:100%;margin-top:10px;}
   th,td{border:1px solid #ccc;padding:4px;text-align:left;}
 </style>
