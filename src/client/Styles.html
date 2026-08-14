@@ -178,12 +178,99 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
   }
 
   .page-header h2 {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1.3rem;
+  }
+
+  .top-summary-panel {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(90px, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 10px 10px;
+    background: #ffffff;
+    border: 1px solid #dde2e6;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    width: min(760px, 100%);
+  }
+
+  .summary-item.compact {
+    font-size: 0.8rem;
+    color: #374151;
+    padding: 2px 4px;
+  }
+
+  .summary-item.compact strong {
+    display: block;
+    margin-top: 2px;
+    font-size: 1rem;
+    color: #111827;
+  }
+
+  .content-area {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    margin-top: 0;
+  }
+
+  #tabContent {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .recent-history-panel {
+    width: 520px;
+    flex: 0 0 520px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    margin-top: 0;
+    align-self: flex-start;
+  }
+
+  .recent-history-panel h4 {
+    margin: 0 0 8px;
+    font-size: 1rem;
+  }
+
+  .recent-history-panel table {
+    margin-top: 0;
+    font-size: 0.78rem;
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .recent-history-panel th,
+  .recent-history-panel td {
+    padding: 6px 5px;
+    font-size: 0.78rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: top;
+  }
+
+  .recent-history-panel td:nth-child(2),
+  .recent-history-panel th:nth-child(2) {
+    width: 38%;
+  }
+
+  .recent-history-panel td:nth-child(3),
+  .recent-history-panel th:nth-child(3) {
+    width: 18%;
+  }
+
+  .recent-history-panel td:nth-child(4),
+  .recent-history-panel th:nth-child(4) {
+    width: 22%;
   }
 
   .master-form {
@@ -243,6 +330,9 @@
   @media (max-width: 720px) {
     .main-content { padding: 20px 12px 20px 56px; }
     .page-header { flex-direction: column; align-items: flex-start; }
+    .top-summary-panel { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+    .content-area { flex-direction: column; }
+    .recent-history-panel { width: 100%; flex-basis: auto; }
     .master-toolbar { flex-direction: column; align-items: stretch; }
     .master-toolbar button { width: 100%; }
     .master-form { padding: 12px; }

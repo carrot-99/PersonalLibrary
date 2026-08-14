@@ -237,6 +237,83 @@ function addBulkVolumesWeb(entries){
 
 }
 
+function getLibraryMaster() {
+  const sheet = getSheet(SHEETS.LIBRARY);
+  if (!sheet || sheet.getLastRow() < 2) {
+    return [];
+  }
+
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues();
+  const titles = getData(SHEETS.TITLE);
+  const boxes = getData(SHEETS.BOX);
+
+  const titleMap = new Map(titles.map(t => [t[0], t[1]]));
+  const boxMap = new Map(boxes.map(b => [b[0], b[1]]));
+
+  return data.map(r => ({
+    id: r[0],
+    title: titleMap.get(r[1]) || '',
+    box: boxMap.get(r[2]) || '',
+    volume: r[3],
+    date: Utilities.formatDate(r[4], Session.getScriptTimeZone(), 'yyyy/MM/dd')
+  }));
+}
+
+function updateLibraryMaster(id, values){
+  if(!id){
+    return failure('IDが指定されていません');
+  }
+
+  if(!values || values.length < 3){
+    return failure('更新値が不正です');
+  }
+
+  try{
+    const libraryRows = getData(SHEETS.LIBRARY);
+    const titleRows = getData(SHEETS.TITLE);
+    const boxRows = getData(SHEETS.BOX);
+
+    const titleMap = new Map(titleRows.map(row => [row[1], row[0]]));
+    const boxMap = new Map(boxRows.map(row => [row[1], row[0]]));
+
+    const newTitleId = titleMap.get(String(values[0]).trim()) || String(values[0]).trim();
+    const newBoxId = boxMap.get(String(values[2]).trim()) || String(values[2]).trim();
+    const newVolume = String(values[1]).trim();
+
+    if(!newTitleId || !newVolume || !newBoxId){
+      return failure('作品名・巻数・Boxは必須です');
+    }
+
+    const exists = libraryRows.some(row =>
+      String(row[0]) !== String(id) &&
+      String(row[1]).trim() === String(newTitleId) &&
+      String(row[3]).trim() === String(newVolume)
+    );
+
+    if(exists){
+      return failure('同じ作品・巻数のデータが既に存在します');
+    }
+
+    const updated = updateRowById(
+      SHEETS.LIBRARY,
+      id,
+      {
+        2: newBoxId,
+        4: newVolume
+      }
+    );
+
+    if(!updated){
+      return failure('該当データが見つかりません');
+    }
+
+    return success('更新成功しました');
+
+  } catch(e){
+    return failure(e.message);
+  }
+}
+
 function getLibraryPage(page, pageSize) {
   const sheet = getSheet(SHEETS.LIBRARY);
   if (!sheet || sheet.getLastRow() < 2) {

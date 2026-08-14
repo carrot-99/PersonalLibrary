@@ -138,17 +138,103 @@ function renderRecentLibrary(data, tableId = 'recentLibraryTable') {
 //////////////////////////////
 // 初期表示時に呼ぶ
 //////////////////////////////
-function loadLibraryMaster(page = 1){
-  currentLibraryPage = page;
-
+function loadLibraryMaster(){
   const table = document.getElementById('libraryMasterTable');
   if(table) table.style.display = 'none';
 
-  const pagination = document.getElementById('libraryMasterTable_pagination');
-  if(pagination) pagination.remove();
+  callGAS('getLibraryPage', function(res){
+    const items = (res.items || []).map(item => ({
+      id: item.id,
+      title: item.title,
+      volume: item.volume,
+      box: item.box,
+      date: item.date
+    }));
 
-  loadRecentLibrary();
-  loadLibrarySummary('libraryMaster');
+    masterCache.library = items;
+
+    const keyword = document.getElementById('librarySearchKeyword');
+    if(keyword && keyword.value.trim()){
+      filterLibrary();
+      return;
+    }
+
+    renderFilteredTable('libraryMasterTable', items, ['id', 'title', 'volume', 'box'], 'librarySearchKeyword');
+  }, 1, 99999);
+
+  callGAS('getTitleMaster', function(titles){
+    const input = document.getElementById('libraryAddTitleInput');
+    const list = document.getElementById('libraryAddTitleList');
+    if(!input || !list) return;
+    list.innerHTML = '';
+    titles.forEach(item => {
+      const option = document.createElement('option');
+      option.value = item.name;
+      option.dataset.value = String(item.id);
+      list.appendChild(option);
+    });
+    input.oninput = function(){
+      const keyword = input.value.trim().toLowerCase();
+      const match = Array.from(list.options).find(opt =>
+        opt.value.toLowerCase() === keyword || opt.value.toLowerCase().includes(keyword)
+      );
+      input.dataset.selectedId = match ? match.dataset.value : '';
+    };
+  });
+
+  callGAS('getBoxMaster', function(boxes){
+    const input = document.getElementById('libraryAddBoxInput');
+    const list = document.getElementById('libraryAddBoxList');
+    if(!input || !list) return;
+    list.innerHTML = '';
+    boxes.forEach(item => {
+      const option = document.createElement('option');
+      option.value = `${item.id} : ${item.place}`;
+      option.dataset.value = String(item.id);
+      list.appendChild(option);
+    });
+    input.oninput = function(){
+      const keyword = input.value.trim().toLowerCase();
+      const match = Array.from(list.options).find(opt =>
+        opt.value.toLowerCase() === keyword || opt.value.toLowerCase().includes(keyword)
+      );
+      input.dataset.selectedId = match ? match.dataset.value : '';
+    };
+  });
+}
+
+function addLibraryMaster(){
+  const titleId = document.getElementById('libraryAddTitleInput').dataset.selectedId ||
+    getAutocompleteValue('libraryAddTitleInput') ||
+    '';
+  const boxId = document.getElementById('libraryAddBoxInput').dataset.selectedId ||
+    getAutocompleteValue('libraryAddBoxInput') ||
+    '';
+  const volume = document.getElementById('libraryAddVolumeInput').value.trim();
+
+  if(!titleId || !boxId || !volume){
+    return showError('作品名・巻数・Boxは必須です');
+  }
+
+  callGAS('addNewVolumeWeb', function(res){
+    if(res.success){
+      showSuccess(res.message);
+      document.getElementById('libraryAddTitleInput').value = '';
+      document.getElementById('libraryAddTitleInput').dataset.selectedId = '';
+      document.getElementById('libraryAddVolumeInput').value = '';
+      document.getElementById('libraryAddBoxInput').value = '';
+      document.getElementById('libraryAddBoxInput').dataset.selectedId = '';
+      loadLibraryMaster();
+      refreshMasterData();
+    } else {
+      showError(res.message);
+    }
+  }, titleId, volume, boxId);
+}
+
+function filterLibrary(){
+  const data = masterCache.library || [];
+  renderFilteredTable('libraryMasterTable', data, ['id', 'title', 'volume', 'box'], 'librarySearchKeyword');
 }
 
 function loadLibraryList(page = 1){
@@ -183,6 +269,8 @@ function loadLibraryList(page = 1){
 }
 
 window.addVolume = addVolume;
+window.addLibraryMaster = addLibraryMaster;
+window.filterLibrary = filterLibrary;
 window.loadRecentLibrary = loadRecentLibrary;
 window.loadLibrarySummary = loadLibrarySummary;
 window.updateLibrarySummary = updateLibrarySummary;
