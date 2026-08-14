@@ -134,7 +134,7 @@ function getRecentLibrary(){
   const titleMap = new Map(titles.map(r => [r[0], r[1]]));
   const boxMap   = new Map(boxes.map(r => [r[0], r[1]]));
 
-  const recent = data.slice(-5).reverse();
+  const recent = data.slice(-10).reverse();
 
   return recent.map(row => ({
 

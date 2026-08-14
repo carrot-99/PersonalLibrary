@@ -119,13 +119,22 @@ function loadLibraryEntry(){
 // 最近追加テーブル描画
 //////////////////////////////
 function renderRecentLibrary(data, tableId = 'recentLibraryTable') {
-  const tbody = document.getElementById(tableId).querySelector('tbody');
+  const table = document.getElementById(tableId);
+  if(!table) return;
+
+  const tbody = table.querySelector('tbody');
+  if(!tbody) return;
+
   tbody.innerHTML = '';
+
+  const columns = tableId === 'globalRecentLibraryTable'
+    ? ['title', 'volume']
+    : ['date', 'title', 'volume', 'box'];
 
   data.forEach(row => {
     const tr = document.createElement('tr');
 
-    ['date','title','volume','box'].forEach(key => {
+    columns.forEach(key => {
       const td = document.createElement('td');
       td.textContent = row[key] ?? '';
       tr.appendChild(td);

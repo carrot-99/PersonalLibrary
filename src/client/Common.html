@@ -156,6 +156,66 @@ function hideInlineLoading(containerId){
 window.showInlineLoading = showInlineLoading;
 window.hideInlineLoading = hideInlineLoading;
 
+function shouldTruncateTableText(fieldName){
+  const normalized = String(fieldName || '').toLowerCase();
+  if(!normalized) return false;
+  return normalized === 'name'
+    || normalized === 'title'
+    || normalized === 'series'
+    || normalized === 'seriesname'
+    || normalized.endsWith('name')
+    || normalized.endsWith('series')
+    || normalized.includes('seriesname')
+    || normalized.includes('title');
+}
+
+function getDisplayTableValue(value, fieldName){
+  const text = value == null ? '' : String(value);
+  if(!shouldTruncateTableText(fieldName) || text.length <= 20){
+    return text;
+  }
+
+  return text.slice(0, 20) + '…';
+}
+
+function getPreferredColumnWidth(fieldName){
+  const normalized = String(fieldName || '').toLowerCase();
+
+  if(normalized.includes('series') || normalized.includes('title') || normalized.includes('name')) return '36%';
+  if(normalized.includes('id') || normalized === 'seriesid' || normalized === 'titleid' || normalized === 'boxid') return '10%';
+  if(normalized.includes('volume') || normalized.includes('count') || normalized === '巻数' || normalized === '巻') return '12%';
+  if(normalized.includes('box') || normalized.includes('place')) return '14%';
+  if(normalized.includes('type')) return '12%';
+  if(normalized.includes('complete') || normalized.includes('done')) return '10%';
+  if(normalized.includes('date')) return '14%';
+  return '16%';
+}
+
+function applyColumnWidthHints(table){
+  if(!table) return;
+
+  const headers = Array.from(table.querySelectorAll('thead th'));
+  if(headers.length === 0) return;
+
+  const rows = table.querySelectorAll('tbody tr');
+  const firstRowCells = rows.length > 0 ? rows[0].cells : [];
+
+  headers.forEach((header, index) => {
+    const fieldName = header.dataset.field || (firstRowCells[index] && firstRowCells[index].dataset.field) || '';
+    const width = getPreferredColumnWidth(fieldName || header.textContent || '');
+    header.style.width = width;
+    header.style.maxWidth = width;
+
+    Array.from(table.querySelectorAll('tbody tr')).forEach(row => {
+      const cell = row.cells[index];
+      if(cell){
+        cell.style.width = width;
+        cell.style.maxWidth = width;
+      }
+    });
+  });
+}
+
 //////////////////////////////
 // テーブル描画共通（編集あり）
 //////////////////////////////
@@ -169,7 +229,10 @@ function renderTableRows(tbody, data, columns, editable){
 
     columns.forEach(col=>{
       const td = document.createElement('td');
-      td.textContent = row[col] ?? '';
+      const rawValue = row[col] ?? '';
+      const displayValue = getDisplayTableValue(rawValue, col);
+      td.textContent = displayValue;
+      td.title = String(rawValue);
       td.dataset.field = col;
       tr.appendChild(td);
     });
@@ -189,6 +252,9 @@ function renderTableRows(tbody, data, columns, editable){
 
     tbody.appendChild(tr);
   });
+
+  const table = tbody.closest('table');
+  if(table) applyColumnWidthHints(table);
 }
 
 function renderTable(tableId, data, columns){
@@ -211,12 +277,17 @@ function renderTableReadOnly(tableId, data, columns) {
 
     columns.forEach(col => {
       const td = document.createElement('td');
-      td.textContent = row[col] ?? '';
+      const rawValue = row[col] ?? '';
+      td.textContent = getDisplayTableValue(rawValue, col);
+      td.title = String(rawValue);
       tr.appendChild(td);
     });
 
     tbody.appendChild(tr);
   });
+
+  const table = tbody.closest('table');
+  if(table) applyColumnWidthHints(table);
 }
 
 //////////////////////////////
@@ -236,7 +307,9 @@ function renderPagedTableDOM(options){
 
     columns.forEach(col => {
       const td = document.createElement('td');
-      td.textContent = row[col] ?? '';
+      const rawValue = row[col] ?? '';
+      td.textContent = getDisplayTableValue(rawValue, col);
+      td.title = String(rawValue);
       td.dataset.field = col;
       tr.appendChild(td);
     });
@@ -254,6 +327,9 @@ function renderPagedTableDOM(options){
 
     tbody.appendChild(tr);
   });
+
+  const table = document.getElementById(tableId);
+  if(table) applyColumnWidthHints(table);
 
   // ページネーション表示
   const paginationDivId = tableId + "_pagination";
@@ -644,6 +720,7 @@ function renderFilteredTable(tableId, rows, columns, keywordInputId, editable = 
     tbody.appendChild(tr);
   });
 
+  applyColumnWidthHints(table);
   table.style.display = 'table';
 }
 

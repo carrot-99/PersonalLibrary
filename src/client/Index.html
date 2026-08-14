@@ -22,26 +22,30 @@
           <div id="globalNotification" class="notification" aria-live="polite"></div>
         </div>
 
-        <div class="top-summary-panel">
-          <div class="summary-item compact">所蔵冊数<strong id="libraryGlobalTotal">0</strong></div>
-          <div class="summary-item compact">登録作品数<strong id="libraryGlobalUnique">0</strong></div>
-          <div class="summary-item compact">登録Box数<strong id="libraryGlobalBoxes">0</strong></div>
-          <div class="summary-item compact">最新登録<strong id="libraryGlobalLastAdded">-</strong></div>
-        </div>
+        <div class="app-layout">
+          <div class="left-panel-column">
+            <div class="top-summary-panel">
+              <div class="summary-item compact">所蔵冊数<strong id="libraryGlobalTotal">0</strong></div>
+              <div class="summary-item compact">登録作品数<strong id="libraryGlobalUnique">0</strong></div>
+              <div class="summary-item compact">登録Box数<strong id="libraryGlobalBoxes">0</strong></div>
+              <div class="summary-item compact">最新登録<strong id="libraryGlobalLastAdded">-</strong></div>
+            </div>
 
-        <div class="content-area">
-          <div id="tabContent">
-            <?!= include('SeriesView') ?>
-            <?!= include('TitleView') ?>
-            <?!= include('BoxView') ?>
-            <?!= include('SeriesListView') ?>
-            <?!= include('TitleListView') ?>
-            <?!= include('BoxListView') ?>
-            <?!= include('LibraryListView') ?>
-            <?!= include('LibraryMasterView') ?>
-            <?!= include('SeriesMasterView') ?>
-            <?!= include('TitleMasterView') ?>
-            <?!= include('BoxMasterView') ?>
+            <div class="content-area">
+              <div id="tabContent">
+                <?!= include('SeriesView') ?>
+                <?!= include('TitleView') ?>
+                <?!= include('BoxView') ?>
+                <?!= include('SeriesListView') ?>
+                <?!= include('TitleListView') ?>
+                <?!= include('BoxListView') ?>
+                <?!= include('LibraryListView') ?>
+                <?!= include('LibraryMasterView') ?>
+                <?!= include('SeriesMasterView') ?>
+                <?!= include('TitleMasterView') ?>
+                <?!= include('BoxMasterView') ?>
+              </div>
+            </div>
           </div>
 
           <aside class="recent-history-panel">
@@ -49,10 +53,8 @@
             <table class="table table-striped" id="globalRecentLibraryTable">
               <thead>
                 <tr>
-                  <th>追加日</th>
                   <th>作品名</th>
                   <th>巻数</th>
-                  <th>Box</th>
                 </tr>
               </thead>
               <tbody></tbody>
