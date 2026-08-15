@@ -78,7 +78,9 @@ function addVolume() {
       showSuccess(res.message);
       document.getElementById('volumeInput').value = '';
       loadRecentLibrary('recentLibraryTableEntry');
+      loadRecentLibrary('globalRecentLibraryTable');
       loadLibrarySummary('libraryEntry');
+      loadLibrarySummary('libraryGlobal');
       loadLibraryMaster(currentLibraryPage);
     } else {
       showError(res.message);
@@ -113,6 +115,18 @@ function updateLibrarySummary(summary, prefix) {
     const el = document.getElementById(idMap[key]);
     if(el){
       el.textContent = summary[key] || (key === 'lastAdded' ? '-' : '0');
+    }
+  });
+
+  const extraIds = {
+    mangaTotal: `${prefix}MangaTotal`,
+    novelTotal: `${prefix}NovelTotal`
+  };
+
+  Object.keys(extraIds).forEach(key => {
+    const el = document.getElementById(extraIds[key]);
+    if(el){
+      el.textContent = summary[key] || '0';
     }
   });
 }
@@ -240,6 +254,8 @@ function addLibraryMaster(){
       document.getElementById('libraryAddVolumeInput').value = '';
       document.getElementById('libraryAddBoxInput').value = '';
       document.getElementById('libraryAddBoxInput').dataset.selectedId = '';
+      loadRecentLibrary('globalRecentLibraryTable');
+      loadLibrarySummary('libraryGlobal');
       loadLibraryMaster();
       refreshMasterData();
     } else {

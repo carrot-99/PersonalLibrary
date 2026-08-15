@@ -21,18 +21,23 @@ function showTitle(){
     .getTitleDetail(id);
 }
 
-function loadTitleList(page = 1){
+let currentTitleListFilter = 'all';
+
+function loadTitleList(page = 1, typeFilter = currentTitleListFilter){
+  currentTitleListFilter = typeFilter;
   const pageSize = 20;
   google.script.run
     .withSuccessHandler(function(data){
       hideInlineLoading('TitleListView');
-      const rows = (data || []).map(item => ({
-        id: item.id,
-        name: item.name,
-        seriesName: item.seriesName,
-        type: item.type,
-        completed: item.completed
-      }));
+      const rows = (data || [])
+        .filter(item => typeFilter === 'all' || item.type === typeFilter)
+        .map(item => ({
+          id: item.id,
+          name: item.name,
+          seriesName: item.seriesName,
+          type: item.type,
+          completed: item.completed
+        }));
 
       const start = (page - 1) * pageSize;
       const pageRows = rows.slice(start, start + pageSize);
@@ -45,7 +50,7 @@ function loadTitleList(page = 1){
         pageSize: pageSize,
         totalRows: rows.length,
         editable: false,
-        onPageChange: loadTitleList
+        onPageChange: (nextPage) => loadTitleList(nextPage, currentTitleListFilter)
       });
     })
     .withFailureHandler(function(error){
