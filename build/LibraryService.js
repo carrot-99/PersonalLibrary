@@ -29,26 +29,32 @@ function parseVolumeExpression(volumeExpression){
       }
 
       for(let value = start; value <= end; value++){
-        if(seen.has(value)){
+        const valueKey = String(value);
+        if(seen.has(valueKey)){
           return { valid: false, message: `巻数 ${value} が重複しています` };
         }
-        seen.add(value);
-        values.push(value);
+        seen.add(valueKey);
+        values.push(valueKey);
       }
       continue;
     }
 
-    if(!/^([1-9]\d*)$/.test(token)){
-      return { valid: false, message: `巻数 ${token} は 1, 2, 5-7 のような自然数で入力してください` };
+    if(/^(?:0|[1-9]\d*)$/.test(token)){
+      const valueKey = String(Number(token));
+      if(seen.has(valueKey)){
+        return { valid: false, message: `巻数 ${token} が重複しています` };
+      }
+      seen.add(valueKey);
+      values.push(valueKey);
+      continue;
     }
 
-    const value = Number(token);
-    if(seen.has(value)){
-      return { valid: false, message: `巻数 ${value} が重複しています` };
+    if(seen.has(token)){
+      return { valid: false, message: `巻数 ${token} が重複しています` };
     }
 
-    seen.add(value);
-    values.push(value);
+    seen.add(token);
+    values.push(token);
   }
 
   return { valid: true, values, text: values.join(', ') };
