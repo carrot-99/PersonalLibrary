@@ -444,6 +444,63 @@
     overflow-x: auto;
   }
 
+  @media (max-width: 1100px) {
+    .app-layout { flex-direction: column; }
+    .left-panel-column { width: 100%; }
+    .content-area { flex-direction: column; }
+    .top-summary-panel { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+    .recent-history-panel {
+      width: 100%;
+      flex-basis: auto;
+      align-self: stretch;
+      order: 2;
+    }
+    .summary-item.compact { font-size: 0.9rem; }
+    .summary-item.compact strong { font-size: 1.1rem; }
+    .menu-toggle {
+      width: 60px;
+      height: 60px;
+      font-size: 30px;
+      top: 14px;
+      left: 14px;
+    }
+    .side-menu {
+      width: 320px;
+      padding-top: 72px;
+    }
+    .tabs button,
+    .master-toolbar button,
+    nav button {
+      min-height: 48px;
+      font-size: 1rem;
+      padding: 12px 14px;
+    }
+    .tab-title {
+      font-size: 0.82rem;
+      margin-bottom: 10px;
+    }
+    .search-field input,
+    .master-form input,
+    .master-form select,
+    .master-toolbar button {
+      font-size: 1rem;
+      min-height: 46px;
+    }
+    .master-toolbar {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: stretch;
+      gap: 8px;
+    }
+    .master-toolbar button {
+      flex: 1 1 180px;
+      width: auto;
+      margin-top: 0;
+    }
+    th, td { padding: 10px 8px; font-size: 0.9rem; }
+  }
+
   @media (max-width: 720px) {
     .main-content { padding: 20px 12px 20px 56px; }
     .page-header { flex-direction: column; align-items: flex-start; }
@@ -451,9 +508,10 @@
     .left-panel-column { width: 100%; }
     .top-summary-panel { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
     .recent-history-panel {
-      width: min(100%, 35vw);
+      width: 100%;
       flex-basis: auto;
       align-self: stretch;
+      order: 2;
     }
     .content-area { flex-direction: column; }
     .master-toolbar { flex-direction: column; align-items: stretch; }

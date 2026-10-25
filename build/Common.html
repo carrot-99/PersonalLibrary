@@ -455,6 +455,7 @@ function toggleAddForm(id){
   }
 
   form.style.display = 'block';
+  syncMasterToolbarLayout(view);
 }
 
 function toggleSearchForm(id){
@@ -468,6 +469,34 @@ function toggleSearchForm(id){
   }
 
   form.style.display = (form.style.display === 'none') ? 'block' : 'none';
+  syncMasterToolbarLayout(view);
+}
+
+function syncMasterToolbarLayout(view){
+  if(!view) return;
+
+  const toolbar = view.querySelector('.master-toolbar');
+  if(!toolbar) return;
+
+  const isTablet = window.matchMedia('(max-width: 1100px)').matches;
+  if(!isTablet){
+    toolbar.style.flexDirection = '';
+    toolbar.style.alignItems = '';
+    toolbar.style.gap = '';
+    return;
+  }
+
+  toolbar.style.display = 'flex';
+  toolbar.style.flexDirection = 'row';
+  toolbar.style.flexWrap = 'wrap';
+  toolbar.style.alignItems = 'stretch';
+  toolbar.style.gap = '8px';
+
+  toolbar.querySelectorAll('button').forEach(button => {
+    button.style.marginTop = '0';
+    button.style.width = 'auto';
+    button.style.flex = '1 1 180px';
+  });
 }
 
 ///////////////////////////////
