@@ -2,10 +2,12 @@
 <div id="BoxView" class="view">
   <h3>Box表示</h3>
   <label>Box
-    <select id="boxViewSelect"></select>
+    <input id="boxViewSelectInput" list="boxViewSelectList" placeholder="Boxを入力">
+    <datalist id="boxViewSelectList"></datalist>
+    <select id="boxViewSelect" style="display:none;"></select>
   </label>
   <button onclick="showBox()">表示</button>
-  <table id="boxTable">
+  <table id="boxTable" style="display:none;">
     <thead><tr><th>作品名</th><th>巻</th></tr></thead>
     <tbody></tbody>
   </table>

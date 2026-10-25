@@ -3,9 +3,26 @@
 //////////////////////////////
 // 初期化
 //////////////////////////////
+const masterCache = {};
+
 function init(){
   refreshMasterData();
-  showTab('SeriesView');
+  loadLibrarySummary('libraryGlobal');
+  loadRecentLibrary('globalRecentLibraryTable');
+  showTab('LibraryMasterView');
+  closeSidebar();
+}
+
+function toggleSidebar(){
+  const sideMenu = document.getElementById('sideMenu');
+  if(!sideMenu) return;
+  sideMenu.classList.toggle('open');
+}
+
+function closeSidebar(){
+  const sideMenu = document.getElementById('sideMenu');
+  if(!sideMenu) return;
+  sideMenu.classList.remove('open');
 }
 
 //////////////////////////////
@@ -33,6 +50,12 @@ function callGAS(funcName, successHandler, ...args){
 //////////////////////////////
 function showTab(tabId){
 
+  let targetView = document.getElementById(tabId);
+  if(!targetView){
+    targetView = document.querySelector('.view');
+  }
+  if(!targetView) return;
+
   const buttons = document.querySelectorAll('.tabs button');
   buttons.forEach(b => b.classList.remove('active'));
 
@@ -42,7 +65,7 @@ function showTab(tabId){
   document.querySelectorAll('.view')
     .forEach(v => v.style.display = 'none');
 
-  document.getElementById(tabId).style.display = 'block';
+  targetView.style.display = 'block';
 
   clearGlobalMessage();
 
@@ -50,8 +73,15 @@ function showTab(tabId){
     LibraryMasterView: loadLibraryMaster,
     BoxMasterView: loadBoxMaster,
     SeriesMasterView: loadSeriesMaster,
-    TitleMasterView: loadTitleMaster
+    TitleMasterView: loadTitleMaster,
+    SeriesListView: function(){ showInlineLoading('SeriesListView', '読み込み中...'); loadSeriesList(1); },
+    TitleListView: function(){ showInlineLoading('TitleListView', '読み込み中...'); loadTitleList(1); },
+    BoxListView: function(){ showInlineLoading('BoxListView', '読み込み中...'); loadBoxList(1); },
+    LibraryListView: function(){ showInlineLoading('LibraryListView', '読み込み中...'); loadLibraryList(1); }
   };
+
+  loadLibrarySummary('libraryGlobal');
+  loadRecentLibrary('globalRecentLibraryTable');
 
   if(loaders[tabId]) loaders[tabId]();
 }
@@ -59,19 +89,131 @@ function showTab(tabId){
 //////////////////////////////
 // メッセージ管理
 //////////////////////////////
+let messageTimeout = null;
+
 function clearGlobalMessage(){
-  document.getElementById('globalMessage').textContent = '';
-  document.getElementById('globalError').textContent = '';
+  const notification = document.getElementById('globalNotification');
+  if(!notification) return;
+  notification.textContent = '';
+  notification.className = 'notification';
+  notification.style.display = 'none';
+  if(messageTimeout){
+    clearTimeout(messageTimeout);
+    messageTimeout = null;
+  }
 }
 
 function showSuccess(message){
-  clearGlobalMessage();
-  document.getElementById('globalMessage').textContent = message;
+  const notification = document.getElementById('globalNotification');
+  if(!notification) return;
+  notification.textContent = message;
+  notification.className = 'notification success';
+  notification.style.display = 'block';
+  if(messageTimeout) clearTimeout(messageTimeout);
+  messageTimeout = setTimeout(clearGlobalMessage, 4000);
 }
 
 function showError(message){
-  clearGlobalMessage();
-  document.getElementById('globalError').textContent = message;
+  const notification = document.getElementById('globalNotification');
+  if(!notification) return;
+  notification.textContent = message;
+  notification.className = 'notification error';
+  notification.style.display = 'block';
+  if(messageTimeout) clearTimeout(messageTimeout);
+  messageTimeout = setTimeout(clearGlobalMessage, 6000);
+}
+
+function showInlineLoading(containerId, message = '検索中...'){
+  const container = document.getElementById(containerId);
+  if(!container) return null;
+
+  let loader = container.querySelector('.inline-loading');
+  if(!loader){
+    loader = document.createElement('div');
+    loader.className = 'inline-loading';
+    loader.innerHTML = `
+      <span class="inline-spinner"></span>
+      <span class="inline-loading-text">${message}</span>
+    `;
+    container.appendChild(loader);
+  } else {
+    const text = loader.querySelector('.inline-loading-text');
+    if(text) text.textContent = message;
+    loader.style.display = 'inline-flex';
+  }
+
+  return loader;
+}
+
+function hideInlineLoading(containerId){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+
+  const loader = container.querySelector('.inline-loading');
+  if(loader) loader.remove();
+}
+
+window.showInlineLoading = showInlineLoading;
+window.hideInlineLoading = hideInlineLoading;
+
+function shouldTruncateTableText(fieldName){
+  const normalized = String(fieldName || '').toLowerCase();
+  if(!normalized) return false;
+  return normalized === 'name'
+    || normalized === 'title'
+    || normalized === 'series'
+    || normalized === 'seriesname'
+    || normalized.endsWith('name')
+    || normalized.endsWith('series')
+    || normalized.includes('seriesname')
+    || normalized.includes('title');
+}
+
+function getDisplayTableValue(value, fieldName){
+  const text = value == null ? '' : String(value);
+  if(!shouldTruncateTableText(fieldName) || text.length <= 20){
+    return text;
+  }
+
+  return text.slice(0, 20) + '…';
+}
+
+function getPreferredColumnWidth(fieldName){
+  const normalized = String(fieldName || '').toLowerCase();
+
+  if(normalized.includes('series') || normalized.includes('title') || normalized.includes('name')) return '36%';
+  if(normalized.includes('id') || normalized === 'seriesid' || normalized === 'titleid' || normalized === 'boxid') return '10%';
+  if(normalized.includes('volume') || normalized.includes('count') || normalized === '巻数' || normalized === '巻') return '12%';
+  if(normalized.includes('box') || normalized.includes('place')) return '14%';
+  if(normalized.includes('type')) return '12%';
+  if(normalized.includes('complete') || normalized.includes('done')) return '10%';
+  if(normalized.includes('date')) return '14%';
+  return '16%';
+}
+
+function applyColumnWidthHints(table){
+  if(!table) return;
+
+  const headers = Array.from(table.querySelectorAll('thead th'));
+  if(headers.length === 0) return;
+
+  const rows = table.querySelectorAll('tbody tr');
+  const firstRowCells = rows.length > 0 ? rows[0].cells : [];
+
+  headers.forEach((header, index) => {
+    const fieldName = header.dataset.field || (firstRowCells[index] && firstRowCells[index].dataset.field) || '';
+    const width = getPreferredColumnWidth(fieldName || header.textContent || '');
+    header.style.width = width;
+    header.style.maxWidth = width;
+
+    Array.from(table.querySelectorAll('tbody tr')).forEach(row => {
+      const cell = row.cells[index];
+      if(cell){
+        cell.style.width = width;
+        cell.style.maxWidth = width;
+      }
+    });
+  });
 }
 
 //////////////////////////////
@@ -87,7 +229,10 @@ function renderTableRows(tbody, data, columns, editable){
 
     columns.forEach(col=>{
       const td = document.createElement('td');
-      td.textContent = row[col] ?? '';
+      const rawValue = row[col] ?? '';
+      const displayValue = getDisplayTableValue(rawValue, col);
+      td.textContent = displayValue;
+      td.title = String(rawValue);
       td.dataset.field = col;
       tr.appendChild(td);
     });
@@ -95,6 +240,8 @@ function renderTableRows(tbody, data, columns, editable){
     if(editable){
       const actionTd = document.createElement('td');
       const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'edit-action';
       btn.textContent = '編集';
       btn.onclick = function(){
         startEdit(this);
@@ -105,6 +252,9 @@ function renderTableRows(tbody, data, columns, editable){
 
     tbody.appendChild(tr);
   });
+
+  const table = tbody.closest('table');
+  if(table) applyColumnWidthHints(table);
 }
 
 function renderTable(tableId, data, columns){
@@ -119,20 +269,33 @@ function renderTable(tableId, data, columns){
 // テーブル描画（編集なし・検索用）
 //////////////////////////////
 function renderTableReadOnly(tableId, data, columns) {
-  const tbody = document.getElementById(tableId).querySelector('tbody');
+  const table = document.getElementById(tableId);
+  if(!table) return;
+
+  const tbody = table.querySelector('tbody');
   tbody.innerHTML = '';
+
+  if(!Array.isArray(data) || data.length === 0){
+    table.style.display = 'none';
+    return;
+  }
 
   data.forEach(row => {
     const tr = document.createElement('tr');
 
     columns.forEach(col => {
       const td = document.createElement('td');
-      td.textContent = row[col] ?? '';
+      const rawValue = row[col] ?? '';
+      td.textContent = getDisplayTableValue(rawValue, col);
+      td.title = String(rawValue);
       tr.appendChild(td);
     });
 
     tbody.appendChild(tr);
   });
+
+  applyColumnWidthHints(table);
+  table.style.display = 'table';
 }
 
 //////////////////////////////
@@ -152,7 +315,9 @@ function renderPagedTableDOM(options){
 
     columns.forEach(col => {
       const td = document.createElement('td');
-      td.textContent = row[col] ?? '';
+      const rawValue = row[col] ?? '';
+      td.textContent = getDisplayTableValue(rawValue, col);
+      td.title = String(rawValue);
       td.dataset.field = col;
       tr.appendChild(td);
     });
@@ -160,6 +325,8 @@ function renderPagedTableDOM(options){
     if(editable){
       const actionTd = document.createElement('td');
       const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'edit-action';
       editBtn.textContent = '編集';
       editBtn.onclick = () => startEdit(editBtn);
       actionTd.appendChild(editBtn);
@@ -168,6 +335,9 @@ function renderPagedTableDOM(options){
 
     tbody.appendChild(tr);
   });
+
+  const table = document.getElementById(tableId);
+  if(table) applyColumnWidthHints(table);
 
   // ページネーション表示
   const paginationDivId = tableId + "_pagination";
@@ -283,25 +453,64 @@ function formatDate(date){
 // トグル切り替え
 //////////////////////////////
 function toggleAddForm(id){
-  document.querySelectorAll('.master-form')
-    .forEach(f => f.style.display = 'none');
-
   const form = document.getElementById(id);
+  if(!form) return;
+
+  const view = form.closest('.view') || form.parentElement;
+  if(view){
+    view.querySelectorAll('.master-form')
+      .forEach(f => f.style.display = 'none');
+  }
+
   form.style.display = 'block';
+  syncMasterToolbarLayout(view);
 }
 
 function toggleSearchForm(id){
-  document.querySelectorAll('.master-form')
-    .forEach(f => f.style.display = 'none');
-    
   const form = document.getElementById(id);
+  if(!form) return;
+
+  const view = form.closest('.view') || form.parentElement;
+  if(view){
+    view.querySelectorAll('.master-form')
+      .forEach(f => f.style.display = 'none');
+  }
+
   form.style.display = (form.style.display === 'none') ? 'block' : 'none';
+  syncMasterToolbarLayout(view);
+}
+
+function syncMasterToolbarLayout(view){
+  if(!view) return;
+
+  const toolbar = view.querySelector('.master-toolbar');
+  if(!toolbar) return;
+
+  const isTablet = window.matchMedia('(max-width: 1100px)').matches;
+  if(!isTablet){
+    toolbar.style.flexDirection = '';
+    toolbar.style.alignItems = '';
+    toolbar.style.gap = '';
+    return;
+  }
+
+  toolbar.style.display = 'flex';
+  toolbar.style.flexDirection = 'row';
+  toolbar.style.flexWrap = 'wrap';
+  toolbar.style.alignItems = 'stretch';
+  toolbar.style.gap = '8px';
+
+  toolbar.querySelectorAll('button').forEach(button => {
+    button.style.marginTop = '0';
+    button.style.width = 'auto';
+    button.style.flex = '1 1 180px';
+  });
 }
 
 ///////////////////////////////
 // 選択肢取得
 ///////////////////////////////
-function populateSelect(selectIds, data, labelFn, valueKey = 'id', clear = true){
+function populateSelect(selectIds, data, labelFn, valueKey = 'id', placeholderText = null, clear = true){
 
   if(!Array.isArray(selectIds)) {
     selectIds = [selectIds];
@@ -313,6 +522,13 @@ function populateSelect(selectIds, data, labelFn, valueKey = 'id', clear = true)
 
     if(clear) sel.innerHTML = '';
 
+    if(placeholderText){
+      const placeholder = new Option(placeholderText, '');
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      sel.add(placeholder);
+    }
+
     data.forEach(item => {
       const option = new Option(
         labelFn(item),
@@ -323,13 +539,125 @@ function populateSelect(selectIds, data, labelFn, valueKey = 'id', clear = true)
   });
 }
 
+function showAutocompleteSuggestions(inputId, data, labelFn, valueKey = 'id'){
+  const input = document.getElementById(inputId);
+  if(!input) return;
+
+  const listId = input.getAttribute('list') || (inputId + 'List');
+  const list = document.getElementById(listId);
+  const suggestionBoxId = inputId + 'Suggestions';
+  let suggestionBox = document.getElementById(suggestionBoxId);
+  if(!suggestionBox){
+    suggestionBox = document.createElement('div');
+    suggestionBox.id = suggestionBoxId;
+    suggestionBox.className = 'autocomplete-suggestions';
+    input.parentNode.insertBefore(suggestionBox, input.nextSibling);
+  }
+
+  const keyword = input.value.trim().toLowerCase();
+  const matches = !keyword
+    ? data
+    : data.filter(item => String(labelFn(item)).toLowerCase().includes(keyword));
+
+  suggestionBox.innerHTML = '';
+  if(!list) return;
+
+  if(matches.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'autocomplete-empty';
+    empty.textContent = '該当なし';
+    suggestionBox.appendChild(empty);
+    suggestionBox.style.display = 'block';
+    return;
+  }
+
+  matches.slice(0, 10).forEach(item => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'autocomplete-item';
+    option.textContent = labelFn(item);
+    option.addEventListener('click', function(){
+      input.value = labelFn(item);
+      input.dataset.selectedId = String(item[valueKey]);
+      suggestionBox.style.display = 'none';
+    });
+    suggestionBox.appendChild(option);
+  });
+
+  suggestionBox.style.display = 'block';
+}
+
+function populateAutocomplete(inputId, data, labelFn, valueKey = 'id', placeholderText = ''){
+  const input = document.getElementById(inputId);
+  const listId = input ? input.getAttribute('list') : null;
+  const list = listId ? document.getElementById(listId) : document.getElementById(inputId + 'List');
+  if(!input || !list) return;
+
+  input.placeholder = placeholderText || '選択肢を入力';
+  list.innerHTML = '';
+
+  data.forEach(item => {
+    const option = document.createElement('option');
+    option.value = labelFn(item);
+    option.dataset.value = String(item[valueKey]);
+    list.appendChild(option);
+  });
+
+  input.oninput = function(){
+    const keyword = input.value.trim().toLowerCase();
+    const match = Array.from(list.options).find(opt =>
+      opt.value.toLowerCase() === keyword ||
+      opt.value.toLowerCase().includes(keyword)
+    );
+    input.dataset.selectedId = match ? match.dataset.value : '';
+    showAutocompleteSuggestions(inputId, data, labelFn, valueKey);
+  };
+
+  input.onfocus = function(){
+    showAutocompleteSuggestions(inputId, data, labelFn, valueKey);
+  };
+
+  input.onblur = function(){
+    setTimeout(() => {
+      const box = document.getElementById(inputId + 'Suggestions');
+      if(box) box.style.display = 'none';
+    }, 120);
+  };
+}
+
+function getAutocompleteValue(inputId){
+  const input = document.getElementById(inputId);
+  const listId = input ? input.getAttribute('list') : null;
+  const list = listId ? document.getElementById(listId) : document.getElementById(inputId + 'List');
+  if(!input || !list) return '';
+
+  const value = input.value.trim();
+  if(!value) return '';
+
+  const match = Array.from(list.options).find(opt =>
+    opt.value.toLowerCase() === value.toLowerCase() ||
+    opt.value.toLowerCase().includes(value.toLowerCase())
+  );
+
+  if(match){
+    input.dataset.selectedId = match.dataset.value;
+    return match.dataset.value;
+  }
+
+  return '';
+}
+
 // シリーズ選択肢取得
 function populateSeries(series){
   populateSelect(
     ['seriesSelect', 'newTitleSeries'],
     series,
-    s => s.name
+    s => s.name,
+    'id',
+    'シリーズを選択'
   );
+  populateAutocomplete('seriesSelectInput', series, s => s.name, 'id', 'シリーズを入力');
+  populateAutocomplete('newTitleSeriesInput', series, s => s.name, 'id', 'シリーズを入力');
 }
 
 // タイトル選択肢取得
@@ -337,8 +665,12 @@ function populateTitle(titles){
   populateSelect(
     ['titleSelect','titleViewSelect'],
     titles,
-    t => t.name
+    t => t.name,
+    'id',
+    '作品を選択'
   );
+  populateAutocomplete('titleSelectInput', titles, t => t.name, 'id', '作品名を入力');
+  populateAutocomplete('titleViewSelectInput', titles, t => t.name, 'id', '作品名を入力');
 }
 
 // 箱選択肢取得
@@ -346,8 +678,12 @@ function populateBoxes(boxes){
   populateSelect(
     ['boxSelect','boxViewSelect'],
     boxes,
-    b => `${b.id} : ${b.place}`
+    b => `${b.id} : ${b.place}`,
+    'id',
+    'Boxを選択'
   );
+  populateAutocomplete('boxSelectInput', boxes, b => `${b.id} : ${b.place}`, 'id', 'Boxを入力');
+  populateAutocomplete('boxViewSelectInput', boxes, b => `${b.id} : ${b.place}`, 'id', 'Boxを入力');
 }
 
 ///////////////////////////////
@@ -356,23 +692,73 @@ function populateBoxes(boxes){
 // 検索
 function filterMaster(tbodyId, keywordInputId){
 
-  const keyword = document
-    .getElementById(keywordInputId)
-    .value
-    .toLowerCase();
+  const keywordInput = document.getElementById(keywordInputId);
+  const table = document.getElementById(tbodyId)?.closest('table');
+  if(!keywordInput || !table) return;
 
-  const rows = document
-    .getElementById(tbodyId)
-    .getElementsByTagName('tr');
+  const keyword = keywordInput.value.trim().toLowerCase();
+  const rows = document.getElementById(tbodyId).getElementsByTagName('tr');
+  let visibleRows = 0;
 
   Array.from(rows).forEach(row => {
-
     const match = Array.from(row.cells).some(cell =>
       cell.textContent.toLowerCase().includes(keyword)
     );
 
     row.style.display = match ? '' : 'none';
+    if(match) visibleRows++;
   });
+
+  table.style.display = visibleRows > 0 ? 'table' : 'none';
+}
+
+function renderFilteredTable(tableId, rows, columns, keywordInputId, editable = true){
+  const table = document.getElementById(tableId);
+  if(!table) return;
+
+  const keyword = document.getElementById(keywordInputId).value.trim().toLowerCase();
+  const filtered = !keyword
+    ? rows
+    : rows.filter(row =>
+        Object.values(row).some(value =>
+          String(value ?? '').toLowerCase().includes(keyword)
+        )
+      );
+
+  const tbody = table.querySelector('tbody');
+  tbody.innerHTML = '';
+
+  if(filtered.length === 0){
+    table.style.display = 'none';
+    return;
+  }
+
+  filtered.forEach(row => {
+    const tr = document.createElement('tr');
+
+    columns.forEach(col => {
+      const td = document.createElement('td');
+      td.textContent = row[col] ?? '';
+      td.dataset.field = col;
+      tr.appendChild(td);
+    });
+
+    if(editable){
+      const actionTd = document.createElement('td');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'edit-action';
+      btn.textContent = '編集';
+      btn.onclick = function(){ startEdit(this); };
+      actionTd.appendChild(btn);
+      tr.appendChild(actionTd);
+    }
+
+    tbody.appendChild(tr);
+  });
+
+  applyColumnWidthHints(table);
+  table.style.display = 'table';
 }
 
 // 更新
@@ -477,6 +863,11 @@ function saveEdit(btn){
     reloadFunction = loadTitleMaster;
   }
 
+  if(tableId === 'libraryMasterTable'){
+    gasFunction = 'updateLibraryMaster';
+    reloadFunction = loadLibraryMaster;
+  }
+
   if(!gasFunction) return;
 
   callGAS(gasFunction, function(res){
@@ -497,5 +888,15 @@ function saveEdit(btn){
 function initApp(){
   init();
 }
+
+window.initApp = initApp;
+window.toggleSidebar = toggleSidebar;
+window.closeSidebar = closeSidebar;
+window.refreshMasterData = refreshMasterData;
+window.callGAS = callGAS;
+window.showTab = showTab;
+window.clearGlobalMessage = clearGlobalMessage;
+window.showSuccess = showSuccess;
+window.showError = showError;
 
 </script>

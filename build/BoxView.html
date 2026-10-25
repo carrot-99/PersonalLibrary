@@ -2,7 +2,9 @@
 <div id="BoxView" class="view">
   <h3>Box表示</h3>
   <label>Box
-    <select id="boxViewSelect"></select>
+    <input id="boxViewSelectInput" list="boxViewSelectList" placeholder="Boxを入力">
+    <datalist id="boxViewSelectList"></datalist>
+    <select id="boxViewSelect" style="display:none;"></select>
   </label>
   <button onclick="showBox()">表示</button>
   <table id="boxTable">

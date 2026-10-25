@@ -1,0 +1,47 @@
+<!-- LibraryEntryView.html -->
+<div id="LibraryEntryView" class="view" style="display:none;">
+  <h3>ライブラリ登録</h3>
+
+  <div class="master-form">
+    <div class="summary-panel" id="librarySummary">
+      <div class="summary-item">所蔵冊数: <strong id="libraryEntryTotal">0</strong></div>
+      <div class="summary-item">登録作品数: <strong id="libraryEntryUnique">0</strong></div>
+      <div class="summary-item">登録Box数: <strong id="libraryEntryBoxes">0</strong></div>
+      <div class="summary-item">最新登録: <strong id="libraryEntryLastAdded">-</strong></div>
+    </div>
+
+    <label>作品名
+      <input id="titleSelectInput" list="titleSelectList" placeholder="作品名を入力">
+      <datalist id="titleSelectList"></datalist>
+      <select id="titleSelect" style="display:none;"></select>
+    </label>
+
+    <label>巻数
+      <input type="text" id="volumeInput" placeholder="例: 1-31 / 1, 3, 5-7" inputmode="numeric">
+    </label>
+
+    <label>保管Box
+      <input id="boxSelectInput" list="boxSelectList" placeholder="Boxを入力">
+      <datalist id="boxSelectList"></datalist>
+      <select id="boxSelect" style="display:none;"></select>
+    </label>
+
+    <div>
+      <button onclick="addVolume()">登録する</button>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-striped" id="recentLibraryTableEntry">
+      <thead>
+        <tr>
+          <th>追加日</th>
+          <th>作品名</th>
+          <th>巻数</th>
+          <th>Box</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>

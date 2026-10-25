@@ -2,7 +2,9 @@
 <div id="TitleView" class="view">
   <h3>作品表示</h3>
   <label>作品名
-    <select id="titleViewSelect"></select>
+    <input id="titleViewSelectInput" list="titleViewSelectList" placeholder="作品名を入力">
+    <datalist id="titleViewSelectList"></datalist>
+    <select id="titleViewSelect" style="display:none;"></select>
   </label>
   <button onclick="showTitle()">表示</button>
   <table id="titleTable">
