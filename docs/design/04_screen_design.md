@@ -82,12 +82,14 @@
 
 | 画面 | View / ファイル | 入力 | 結果列 | API |
 |---|---|---|---|---|
-| シリーズ表示 | `SeriesView` / `series/SeriesView.html` | シリーズ名 `#seriesSelectInput` | 作品名, 所持巻数 | `getSeriesDetail` |
-| 作品表示 | `TitleView` / `title/TitleView.html` | 作品名 `#titleViewSelectInput` | 巻, BoxID | `getTitleDetail` |
+| シリーズ表示 | `SeriesView` / `series/SeriesView.html` | シリーズ名 `#seriesSelectInput` | 作品名, 所持巻数, 所持巻（抜けを含む） | `getSeriesDetail` |
+| 作品表示 | `TitleView` / `title/TitleView.html` | 作品名 `#titleViewSelectInput` | 所持状況（下記）＋ 巻, BoxID（巻数順） | `getTitleDetail` |
 | Box 表示 | `BoxView` / `box/BoxView.html` | Box（`<ID> : <場所>`） `#boxViewSelectInput` | 作品名, 巻 | `getBoxDetail` |
 
-- メニューから画面を開き直すと、入力欄と結果テーブルはクリアされます。
+- メニューから画面を開き直すと、入力欄・結果テーブル・所持状況はクリアされます。
 - 未選択（入力値に一致する候補なし）の場合: 「シリーズを選択してください」等のエラー通知。
+- **作品表示の所持状況**（`#titleOwnershipSummary`）: 所持（冊数と巻の範囲）、抜け（1 巻から最大巻までの未所持巻。あれば強調表示）、次の巻（最大巻＋1）を表示。完結済の作品は「次の巻」の代わりに「抜けなく所持しています／抜けている巻があります」。
+- 所持巻の表記（シリーズ表示・作品一覧）: `1〜12巻, 上（抜け: 7巻）`。完結済で抜けがなければ `（完結・抜けなし）`、所持なしは `未所持`。数値以外の巻（`上`・`外伝` 等）は抜けの判定に含めません。
 - 入力値の解決は `getAutocompleteValue()`（部分一致で最初の候補を採用。[05 章](05_client_common.md#55-オートコンプリート)参照）。
 
 ---
@@ -99,7 +101,7 @@
 | 画面 | View / ファイル | 列 | API | ページング方式 |
 |---|---|---|---|---|
 | シリーズ一覧 | `SeriesListView` | SeriesID, シリーズ名 | `getSeriesMaster` | 全件取得しクライアントで切り出し |
-| 作品一覧 | `TitleListView` | TitleID, 作品名, シリーズ, 種別, 完結 | `getTitleMaster` | 同上 |
+| 作品一覧 | `TitleListView` | TitleID, 作品名, シリーズ, 種別, 完結, 所持巻（抜けを含む） | `getTitleListWithOwnership` | 同上 |
 | 箱一覧 | `BoxListView` | BoxID, 保管場所 | `getBoxMaster` | 同上 |
 | 書籍一覧 | `LibraryListView` | ID, 作品名, 巻数, Box, 追加日 | `getLibraryPage(page, 20)` | サーバー側ページング |
 
@@ -239,6 +241,20 @@
 | 7 | 上記以外 | 照合済み | 登録可能 |
 
 要確認フラグは、照合結果が `exact` 以外、または AI が `uncertain` を返した行で ON になります。作品・巻数を編集するか [OK] で OFF になります。
+
+### 所持巻との連続性（`getPhotoImportContinuity`）
+
+作品と数値の巻数が決まっている行（チェック済み）に、間が飛んでいないかを表示します。**登録可否には影響しない注意表示**です。
+登録済みの巻（`existingKeys`）と、この一覧でチェック済みの同じ作品の巻を合わせて、1 巻からその巻の前までに未所持の巻があるかを判定します。
+
+| 判定 | 表示 |
+|---|---|
+| 未所持の巻がある | ⚠ 間が飛んでいます: 104巻が未所持（所持: 1〜103巻） |
+| 所持なしで 1 巻から揃う | ✓ 1巻から揃っています（この作品は未所持） |
+| 所持済みの最大巻より前 | ✓ 抜けていた巻です（所持: …） |
+| 上記以外 | ✓ 続きの巻です（所持: …） |
+
+登録済みの巻・数値以外の巻・チェックを外した行には表示しません。他の行の作品・巻数・チェックを変えると即時に再判定します。
 
 ### 作品追加後の動き
 

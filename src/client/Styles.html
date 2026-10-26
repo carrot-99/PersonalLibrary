@@ -791,6 +791,33 @@
     }
   }
 
+  .photo-import-continuity {
+    flex-basis: 100%;
+    font-size: 0.85rem;
+  }
+  .photo-import-continuity.is-ok { color: #86efac; }
+  .photo-import-continuity.is-warning { color: #fcd34d; font-weight: bold; }
+
+  /* 所持状況（作品表示） */
+  .ownership-summary {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid #67e8f9;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.92);
+  }
+  .ownership-line {
+    display: flex;
+    gap: 12px;
+    padding: 3px 0;
+  }
+  .ownership-line strong {
+    flex: 0 0 4.5em;
+    color: #cbd5e1;
+  }
+  .ownership-line.is-ok span { color: #86efac; }
+  .ownership-line.is-warning span { color: #fcd34d; font-weight: bold; }
+
   /* サイドメニュー外側の暗幕（タブレット・スマホでメニューを開いたとき。タップで閉じる） */
   .side-menu-backdrop { display: none; }
   @media (max-width: 1100px) {

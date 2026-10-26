@@ -296,6 +296,62 @@ function getPhotoImportStatus(row, index){
   return PHOTO_STATUS.OK;
 }
 
+//////////////////////////////
+// 所持巻との連続性（間が飛んでいないか）
+// 登録済みの巻＋この一覧でチェック済みの同じ作品の巻を合わせて、1 巻からの抜けを判定する。
+// 登録可否には影響しない（注意表示のみ）
+//////////////////////////////
+function getOwnedVolumesForPhotoTitle(titleId){
+  const prefix = `${titleId}|`;
+  const volumes = [];
+  photoImportState.existingKeys.forEach(key => {
+    if(key.startsWith(prefix)) volumes.push(key.slice(prefix.length));
+  });
+  return volumes;
+}
+
+function getSinglePhotoVolume(row){
+  const parsed = parseVolumeInput(row.volume);
+  return parsed.valid && parsed.values.length === 1 ? parsed.values[0] : null;
+}
+
+function getPhotoImportContinuity(row){
+  if(!row.checked || !row.titleId) return null;
+
+  const volume = getSinglePhotoVolume(row);
+  if(!volume || !/^\d+$/.test(volume)) return null;
+  const target = Number(volume);
+
+  const owned = summarizeOwnedVolumes(getOwnedVolumesForPhotoTitle(row.titleId));
+  if(owned.numbers.includes(target)) return null;
+
+  const listVolumes = photoImportState.rows
+    .filter(other => other !== row && other.checked && other.titleId === row.titleId)
+    .map(getSinglePhotoVolume)
+    .filter(Boolean);
+  const combined = new Set(owned.numbers.concat(summarizeOwnedVolumes(listVolumes).numbers));
+
+  const missing = [];
+  for(let n = 1; n < target; n++){
+    if(!combined.has(n)) missing.push(n);
+  }
+
+  const ownedText = owned.numbers.length > 0
+    ? `所持: ${formatVolumeRanges(owned.numbers)}巻`
+    : 'この作品は未所持';
+
+  if(missing.length > 0){
+    return { level: 'warning', text: `⚠ 間が飛んでいます: ${formatVolumeRanges(missing)}巻が未所持（${ownedText}）` };
+  }
+  if(owned.numbers.length === 0){
+    return { level: 'ok', text: '✓ 1巻から揃っています（この作品は未所持）' };
+  }
+  if(target < owned.max){
+    return { level: 'ok', text: `✓ 抜けていた巻です（${ownedText}）` };
+  }
+  return { level: 'ok', text: `✓ 続きの巻です（${ownedText}）` };
+}
+
 function getPhotoImportStatusDetail(row, status){
   if(status === PHOTO_STATUS.UNREGISTERED) return '作品マスタに無い作品です（自動作成しません）';
   if(status === PHOTO_STATUS.DUPLICATE) return '同じ作品・巻数が登録済みです';
@@ -439,6 +495,14 @@ function renderPhotoImportRows(){
           refreshPhotoImportStatuses();
         };
         statusArea.appendChild(ok);
+      }
+
+      const continuity = getPhotoImportContinuity(row);
+      if(continuity){
+        const note = document.createElement('div');
+        note.className = `photo-import-continuity is-${continuity.level}`;
+        note.textContent = continuity.text;
+        statusArea.appendChild(note);
       }
 
       card.classList.toggle('is-unchecked', !row.checked);
