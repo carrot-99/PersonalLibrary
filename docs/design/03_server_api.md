@@ -129,7 +129,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 引数 | `entries: [{ titleId, volume, boxId }]` |
 | 戻り値 | `{ success: true, added, errors: [{ line, message }], messages: [] }` |
 | 処理 | 行ごとに必須・作品/Box 存在・重複をチェックし、OK の行だけ登録（部分成功） |
-| 備考 | 巻数式は解釈しない（1 行 1 巻）。**現在クライアントからの呼び出しなし** |
+| 備考 | 巻数式は解釈しない（1 行 1 巻）。重複エラーには `duplicate: true` を付与。写真から登録の `bulkAddLibraryFromPhoto` から呼び出される（排他は呼び出し側で実施） |
 
 ### `getTitleDetail(titleId)` — 作品別検索
 
@@ -168,7 +168,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 ### `getTitles()`
 
-戻り値 `[{ id, name }]`。選択肢用。**現在クライアントからの呼び出しなし**。
+戻り値 `[{ id, name }]`。写真解析時に、AI へ渡す作品名一覧と照合対象として使用（`analyzeBookSpines`）。
 
 ### `addTitleMasterWeb(name, seriesId, type, completed)`
 
@@ -193,7 +193,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 関数 | 仕様 |
 |---|---|
 | `getSeriesMaster()` | `[{ id, name }]` |
-| `getSeries()` | `getSeriesMaster()` の別名（選択肢用）。**呼び出しなし** |
+| `getSeries()` | `getSeriesMaster()` の別名。写真から登録画面のシリーズ候補に使用 |
 | `addSeriesMasterWeb(name)` | `name` 必須。`S` で採番し追加。`success('<name> を追加しました（<ID>）')` |
 | `updateSeriesMaster(id, values)` | `values[0]` で 2 列目（シリーズ名）を更新 |
 
@@ -204,17 +204,154 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 関数 | 仕様 |
 |---|---|
 | `getBoxMaster()` | `[{ id, place }]` |
-| `getBoxes()` | `getBoxMaster()` の別名（選択肢用）。**呼び出しなし** |
+| `getBoxes()` | `getBoxMaster()` の別名。写真から登録画面の Box 選択肢に使用 |
 | `addBoxMasterWeb(id, place)` | 両方必須。BoxID 重複は `failure('既に同じBoxIDが存在します')`。try/catch なし |
 | `updateBoxMaster(id, values)` | `values[0]` で 2 列目（保管場所）を更新 |
 
+
 ---
 
-## 3.8 API 呼び出し元一覧
+## 3.8 写真から登録（`server/PhotoImportService.js`）
+
+背表紙の写真を AI で解析し、既存作品と照合したうえで一括登録します。設定値は定数 `PHOTO_IMPORT` にまとめています。
+
+| 定数 | 値 | 内容 |
+|---|---|---|
+| `API_URL` / `API_VERSION` | `https://api.anthropic.com/v1/messages` / `2026-10-21` | 呼び出し先と `anthropic-version` ヘッダー |
+| `DEFAULT_MODEL` / `DEFAULT_EFFORT` | `claude-sonnet-5-5` / `medium` | スクリプトプロパティで上書き可（[01 章 1.5](01_overview.md#15-実行設定appsscriptjson--doget)） |
+| `MAX_TOKENS` | 8000 | 応答の最大トークン |
+| `MAX_IMAGES` | 5 | 1 回に解析できる写真の枚数 |
+| `MAX_IMAGE_BASE64_LENGTH` | 5 MB | 1 枚あたりの base64 文字列長の上限 |
+| `ALLOWED_MIME_TYPES` | JPEG / PNG / WebP / GIF | |
+| `MAX_TITLE_HINTS` | 1500 | プロンプトに含める登録済み作品名の最大件数 |
+| `MAX_REGISTER_ROWS` | 200 | 一括登録 1 回の最大件数 |
+| `SUGGEST_THRESHOLD` | 0.5 | 作品照合で候補とみなす類似度の下限 |
+
+### 処理の流れ
+
+```
+クライアント                                サーバー
+画像を縮小(長辺1568px, JPEG) ──images──▶ analyzeBookSpines
+                                           ├ 入力検証・APIキー確認
+                                           ├ requestSpineAnalysis … AI に背表紙の読み取りを依頼（JSON スキーマ指定）
+                                           ├ validateSpineResult … 応答の検証・正規化
+                                           └ matchExistingTitles … M_Title と照合
+確認画面で修正（作品・巻数・Box）◀── rows / existingKeys / defaultBoxId
+  （マスタ未登録なら addTitleFromPhotoImport で作品・シリーズを追加）
+登録確定 ──rows──▶ bulkAddLibraryFromPhoto
+                    └ addBulkVolumesWeb（＋最終巻指定の作品を完結済へ更新）
+結果表示 ◀── added / duplicates / failed / addedRowIds / completedTitles
+```
+
+### `analyzeBookSpines(images)` — 写真解析・作品照合
+
+| 項目 | 内容 |
+|---|---|
+| 引数 | `images: [{ mimeType, data(base64) }]` |
+| 戻り値 | `{ success: true, rows, existingKeys, defaultBoxId }` または `failure(...)` |
+| `rows[]` | `{ position, photo, recognizedTitle, volume, uncertain, notes, match, titleId, titleName, candidates }` |
+| `existingKeys` | 登録済みの `TitleID|巻数` 一覧（クライアントでの重複判定用、`getLibraryKeys()`） |
+| `defaultBoxId` | Box の初期値。最後に登録した書籍の Box（存在する場合）、なければ `M_Box` の先頭（`getDefaultPhotoImportBoxId()`） |
+
+入力エラー: 写真なし / 6 枚以上 / 非対応形式 / サイズ超過 / `ANTHROPIC_API_KEY` 未設定。
+
+#### AI 呼び出し（`requestSpineAnalysis` / `fetchAnthropicMessages`）
+
+- 全画像と指示文を 1 メッセージで送信。指示文には登録済み作品名（最大 1500 件）を含め、明らかに同じ作品であればその表記に合わせるよう指示。
+- `output_config.format` に JSON スキーマ（`PHOTO_IMPORT_SCHEMA`）を指定し、次の形式で応答させます。
+
+```json
+{ "books": [ { "position": 1, "photo": 1, "recognizedTitle": "作品名", "volumeDisplay": "12", "uncertain": false, "notes": "" } ] }
+```
+
+| 項目 | 内容 |
+|---|---|
+| `position` | 1 枚目の左から順の通し番号 |
+| `photo` | 写っている写真の番号（1 始まり） |
+| `recognizedTitle` | 読み取った作品名（副題・作者・出版社は除く） |
+| `volumeDisplay` | 巻数（数字のみ。「上」等はそのまま。不明は空文字） |
+| `uncertain` | 作品名・巻数に自信がない場合 `true` |
+
+エラー処理:
+
+| 状況 | メッセージ |
+|---|---|
+| HTTP 200 以外 | `AI解析に失敗しました（<status>）`。429 / 5xx は「時間をおいて再試行」を付加、API のエラーメッセージがあれば付加 |
+| `stop_reason: refusal` | `AIが解析を拒否しました。別の写真で再試行してください` |
+| `stop_reason: max_tokens` | `解析結果が長すぎます。写真を分けて再試行してください` |
+| 応答が JSON として不正 | `AIの応答が不正です` |
+| 通信失敗（権限不足） | `testAnthropicConnection` を実行して権限を承認するよう案内 |
+| 通信失敗（その他） | `AI APIに接続できませんでした（<経過秒>秒）: <原因>` |
+
+#### 応答の正規化（`validateSpineResult`）
+
+- 文字列項目が欠けた要素は除外。`position` が整数でなければ配列順で補完し、`position` 昇順に並べ替え。
+- `photo` が範囲外なら、写真 1 枚のときは `1`、複数枚のときは `0`（不明）。
+- 数字のみの巻数は先頭ゼロを除去（`"05"` → `"5"`）。
+
+#### 作品照合（`matchExistingTitles`）
+
+1. 読み取った作品名と全作品名を `normalizeTitleForMatch` で正規化（NFKC、小文字化、ひらがな→カタカナ、空白・記号除去）。
+2. `titleSimilarity` で類似度を算出。
+   - 完全一致: 1
+   - 片方がもう片方を含む（2 文字以上）: `0.6 + 0.4 × 短い方の長さ / 長い方の長さ`
+   - それ以外: 文字バイグラムの Dice 係数
+3. 類似度 0.5 以上を候補とし、降順で上位 3 件を `candidates` に設定。最上位を `titleId` / `titleName` に設定。
+
+| `match` | 条件 |
+|---|---|
+| `exact` | 類似度 1 の候補がちょうど 1 件 |
+| `fuzzy` | 上記以外で候補あり |
+| `none` | 候補なし（`titleId` は空） |
+
+### `addTitleFromPhotoImport(input)` — 確認画面からの作品追加
+
+| 項目 | 内容 |
+|---|---|
+| 引数 | `{ name, seriesId, newSeriesName, type, completed }`（`seriesId` か `newSeriesName` のどちらか必須） |
+| 戻り値 | `{ success: true, message, title: { id, name, completed }, series: { id, name, created } }` |
+| 排他 | スクリプトロック（10 秒待機。取得できなければ失敗） |
+
+処理:
+
+1. 正規化後の作品名が既存作品と一致 → 失敗（既存作品を選ぶよう案内）
+2. 新規シリーズ指定時: 同名シリーズがあれば失敗。なければ `addSeriesMasterWeb` で追加
+3. 既存シリーズ指定時: SeriesID の存在を確認
+4. `addTitleMasterWeb` で作品を追加し、採番された ID を返す
+
+### `bulkAddLibraryFromPhoto(rows)` — 確定行の一括登録
+
+| 項目 | 内容 |
+|---|---|
+| 引数 | `rows: [{ rowId, titleId, volume, boxId, label, markCompleted }]`（最大 200 件） |
+| 戻り値 | `{ success: true, added, duplicates: [{ rowId, label, message }], failed: [...], addedRowIds, completedTitles }` |
+| 排他 | 登録処理をスクリプトロックで保護 |
+
+処理:
+
+1. 行ごとに巻数を `parseVolumeExpression` で検証（**1 行につき 1 巻のみ**）。Box の存在を確認。NG の行は `failed` へ
+2. OK の行を `addBulkVolumesWeb` で登録。重複は `duplicates`、その他のエラーは `failed` に振り分け（部分成功）
+3. 登録できた行のうち `markCompleted: true` の作品の完結状態を `完結済` に更新し、作品名を `completedTitles` に設定
+
+### `testAnthropicConnection()` — 接続確認（手動実行用）
+
+Apps Script エディタから実行します。外部通信の権限承認と、API キー・モデル設定の確認に使います（`effort: low` で短い応答を 1 回要求）。
+
+### 内部関数
+
+| 関数 | 内容 |
+|---|---|
+| `getLibraryKeys()` | `M_Library` の `TitleID|巻数` 一覧 |
+| `getDefaultPhotoImportBoxId()` | Box の初期値（上記） |
+| `normalizeTitleForMatch(value)` / `titleSimilarity(a, b)` | 作品照合用の正規化・類似度 |
+
+---
+
+## 3.9 API 呼び出し元一覧
 
 | API | 呼び出し元（クライアント関数） |
 |---|---|
-| `getTitleMaster` | `refreshMasterData`, `loadTitleMaster`, `loadTitleList`, `loadLibraryMaster` |
+| `getTitleMaster` | `refreshMasterData`, `loadTitleMaster`, `loadTitleList`, `loadLibraryMaster`, `openPhotoImportForm` |
 | `getSeriesMaster` | `refreshMasterData`, `loadSeriesMaster`, `loadSeriesList` |
 | `getBoxMaster` | `refreshMasterData`, `loadBoxMaster`, `loadBoxList`, `loadLibraryMaster` |
 | `getLibrarySummary` | `loadLibrarySummary`（初期化時・タブ切替毎・書籍追加後） |
@@ -224,4 +361,8 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | `addNewVolumeWeb` | `addLibraryMaster`, `addVolume`（※ `addVolume` の画面は未表示） |
 | `addTitleMasterWeb` / `addSeriesMasterWeb` / `addBoxMasterWeb` | `addTitleMaster` / `addSeriesMaster` / `addBoxMaster` |
 | `update*Master` | `saveEdit`（テーブル ID により振り分け） |
-| `getLibraryMaster`, `addBulkVolumesWeb`, `getTitles`, `getSeries`, `getBoxes` | なし（未使用） |
+| `getSeries` / `getBoxes` | `openPhotoImportForm` |
+| `analyzeBookSpines` / `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | `analyzePhotoImport` / 作品追加パネルの「追加して選択」 / `registerPhotoImport` |
+| `getTitles`, `addBulkVolumesWeb` | サーバー内部から使用（`analyzeBookSpines`, `bulkAddLibraryFromPhoto`） |
+| `testAnthropicConnection` | Apps Script エディタから手動実行 |
+| `getLibraryMaster` | なし（未使用） |

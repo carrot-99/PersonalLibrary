@@ -1,6 +1,6 @@
 # 05. クライアント共通処理設計
 
-対象: `client/Common.html`（共通 JS）および各ドメインの JS（`Library.html` / `Title.html` / `Series.html` / `Box.html`）。
+対象: `client/Common.html`（共通 JS）および各ドメインの JS（`Library.html` / `PhotoImport.html` / `Title.html` / `Series.html` / `Box.html`）。写真から登録固有の処理は [04 章 4.6.5](04_screen_design.md#465-写真から登録書籍マスタ管理内) を参照。
 すべて `<script>` 直書きのグローバル関数で、HTML の `onclick` 属性から呼べるよう `window.*` にも公開しています。
 
 ## 5.1 読み込み順と初期化
@@ -8,7 +8,7 @@
 `Index.html` の `<body>` 末尾で次の順に読み込みます。
 
 1. `Common.html` — 共通処理、`masterCache` 定義
-2. `Library.html` → `Series.html` → `Title.html` → `Box.html`
+2. `Library.html` → `PhotoImport.html` → `Series.html` → `Title.html` → `Box.html`
 
 `<body onload="initApp()">` → `init()`:
 
@@ -32,7 +32,7 @@ callGAS(funcName, successHandler, ...args)
 
 `google.script.run` のラッパー。失敗時は `showError(error.message || '通信に失敗しました')` を表示します。
 
-例外: 検索画面・一覧画面（`showSeries` / `loadTitleList` 等）は、ローディング表示の解除が必要なため `google.script.run` を直接使用し、成功・失敗の両方で `hideInlineLoading()` を呼びます。
+例外: 検索画面・一覧画面（`showSeries` / `loadTitleList` 等）と写真から登録（解析・作品追加・登録確定）は、ローディング表示の解除が必要なため `google.script.run` を直接使用し、成功・失敗の両方で `hideInlineLoading()` を呼びます。
 
 ## 5.3 タブ（画面）切替 — `showTab(tabId)`
 
@@ -144,7 +144,7 @@ callGAS(funcName, successHandler, ...args)
 
 | 関数 | 仕様 |
 |---|---|
-| `toggleAddForm(id)` | 同一 View 内の `.master-form` をすべて閉じ、指定フォームを表示（常に表示） |
+| `toggleAddForm(id)` | 同一 View 内の `.master-form` をすべて閉じ、指定フォームを表示（常に表示）。写真から登録フォームもこれで開く |
 | `toggleSearchForm(id)` | 同一 View 内の `.master-form` をすべて閉じ、指定フォームの表示をトグル |
 | `syncMasterToolbarLayout(view)` | 1100px 以下でツールバーのボタンを折り返し可能な横並びに調整 |
 
@@ -156,3 +156,5 @@ callGAS(funcName, successHandler, ...args)
 | `currentTitleListFilter` | `Title.html` | 作品一覧の種別フィルタ（`all` / `漫画` / `ラノベ`） |
 | `messageTimeout` | `Common.html` | 通知自動消去タイマー |
 | `PAGE_SIZE`, `currentLibraryPage` | `Library.html` | 旧ページング用。現在は実質未使用 |
+| `photoImportState` | `PhotoImport.html` | 写真から登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `busy`） |
+| `photoImportImagesPromise` | `PhotoImport.html` | 選択写真の縮小処理（長辺 1568px・JPEG 品質 0.9）の Promise。解析時に完了を待つ |
