@@ -793,7 +793,7 @@ function renderFilteredTable(tableId, rows, columns, keywordInputId, editable = 
 
     if(editable){
       const actionTd = document.createElement('td');
-      actionTd.appendChild(createEditButton());
+      appendRowActions(actionTd, tableId);
       tr.appendChild(actionTd);
     }
 
@@ -851,6 +851,71 @@ function startEdit(btn){
   actionTd.appendChild(cancelBtn);
 }
 
+// 行の操作ボタン（[編集]、書籍マスタのみ [削除] も）
+// 削除は書籍のみ（作品・シリーズ・Box は参照されているため対象外）
+function appendRowActions(actionTd, tableId){
+  actionTd.appendChild(createEditButton());
+  if(tableId === 'libraryMasterTable'){
+    actionTd.appendChild(createDeleteButton());
+  }
+}
+
+// 削除ボタン（誤操作防止のため 2 回押しで確定。4 秒で元に戻る）
+function createDeleteButton(){
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'delete-action';
+  btn.textContent = '削除';
+
+  let resetTimer = null;
+  btn.addEventListener('click', function(){
+    if(!btn.classList.contains('is-confirm')){
+      btn.classList.add('is-confirm');
+      btn.textContent = '本当に削除';
+      resetTimer = setTimeout(() => {
+        btn.classList.remove('is-confirm');
+        btn.textContent = '削除';
+      }, 4000);
+      return;
+    }
+
+    clearTimeout(resetTimer);
+    deleteRow(btn);
+  });
+
+  return btn;
+}
+
+function deleteRow(btn){
+  const tr = btn.closest('tr');
+  const id = tr.cells[0].textContent.trim();
+
+  btn.disabled = true;
+  btn.textContent = '削除中...';
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      if(res && res.success){
+        showSuccess(res.message);
+        loadLibraryMaster();
+        loadRecentLibrary('globalRecentLibraryTable');
+        loadLibrarySummary('libraryGlobal');
+      } else {
+        btn.disabled = false;
+        btn.classList.remove('is-confirm');
+        btn.textContent = '削除';
+        showError(res?.message || '削除に失敗しました');
+      }
+    })
+    .withFailureHandler(function(error){
+      btn.disabled = false;
+      btn.classList.remove('is-confirm');
+      btn.textContent = '削除';
+      showError(error && error.message ? error.message : '削除に失敗しました');
+    })
+    .deleteLibraryMaster(id);
+}
+
 function cancelEdit(btn){
 
   const tr = btn.closest('tr');
@@ -866,7 +931,7 @@ function cancelEdit(btn){
   // 操作列を戻す
   const actionTd = tr.cells[tr.cells.length - 1];
   actionTd.textContent = '';
-  actionTd.appendChild(createEditButton());
+  appendRowActions(actionTd, tr.closest('table').id);
 }
 
 function saveEdit(btn){

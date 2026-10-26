@@ -171,7 +171,8 @@
 | | Box `#libraryAddBoxInput` | 必須（datalist、`<ID> : <場所>`） |
 | 検索 | キーワード `#librarySearchKeyword` | |
 | 一覧 | LibraryID, 作品名, 巻数, Box | `#libraryMasterTable` |
-| API | `getLibraryPage(1, 99999)` / `getTitleMaster` / `getBoxMaster` / `addNewVolumeWeb` / `updateLibraryMaster` | |
+| 削除 | 各行の [編集] の横の [削除] | 1 回目で「本当に削除」に変わり、4 秒以内にもう一度押すと削除。他の画面（作品・シリーズ・Box）には削除なし |
+| API | `getLibraryPage(1, 99999)` / `getTitleMaster` / `getBoxMaster` / `addNewVolumeWeb` / `updateLibraryMaster` / `deleteLibraryMaster` | |
 
 書籍追加の処理フロー:
 

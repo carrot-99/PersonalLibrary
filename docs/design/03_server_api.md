@@ -121,6 +121,15 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 4. 自分以外に同一 (TitleID, 巻数) があれば `failure('同じ作品・巻数のデータが既に存在します')`
 5. `updateRowById` で 2 列目（TitleID）・3 列目（BoxID）・4 列目（巻数）を更新 → 成功は `success('更新成功しました')`
 
+### `deleteLibraryMaster(id)` — 書籍削除
+
+| 項目 | 内容 |
+|---|---|
+| 引数 | `id`: LibraryID |
+| 処理 | `LockService.getScriptLock()`（最大 10 秒待機）で排他し、1 列目が `id` の行を `deleteRow` で物理削除 |
+| 成功 | `success('<作品名> <巻数>巻（<ID>）を削除しました')` |
+| エラー | `id` 空 → `IDが指定されていません`、該当行なし → `該当データが見つかりません`、ロック取得失敗 → `他の登録処理が実行中です。…` |
+
 ### `addBulkVolumesWeb(entries)` — 複数行一括登録
 
 | 項目 | 内容 |
@@ -369,6 +378,7 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `addNewVolumeWeb` | `addLibraryMaster`, `addVolume`（※ `addVolume` の画面は未表示） |
 | `addTitleMasterWeb` / `addSeriesMasterWeb` / `addBoxMasterWeb` | `addTitleMaster` / `addSeriesMaster` / `addBoxMaster` |
 | `update*Master` | `saveEdit`（テーブル ID により振り分け） |
+| `deleteLibraryMaster` | `deleteRow`（書籍マスタ管理のインライン編集中の [削除]） |
 | `getSeries` / `getBoxes` | `loadPhotoImportView` |
 | `analyzeBookSpines` / `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | `analyzePhotoImport` / 作品追加パネルの「追加して選択」 / `registerPhotoImport` |
 | `getTitles`, `addBulkVolumesWeb`, `getOwnedVolumesByTitle` | サーバー内部から使用（`analyzeBookSpines`, `bulkAddLibraryFromPhoto`） |
