@@ -125,7 +125,10 @@ callGAS(funcName, successHandler, ...args)
    各セル（ID 列・操作列以外）を <input type="text"> に置換、元の値を data-original に退避
    行に editing クラスを付与（スマホで入力欄の幅を確保）、入力欄のプレースホルダーに列名
    操作列を [保存] [取消] に置換
-[取消] → cancelEdit(btn)   元の値に戻し [編集] を再表示（createEditButton で生成）
+[取消] → cancelEdit(btn)   元の値に戻し操作ボタンを再表示（appendRowActions）
+操作ボタン appendRowActions(actionTd, tableId): [編集]（createEditButton）。書籍マスタ管理のみ横に [削除]（createDeleteButton）
+[削除] → 1 回目: 「本当に削除」に変更（4 秒で元に戻る）／2 回目: deleteRow(btn)
+   deleteLibraryMaster(1 列目の ID) → 成功時は書籍マスタ・最近追加・サマリーを再読込
 [保存] → saveEdit(btn)
    id     = 1 列目の値（編集不可）
    values = 2 列目〜最終列の 1 つ前までの値（画面上の表示値）

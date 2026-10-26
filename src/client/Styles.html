@@ -86,6 +86,30 @@
   .autocomplete-item:hover {
     background: #1b5e20;
   }
+  .delete-action {
+    margin-left: 5px;
+    background: #b91c1c;
+    box-shadow: none;
+  }
+  /* 書籍マスタの操作列（編集・削除）は省略せず横並び。PC・タブレットでは列幅を確保 */
+  #libraryMasterTable td:last-child {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  #libraryMasterTable td:last-child .delete-action { margin-left: 8px; }
+  @media (min-width: 721px) {
+    #libraryMasterTable th:last-child,
+    #libraryMasterTable td:last-child {
+      width: 150px !important;
+      max-width: none !important;
+    }
+  }
+  .delete-action.is-confirm {
+    background: #ef4444;
+    font-weight: bold;
+    outline: 2px solid #fecaca;
+  }
   .autocomplete-suggestions {
     display: none;
     margin-top: 4px;
@@ -927,10 +951,12 @@
     td button,
     .edit-action {
       min-height: 44px;
-      margin: 2px 0 !important;
+      margin: 2px 6px 2px 0 !important;
       padding: 8px 12px;
       font-size: 0.95rem;
     }
+    /* 削除は誤タップしないよう他のボタンから離す */
+    td .delete-action { margin-left: 14px !important; }
     td input { min-height: 44px; padding: 8px; }
     /* インライン編集中は入力欄の幅を確保し、はみ出す分は横スクロール */
     tr.editing td input { min-width: 9em; }

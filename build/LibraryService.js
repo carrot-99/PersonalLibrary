@@ -334,6 +334,49 @@ function updateLibraryMaster(id, values){
   }
 }
 
+// ----------------------
+// 削除（1 冊）
+// 行を物理削除する。ID 採番は最終行 + 1 のため、最終行を消すと次の登録で同じ ID が再利用される
+// ----------------------
+function deleteLibraryMaster(id){
+
+  const targetId = String(id || '').trim();
+  if(!targetId){
+    return failure('IDが指定されていません');
+  }
+
+  const lock = LockService.getScriptLock();
+  if(!lock.tryLock(10000)){
+    return failure('他の登録処理が実行中です。少し待ってから再試行してください');
+  }
+
+  try{
+    const sheet = getSheet(SHEETS.LIBRARY);
+    const ids = sheet.getLastRow() < 2
+      ? []
+      : sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+
+    const index = ids.findIndex(row => String(row[0]).trim() === targetId);
+    if(index === -1){
+      return failure('該当データが見つかりません');
+    }
+
+    const rowNumber = index + 2;
+    const row = sheet.getRange(rowNumber, 1, 1, 4).getValues()[0];
+    const titleMap = new Map(getData(SHEETS.TITLE).map(r => [String(r[0]).trim(), r[1]]));
+    const label = `${titleMap.get(String(row[1]).trim()) || row[1]} ${row[3]}巻`;
+
+    sheet.deleteRow(rowNumber);
+
+    return success(`${label}（${targetId}）を削除しました`);
+
+  } catch(e){
+    return failure(e.message);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function getLibraryPage(page, pageSize) {
   const sheet = getSheet(SHEETS.LIBRARY);
   if (!sheet || sheet.getLastRow() < 2) {
