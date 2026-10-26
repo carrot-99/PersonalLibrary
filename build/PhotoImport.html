@@ -22,6 +22,8 @@ const photoImportState = {
   images: [],
   rows: [],
   existingKeys: new Set(),
+  // 'check': 所持チェック結果の表示のみ／'register': 未所持の本の登録（Box・登録確定などを表示）
+  mode: 'check',
   busy: false
 };
 
@@ -79,7 +81,7 @@ function fillPhotoImportBoxOptions(select, selectedId){
 
 function setPhotoImportBusy(busy){
   photoImportState.busy = busy;
-  ['photoImportAnalyzeButton', 'photoImportRegisterButton'].forEach(id => {
+  ['photoImportAnalyzeButton', 'photoImportRegisterButton', 'photoImportStartRegister'].forEach(id => {
     const button = document.getElementById(id);
     if(button) button.disabled = busy;
   });
@@ -239,6 +241,7 @@ async function analyzePhotoImport(){
         rowId: `${Date.now()}-${idx}`,
         checked: true,
         recognizedTitle: row.recognizedTitle,
+        recognizedVolume: row.volume,
         titleId: row.titleId,
         titleName: row.titleName,
         volume: row.volume,
@@ -250,14 +253,17 @@ async function analyzePhotoImport(){
         candidates: row.candidates || [],
         notes: row.notes
       }));
+      // 所持済みの本は登録対象から外しておく
+      photoImportState.rows.forEach(row => { row.checked = !isPhotoRowOwned(row); });
 
+      setPhotoImportMode('check');
       document.getElementById('photoImportReview').style.display = 'block';
       renderPhotoImportRows();
 
       if(photoImportState.rows.length === 0){
         showError('写真から本を読み取れませんでした');
       } else {
-        showSuccess(`${photoImportState.rows.length} 冊を読み取りました。内容を確認してください`);
+        showSuccess(`${photoImportState.rows.length} 冊を読み取りました`);
       }
     })
     .withFailureHandler(function(error){
@@ -297,10 +303,75 @@ function getPhotoImportStatus(row, index){
 }
 
 //////////////////////////////
-// 所持巻との連続性（間が飛んでいないか）
-// 登録済みの巻＋この一覧でチェック済みの同じ作品の巻を合わせて、1 巻からの抜けを判定する。
-// 登録可否には影響しない（注意表示のみ）
+// 所持チェックの判定（持っているか・買う／登録すると続きになるか）
+// 登録済みの巻＋この一覧の同じ作品の未所持巻（確認中は全行、登録中はチェック済みの行）を
+// 合わせて、1 巻からの抜けを判定する。登録可否には影響しない
 //////////////////////////////
+const PHOTO_VERDICT = {
+  OWNED: { key: 'owned', label: '所持済み' },
+  NEXT: { key: 'next', label: '未所持・続きの巻' },
+  FILL: { key: 'fill', label: '未所持・抜けていた巻' },
+  GAP: { key: 'gap', label: '未所持・間が飛ぶ' },
+  NEW_TITLE: { key: 'new', label: '未所持の作品' },
+  UNKNOWN: { key: 'unknown', label: '巻数不明' }
+};
+
+function isPhotoRowOwned(row){
+  const volume = getSinglePhotoVolume(row);
+  return !!row.titleId && !!volume && photoImportState.existingKeys.has(`${row.titleId}|${volume}`);
+}
+
+function getPhotoImportVerdict(row){
+  if(!row.titleId){
+    return { status: PHOTO_VERDICT.NEW_TITLE, detail: '作品マスタに無い作品です（[作品を追加] で追加できます）' };
+  }
+
+  const owned = summarizeOwnedVolumes(getOwnedVolumesForPhotoTitle(row.titleId));
+  const ownedText = owned.count > 0 ? `所持: ${formatOwnershipText(owned)}` : '';
+  const withOwned = message => ownedText ? `${message} ／ ${ownedText}` : message;
+
+  const volume = getSinglePhotoVolume(row);
+  if(!volume){
+    return { status: PHOTO_VERDICT.UNKNOWN, detail: ownedText || 'この作品は未所持です' };
+  }
+  if(isPhotoRowOwned(row)){
+    return { status: PHOTO_VERDICT.OWNED, detail: ownedText };
+  }
+  if(owned.count === 0){
+    return { status: PHOTO_VERDICT.NEW_TITLE, detail: 'この作品はまだ1冊も持っていません' };
+  }
+  if(!/^\d+$/.test(volume)){
+    return { status: PHOTO_VERDICT.NEXT, detail: withOwned('数字以外の巻です') };
+  }
+
+  const target = Number(volume);
+  const together = photoImportState.rows
+    .filter(other => other !== row
+      && other.titleId === row.titleId
+      && (photoImportState.mode === 'check' || other.checked))
+    .map(getSinglePhotoVolume)
+    .filter(v => v && /^\d+$/.test(v))
+    .map(Number)
+    .filter(n => !owned.numbers.includes(n));
+
+  const covered = new Set(owned.numbers.concat(together));
+  const missing = [];
+  for(let n = 1; n < target; n++){
+    if(!covered.has(n)) missing.push(n);
+  }
+
+  if(missing.length > 0){
+    return { status: PHOTO_VERDICT.GAP, detail: withOwned(`${formatVolumeRanges(missing)}巻が未所持です`) };
+  }
+  if(target < owned.max){
+    return { status: PHOTO_VERDICT.FILL, detail: withOwned('抜けている巻を埋められます') };
+  }
+
+  const before = together.filter(n => n < target && n > owned.max).sort((a, b) => a - b);
+  const prefix = before.length > 0 ? `この一覧の${formatVolumeRanges(before)}巻と合わせて` : '';
+  return { status: PHOTO_VERDICT.NEXT, detail: withOwned(`${prefix}続きになります`) };
+}
+
 function getOwnedVolumesForPhotoTitle(titleId){
   const prefix = `${titleId}|`;
   const volumes = [];
@@ -313,43 +384,6 @@ function getOwnedVolumesForPhotoTitle(titleId){
 function getSinglePhotoVolume(row){
   const parsed = parseVolumeInput(row.volume);
   return parsed.valid && parsed.values.length === 1 ? parsed.values[0] : null;
-}
-
-function getPhotoImportContinuity(row){
-  if(!row.checked || !row.titleId) return null;
-
-  const volume = getSinglePhotoVolume(row);
-  if(!volume || !/^\d+$/.test(volume)) return null;
-  const target = Number(volume);
-
-  const owned = summarizeOwnedVolumes(getOwnedVolumesForPhotoTitle(row.titleId));
-  if(owned.numbers.includes(target)) return null;
-
-  const listVolumes = photoImportState.rows
-    .filter(other => other !== row && other.checked && other.titleId === row.titleId)
-    .map(getSinglePhotoVolume)
-    .filter(Boolean);
-  const combined = new Set(owned.numbers.concat(summarizeOwnedVolumes(listVolumes).numbers));
-
-  const missing = [];
-  for(let n = 1; n < target; n++){
-    if(!combined.has(n)) missing.push(n);
-  }
-
-  const ownedText = owned.numbers.length > 0
-    ? `所持: ${formatVolumeRanges(owned.numbers)}巻`
-    : 'この作品は未所持';
-
-  if(missing.length > 0){
-    return { level: 'warning', text: `⚠ 間が飛んでいます: ${formatVolumeRanges(missing)}巻が未所持（${ownedText}）` };
-  }
-  if(owned.numbers.length === 0){
-    return { level: 'ok', text: '✓ 1巻から揃っています（この作品は未所持）' };
-  }
-  if(target < owned.max){
-    return { level: 'ok', text: `✓ 抜けていた巻です（${ownedText}）` };
-  }
-  return { level: 'ok', text: `✓ 続きの巻です（${ownedText}）` };
 }
 
 function getPhotoImportStatusDetail(row, status){
@@ -377,9 +411,17 @@ function renderPhotoImportRows(){
     card.className = 'photo-import-row';
     card.dataset.rowId = row.rowId;
 
+    const verdict = document.createElement('div');
+    verdict.className = 'photo-verdict';
+    const verdictBadge = document.createElement('span');
+    const verdictDetail = document.createElement('span');
+    verdictDetail.className = 'photo-verdict-detail';
+    verdict.appendChild(verdictBadge);
+    verdict.appendChild(verdictDetail);
+
     const check = document.createElement('input');
     check.type = 'checkbox';
-    check.className = 'photo-import-check';
+    check.className = 'photo-import-check register-only';
     check.checked = row.checked;
     check.title = '登録対象';
     check.onchange = function(){
@@ -412,7 +454,7 @@ function renderPhotoImportRows(){
     };
 
     const boxSelect = document.createElement('select');
-    boxSelect.className = 'photo-import-box';
+    boxSelect.className = 'photo-import-box register-only';
     fillPhotoImportBoxOptions(boxSelect, row.boxId);
     boxSelect.onchange = function(){
       row.boxId = boxSelect.value;
@@ -420,11 +462,11 @@ function renderPhotoImportRows(){
     };
 
     const statusArea = document.createElement('div');
-    statusArea.className = 'photo-import-status';
+    statusArea.className = 'photo-import-status register-only';
 
     const recognized = document.createElement('div');
     recognized.className = 'photo-import-recognized';
-    const recognizedParts = [`読み取り: ${row.recognizedTitle || '（不明）'} ${row.volume || ''}`.trim()];
+    const recognizedParts = [`読み取り: ${row.recognizedTitle || '（不明）'} ${row.recognizedVolume || ''}`.trim()];
     if(row.candidates.length > 1) recognizedParts.push(`候補: ${row.candidates.join(' / ')}`);
     if(row.notes) recognizedParts.push(row.notes);
     if(row.photo > 0 && photoImportState.images[row.photo - 1]){
@@ -443,6 +485,7 @@ function renderPhotoImportRows(){
     const addPanel = buildPhotoTitleAddPanel(row);
     const addToggle = document.createElement('button');
     addToggle.type = 'button';
+    // 作品の追加は確認・登録どちらのモードでも使える
     addToggle.className = 'photo-import-add-toggle';
     addToggle.textContent = '作品を追加';
     addToggle.onclick = function(){
@@ -454,13 +497,14 @@ function renderPhotoImportRows(){
 
     const finalToggle = document.createElement('button');
     finalToggle.type = 'button';
-    finalToggle.className = 'photo-import-final-toggle';
+    finalToggle.className = 'photo-import-final-toggle register-only';
     finalToggle.onclick = function(){
       row.markCompleted = !row.markCompleted;
       refreshPhotoImportStatuses();
     };
     recognized.appendChild(finalToggle);
 
+    card.appendChild(verdict);
     card.appendChild(check);
     card.appendChild(titleInput);
     card.appendChild(volumeInput);
@@ -470,7 +514,14 @@ function renderPhotoImportRows(){
     card.appendChild(addPanel);
     container.appendChild(card);
 
-    row.render = function(status){
+    row.render = function(status, verdictResult){
+      verdictBadge.className = `photo-verdict-badge status-${verdictResult.status.key}`;
+      verdictBadge.textContent = verdictResult.status.label;
+      verdictDetail.textContent = row.needsReview && row.titleId
+        ? `要確認（読み取りがあいまいです）: ${verdictResult.detail}`
+        : verdictResult.detail;
+      card.dataset.verdict = verdictResult.status.key;
+
       statusArea.innerHTML = '';
       const badge = document.createElement('span');
       badge.className = `photo-import-badge status-${Object.keys(PHOTO_STATUS).find(k => PHOTO_STATUS[k] === status).toLowerCase()}`;
@@ -495,14 +546,6 @@ function renderPhotoImportRows(){
           refreshPhotoImportStatuses();
         };
         statusArea.appendChild(ok);
-      }
-
-      const continuity = getPhotoImportContinuity(row);
-      if(continuity){
-        const note = document.createElement('div');
-        note.className = `photo-import-continuity is-${continuity.level}`;
-        note.textContent = continuity.text;
-        statusArea.appendChild(note);
       }
 
       card.classList.toggle('is-unchecked', !row.checked);
@@ -671,11 +714,45 @@ function applyAddedPhotoTitle(row, res){
 }
 
 function refreshPhotoImportStatuses(){
+  let ownedCount = 0;
   photoImportState.rows.forEach((row, index) => {
     row.status = getPhotoImportStatus(row, index);
-    if(row.render) row.render(row.status);
+    const verdict = getPhotoImportVerdict(row);
+    if(verdict.status === PHOTO_VERDICT.OWNED) ownedCount++;
+    if(row.render) row.render(row.status, verdict);
   });
+
+  const total = photoImportState.rows.length;
+  const notOwned = total - ownedCount;
+  const summary = document.getElementById('photoImportSummary');
+  summary.textContent = `${total}冊中　所持済み ${ownedCount}冊 ／ 未所持 ${notOwned}冊`;
+  summary.style.display = total > 0 ? 'block' : 'none';
+
+  const start = document.getElementById('photoImportStartRegister');
+  start.textContent = `未所持の本を登録する（${notOwned}冊）`;
+  start.disabled = photoImportState.busy || notOwned === 0;
+
   updatePhotoImportRegisterButton();
+}
+
+//////////////////////////////
+// 確認 → 登録の切り替え
+//////////////////////////////
+function setPhotoImportMode(mode){
+  photoImportState.mode = mode;
+  document.getElementById('photoImportPanel').classList.toggle('is-check-mode', mode === 'check');
+}
+
+function startPhotoImportRegister(){
+  // 未所持の本だけを登録対象にする
+  photoImportState.rows.forEach(row => { row.checked = !isPhotoRowOwned(row); });
+  setPhotoImportMode('register');
+  renderPhotoImportRows();
+}
+
+function backToPhotoImportCheck(){
+  setPhotoImportMode('check');
+  refreshPhotoImportStatuses();
 }
 
 function getRegistrablePhotoRows(){
@@ -777,6 +854,7 @@ function resetPhotoImport(){
   photoImportImagesPromise = null;
   photoImportState.images = [];
   photoImportState.rows = [];
+  setPhotoImportMode('check');
   renderPhotoImportPreview();
   renderPhotoImportRows();
   document.getElementById('photoImportReview').style.display = 'none';
@@ -818,4 +896,6 @@ window.closePhotoImportViewer = closePhotoImportViewer;
 window.analyzePhotoImport = analyzePhotoImport;
 window.applyPhotoImportBulkBox = applyPhotoImportBulkBox;
 window.registerPhotoImport = registerPhotoImport;
+window.startPhotoImportRegister = startPhotoImportRegister;
+window.backToPhotoImportCheck = backToPhotoImportCheck;
 </script>
