@@ -580,4 +580,199 @@
   #LibraryEntryView{display:block;}
   table{border-collapse:collapse;width:100%;margin-top:10px;}
   th,td{border:1px solid #ccc;padding:4px;text-align:left;}
+
+  /* 写真から登録 */
+  .photo-import-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 12px 0;
+  }
+  .photo-import-row {
+    display: grid;
+    grid-template-columns: 28px minmax(160px, 2fr) 80px minmax(140px, 1.4fr);
+    grid-template-areas:
+      "check title volume box"
+      ".     status status status"
+      ".     recognized recognized recognized"
+      ".     addform addform addform";
+    gap: 6px 8px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    background: #0b1220;
+  }
+  .photo-import-row.is-unchecked { opacity: 0.55; }
+  .photo-import-row input,
+  .photo-import-row select { margin: 0; }
+  .photo-import-check { grid-area: check; width: 20px; height: 20px; }
+  .photo-import-title { grid-area: title; }
+  .photo-import-volume { grid-area: volume; }
+  .photo-import-box { grid-area: box; }
+  .photo-import-status {
+    grid-area: status;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+  }
+  .photo-import-recognized {
+    grid-area: recognized;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: #9ca3af;
+  }
+  .photo-import-add-toggle {
+    margin: 0;
+    padding: 3px 10px;
+    font-size: 0.8rem;
+    background: #374151;
+    box-shadow: none;
+  }
+  .photo-import-preview {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    margin-top: 8px;
+  }
+  .photo-import-thumb {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    padding: 4px;
+    background: #111827;
+    border: 1px solid #374151;
+    box-shadow: none;
+    font-size: 0.75rem;
+  }
+  .photo-import-thumb img {
+    height: 88px;
+    width: auto;
+    max-width: 160px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+  .photo-import-photo-link {
+    margin: 0;
+    padding: 3px 10px;
+    font-size: 0.8rem;
+    background: #0e7490;
+    box-shadow: none;
+  }
+  .photo-import-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    flex-direction: column;
+    background: rgba(0, 0, 0, 0.9);
+    overflow: auto;
+  }
+  .photo-import-viewer-bar {
+    position: sticky;
+    top: 0;
+    left: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(11, 18, 32, 0.95);
+    font-size: 0.85rem;
+  }
+  .photo-import-viewer-bar button { margin: 0; padding: 6px 14px; }
+  .photo-import-viewer img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(100vh - 56px);
+    margin: auto;
+    object-fit: contain;
+    cursor: zoom-in;
+  }
+  .photo-import-viewer img.is-zoomed {
+    max-width: none;
+    max-height: none;
+    width: 200%;
+    margin: 0;
+    cursor: zoom-out;
+  }
+  .photo-import-final-toggle {
+    margin: 0;
+    padding: 3px 10px;
+    font-size: 0.8rem;
+    background: transparent;
+    color: #cbd5e1;
+    border: 1px solid #4b5563;
+    box-shadow: none;
+  }
+  .photo-import-final-toggle.is-active {
+    background: #16a34a;
+    border-color: #16a34a;
+    color: #f8fafc;
+  }
+  .photo-title-add {
+    grid-area: addform;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 10px;
+    border: 1px dashed #67e8f9;
+    border-radius: 8px;
+  }
+  .photo-import-row input,
+  .photo-import-row select { box-sizing: border-box; min-width: 0; }
+  .photo-title-add input,
+  .photo-title-add select { margin: 0; }
+  .photo-title-add-name,
+  .photo-title-add-series,
+  .photo-title-add-mode,
+  .photo-title-add-actions { grid-column: 1 / -1; }
+  .photo-title-add-mode { display: flex; gap: 16px; }
+  .photo-title-add-mode label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+  }
+  .photo-title-add-mode input { width: auto; }
+  .photo-title-add-actions { display: flex; gap: 8px; }
+  .photo-title-add-actions button { margin: 0; }
+  .photo-title-add-cancel { background: #374151; box-shadow: none; }
+  .photo-import-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: bold;
+    color: #0b1220;
+  }
+  .photo-import-badge.status-ok { background: #4ade80; }
+  .photo-import-badge.status-review { background: #facc15; }
+  .photo-import-badge.status-unregistered { background: #9ca3af; }
+  .photo-import-badge.status-duplicate { background: #fb923c; }
+  .photo-import-badge.status-input_error { background: #f87171; }
+  .photo-import-detail { color: #cbd5e1; }
+  .photo-import-ok {
+    margin: 0;
+    padding: 4px 14px;
+    font-size: 0.85rem;
+  }
+  .photo-import-result ul { margin: 6px 0 0; padding-left: 20px; font-size: 0.85rem; }
+  .photo-import-result-summary { margin-top: 10px; font-weight: bold; }
+
+  @media (max-width: 720px) {
+    .photo-import-row {
+      grid-template-columns: 28px 80px 1fr;
+      grid-template-areas:
+        "check title title"
+        ".     volume box"
+        ".     status status"
+        ".     recognized recognized"
+        "addform addform addform";
+    }
+  }
 </style>
