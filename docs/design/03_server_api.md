@@ -29,6 +29,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | `generateNextId(prefix, lastId)` | 次 ID を生成（[02_data_design.md 2.4](02_data_design.md#24-id-採番) 参照） |
 | `getLastId(sheetName)` | 最終行 1 列目の値。データなしは `null` |
 | `updateRowById(sheetName, id, columnMap)` | 1 列目が `id` に一致する最初の行の、`columnMap` (`{列番号: 値}`) で指定した列を更新。見つかれば `true` |
+| `resolveMasterId(rows, input, currentId)` | 画面の表示値（ID または名前）からマスタ ID を解決。ID 一致を優先し、次に 2 列目の名前一致。同名が複数あれば `currentId` を優先。見つからなければ `null` |
 | `success(message)` / `failure(message)` | 共通レスポンス生成 |
 
 ### 3.1.3 巻数式（Volume Expression）
@@ -115,12 +116,10 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 処理:
 
 1. `id` 空 → `failure('IDが指定されていません')`、`values` 要素数 < 3 → `failure('更新値が不正です')`
-2. 作品名 → TitleID、保管場所 → BoxID に変換（変換できなければ入力値をそのまま ID とみなす）
-3. いずれか空 → `failure('作品名・巻数・Boxは必須です')`
+2. いずれか空 → `failure('作品名・巻数・Boxは必須です')`、`id` の行がなければ `failure('該当データが見つかりません')`
+3. `resolveMasterId` で作品（ID or 作品名）→ TitleID、Box（ID or 保管場所）→ BoxID に変換。同名が複数ある場合は現在の紐付け先を優先。見つからなければ `failure('作品「…」が見つかりません')` / `failure('Box「…」が見つかりません')`
 4. 自分以外に同一 (TitleID, 巻数) があれば `failure('同じ作品・巻数のデータが既に存在します')`
-5. `updateRowById` で更新 → 対象なしは `failure('該当データが見つかりません')`、成功は `success('更新成功しました')`
-
-> ⚠ 現行実装は更新列の指定に誤りがあります（[06_known_issues.md](06_known_issues.md) の B-1 参照）。
+5. `updateRowById` で 2 列目（TitleID）・3 列目（BoxID）・4 列目（巻数）を更新 → 成功は `success('更新成功しました')`
 
 ### `addBulkVolumesWeb(entries)` — 複数行一括登録
 
@@ -182,9 +181,9 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 | 項目 | 内容 |
 |---|---|
-| `values` | `[作品名, SeriesID, 種別, 完結状態]`（要素数 4 未満はエラー） |
-| 処理 | 2〜5 列目を更新 |
-| エラー | ID 空 / 値不正 / 該当なし / 例外 |
+| `values` | `[作品名, シリーズ名 or SeriesID, 種別, 完結状態]`（要素数 4 未満はエラー） |
+| 処理 | シリーズを `resolveMasterId` で SeriesID に変換（同名複数なら現在の紐付け先を優先、空欄は空のまま）し、2〜5 列目を更新 |
+| エラー | ID 空 / 値不正 / 作品名空 / 該当なし / シリーズが見つからない / 例外 |
 
 ---
 

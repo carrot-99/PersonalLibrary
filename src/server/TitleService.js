@@ -77,7 +77,7 @@ function addTitleMasterWeb(name, seriesId, type, completed){
 // 更新
 // values対応：
 // 0: name
-// 1: seriesId
+// 1: シリーズ名 or seriesId（画面の表示値）
 // 2: type
 // 3: completed
 // ----------------------
@@ -91,14 +91,35 @@ function updateTitleMaster(id, values){
     return failure('更新値が不正です');
   }
 
+  const name = String(values[0] ?? '').trim();
+  if(!name){
+    return failure('作品名は必須です');
+  }
+
   try{
+
+    const currentRow = getData(SHEETS.TITLE)
+      .find(row => String(row[0]) === String(id));
+    if(!currentRow){
+      return failure('該当データが見つかりません');
+    }
+
+    // シリーズ未設定（空欄）はそのまま空で保存する
+    const seriesInput = String(values[1] ?? '').trim();
+    let seriesId = '';
+    if(seriesInput){
+      seriesId = resolveMasterId(getData(SHEETS.SERIES), seriesInput, currentRow[2]);
+      if(!seriesId){
+        return failure(`シリーズ「${seriesInput}」が見つかりません`);
+      }
+    }
 
     const updated = updateRowById(
       SHEETS.TITLE,
       id,
       {
-        2: values[0], // name
-        3: values[1], // seriesId
+        2: name,
+        3: seriesId,
         4: values[2], // type
         5: values[3]  // completed
       }

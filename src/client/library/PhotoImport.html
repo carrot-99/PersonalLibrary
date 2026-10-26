@@ -26,7 +26,14 @@ const photoImportState = {
 };
 
 function openPhotoImportForm(){
-  toggleAddForm('libraryPhotoForm');
+  const opened = toggleAddForm('libraryPhotoForm');
+  if(!opened) return;
+
+  // 開き直したら前回の写真・解析結果は破棄する（解析・登録の処理中は残す）
+  if(!photoImportState.busy){
+    resetPhotoImport();
+    document.getElementById('photoImportResult').innerHTML = '';
+  }
 
   callGAS('getTitleMaster', function(titles){
     photoImportState.titles = titles || [];

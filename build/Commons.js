@@ -113,6 +113,27 @@ function updateRowById(sheetName, id, columnMap){
 }
 
 // ----------------------
+// 画面の表示値（ID または名前）からマスタIDを解決
+// rows: マスタ行（1列目ID・2列目名前）
+// currentId: 現在の紐付け先。同名が複数あるときはこれを優先
+// 見つからなければ null
+// ----------------------
+function resolveMasterId(rows, input, currentId){
+
+  const value = String(input ?? '').trim();
+  if(!value) return null;
+
+  const byId = rows.find(row => String(row[0]).trim() === value);
+  if(byId) return byId[0];
+
+  const byName = rows.filter(row => String(row[1]).trim() === value);
+  if(byName.length === 0) return null;
+
+  const current = byName.find(row => String(row[0]) === String(currentId));
+  return (current || byName[0])[0];
+}
+
+// ----------------------
 // 共通レスポンス
 // ----------------------
 function success(message){

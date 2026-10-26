@@ -65,6 +65,7 @@ function showTab(tabId){
   document.querySelectorAll('.view')
     .forEach(v => v.style.display = 'none');
 
+  resetViewState(targetView);
   targetView.style.display = 'block';
 
   clearGlobalMessage();
@@ -217,6 +218,18 @@ function applyColumnWidthHints(table){
 }
 
 //////////////////////////////
+// [編集] ボタン生成（一覧描画・取消後で共通）
+//////////////////////////////
+function createEditButton(){
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'edit-action';
+  btn.textContent = '編集';
+  btn.onclick = function(){ startEdit(this); };
+  return btn;
+}
+
+//////////////////////////////
 // テーブル描画共通（編集あり）
 //////////////////////////////
 function renderTableRows(tbody, data, columns, editable){
@@ -239,14 +252,7 @@ function renderTableRows(tbody, data, columns, editable){
 
     if(editable){
       const actionTd = document.createElement('td');
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'edit-action';
-      btn.textContent = '編集';
-      btn.onclick = function(){
-        startEdit(this);
-      };
-      actionTd.appendChild(btn);
+      actionTd.appendChild(createEditButton());
       tr.appendChild(actionTd);
     }
 
@@ -324,12 +330,7 @@ function renderPagedTableDOM(options){
 
     if(editable){
       const actionTd = document.createElement('td');
-      const editBtn = document.createElement('button');
-      editBtn.type = 'button';
-      editBtn.className = 'edit-action';
-      editBtn.textContent = '編集';
-      editBtn.onclick = () => startEdit(editBtn);
-      actionTd.appendChild(editBtn);
+      actionTd.appendChild(createEditButton());
       tr.appendChild(actionTd);
     }
 
@@ -452,32 +453,65 @@ function formatDate(date){
 //////////////////////////////
 // トグル切り替え
 //////////////////////////////
-function toggleAddForm(id){
+// 同一 View 内のフォームを閉じ、検索結果の一覧も隠す
+function closeMasterForms(view){
+  if(!view) return;
+
+  view.querySelectorAll('.master-form')
+    .forEach(f => f.style.display = 'none');
+
+  view.querySelectorAll('table[id$="MasterTable"]')
+    .forEach(t => t.style.display = 'none');
+}
+
+// 指定フォームの表示をトグル（他のフォームと一覧は閉じる）
+// 戻り値: フォームを開いたら true
+function toggleMasterForm(id){
   const form = document.getElementById(id);
-  if(!form) return;
+  if(!form) return false;
 
   const view = form.closest('.view') || form.parentElement;
-  if(view){
-    view.querySelectorAll('.master-form')
-      .forEach(f => f.style.display = 'none');
-  }
+  const wasHidden = form.style.display === 'none';
+  closeMasterForms(view);
 
-  form.style.display = 'block';
+  form.style.display = wasHidden ? 'block' : 'none';
   syncMasterToolbarLayout(view);
+  return wasHidden;
+}
+
+function toggleAddForm(id){
+  return toggleMasterForm(id);
 }
 
 function toggleSearchForm(id){
-  const form = document.getElementById(id);
-  if(!form) return;
+  return toggleMasterForm(id);
+}
 
-  const view = form.closest('.view') || form.parentElement;
-  if(view){
-    view.querySelectorAll('.master-form')
-      .forEach(f => f.style.display = 'none');
+// 画面（View）を開き直したときの状態リセット
+// フォーム・一覧を閉じ、検索キーワードと検索画面の結果をクリアする
+const SEARCH_VIEW_IDS = ['SeriesView', 'TitleView', 'BoxView'];
+
+function resetViewState(view){
+  if(!view) return;
+
+  closeMasterForms(view);
+
+  view.querySelectorAll('input[id$="SearchKeyword"]')
+    .forEach(input => input.value = '');
+
+  if(SEARCH_VIEW_IDS.includes(view.id)){
+    view.querySelectorAll('input[list]').forEach(input => {
+      input.value = '';
+      input.dataset.selectedId = '';
+    });
+    view.querySelectorAll('.autocomplete-suggestions')
+      .forEach(box => box.style.display = 'none');
+    view.querySelectorAll('table').forEach(table => {
+      table.style.display = 'none';
+      const tbody = table.querySelector('tbody');
+      if(tbody) tbody.innerHTML = '';
+    });
   }
-
-  form.style.display = (form.style.display === 'none') ? 'block' : 'none';
-  syncMasterToolbarLayout(view);
 }
 
 function syncMasterToolbarLayout(view){
@@ -745,12 +779,7 @@ function renderFilteredTable(tableId, rows, columns, keywordInputId, editable = 
 
     if(editable){
       const actionTd = document.createElement('td');
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'edit-action';
-      btn.textContent = '編集';
-      btn.onclick = function(){ startEdit(this); };
-      actionTd.appendChild(btn);
+      actionTd.appendChild(createEditButton());
       tr.appendChild(actionTd);
     }
 
@@ -768,8 +797,8 @@ function startEdit(btn){
 
   Array.from(tr.cells).forEach((td, index)=>{
 
-    // 最後の列（操作列）は除外
-    if(index === tr.cells.length - 1) return;
+    // 1列目（ID）と最後の列（操作列）は編集させない
+    if(index === 0 || index === tr.cells.length - 1) return;
 
     const value = td.textContent;
     td.dataset.original = value;
@@ -787,12 +816,14 @@ function startEdit(btn){
   actionTd.textContent = '';
 
   const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
   saveBtn.textContent = '保存';
   saveBtn.addEventListener('click', function(){
     saveEdit(this);
   });
 
   const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
   cancelBtn.textContent = '取消';
   cancelBtn.style.marginLeft = '5px';
   cancelBtn.addEventListener('click', function(){
@@ -809,7 +840,7 @@ function cancelEdit(btn){
 
   Array.from(tr.cells).forEach((td, index)=>{
 
-    if(index === tr.cells.length - 1) return;
+    if(index === 0 || index === tr.cells.length - 1) return;
 
     td.textContent = td.dataset.original || '';
   });
@@ -817,14 +848,7 @@ function cancelEdit(btn){
   // 操作列を戻す
   const actionTd = tr.cells[tr.cells.length - 1];
   actionTd.textContent = '';
-
-  const editBtn = document.createElement('button');
-  editBtn.textContent = '編集';
-  editBtn.addEventListener('click', function(){
-    startEdit(this);
-  });
-
-  actionTd.appendChild(editBtn);
+  actionTd.appendChild(createEditButton());
 }
 
 function saveEdit(btn){
@@ -834,10 +858,8 @@ function saveEdit(btn){
 
   const cells = Array.from(tr.cells);
 
-  // IDは1列目
-  const idCell = cells[0];
-  const idInput = idCell.querySelector('input');
-  const id = idInput ? idInput.value : idCell.textContent;
+  // IDは1列目（編集不可）
+  const id = cells[0].textContent.trim();
 
   const values = cells.slice(1, cells.length - 1)
     .map(td => {
@@ -877,6 +899,10 @@ function saveEdit(btn){
       reloadFunction();
       if(tableId === 'titleMasterTable' || tableId === 'seriesMasterTable' || tableId === 'boxMasterTable'){
         refreshMasterData();
+      }
+      if(tableId === 'libraryMasterTable'){
+        loadRecentLibrary('globalRecentLibraryTable');
+        loadLibrarySummary('libraryGlobal');
       }
     } else {
       showError(res?.message || '更新に失敗しました');

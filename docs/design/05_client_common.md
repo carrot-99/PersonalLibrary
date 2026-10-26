@@ -38,7 +38,9 @@ callGAS(funcName, successHandler, ...args)
 
 1. `tabId` の要素がなければ最初の `.view` を対象にする
 2. 全メニューボタンから `active` を外し、`data-tab` が一致するボタンに付与
-3. 全 `.view` を非表示 → 対象 View を表示
+3. 全 `.view` を非表示 → 対象 View の状態をリセット（`resetViewState`）して表示
+   - フォーム（`.master-form`）と一覧テーブルを閉じ、検索キーワード（`*SearchKeyword`）をクリア
+   - 検索系 View（`SeriesView` / `TitleView` / `BoxView`）は入力欄と結果テーブルもクリア
 4. 通知をクリア
 5. サマリー・最近追加を再取得
 6. View ごとのローダーを実行
@@ -119,11 +121,11 @@ callGAS(funcName, successHandler, ...args)
 
 ```
 [編集] → startEdit(btn)
-   各セル（操作列以外）を <input type="text"> に置換、元の値を data-original に退避
+   各セル（ID 列・操作列以外）を <input type="text"> に置換、元の値を data-original に退避
    操作列を [保存] [取消] に置換
-[取消] → cancelEdit(btn)   元の値に戻し [編集] を再表示
+[取消] → cancelEdit(btn)   元の値に戻し [編集] を再表示（createEditButton で生成）
 [保存] → saveEdit(btn)
-   id     = 1 列目の値
+   id     = 1 列目の値（編集不可）
    values = 2 列目〜最終列の 1 つ前までの値（画面上の表示値）
    テーブル ID で API を振り分け → 成功時はマスタ再読込（＋選択肢再構築）
 ```
@@ -133,19 +135,20 @@ callGAS(funcName, successHandler, ...args)
 | `seriesMasterTable` | `updateSeriesMaster` | `loadSeriesMaster` | ○ |
 | `titleMasterTable` | `updateTitleMaster` | `loadTitleMaster` | ○ |
 | `boxMasterTable` | `updateBoxMaster` | `loadBoxMaster` | ○ |
-| `libraryMasterTable` | `updateLibraryMaster` | `loadLibraryMaster` | — |
+| `libraryMasterTable` | `updateLibraryMaster` | `loadLibraryMaster`（＋最近追加・サマリー） | — |
 
 注意:
 
-- ID 列も入力欄になりますが、送信される `id` は**編集後の値**です（ID を書き換えると別行を更新し得る／該当なしになる）。
-- 送信値は画面の**表示値**です（作品のシリーズ列は SeriesID ではなくシリーズ名）。サーバー側で名称 → ID 変換を行うのは `updateLibraryMaster` のみです（[06 章 B-2](06_known_issues.md)）。
+- ID 列は編集できません。
+- 送信値は画面の**表示値**です（作品のシリーズ列は SeriesID ではなくシリーズ名、書籍の作品・Box 列は作品名・保管場所）。名称 → ID 変換は `updateTitleMaster` / `updateLibraryMaster` がサーバー側で行います（共通関数 `resolveMasterId`）。
 
 ## 5.8 マスタ管理のフォーム制御
 
 | 関数 | 仕様 |
 |---|---|
-| `toggleAddForm(id)` | 同一 View 内の `.master-form` をすべて閉じ、指定フォームを表示（常に表示）。写真から登録フォームもこれで開く |
-| `toggleSearchForm(id)` | 同一 View 内の `.master-form` をすべて閉じ、指定フォームの表示をトグル |
+| `closeMasterForms(view)` | 同一 View 内の `.master-form` をすべて閉じ、一覧テーブル（`*MasterTable`）も非表示にする |
+| `toggleMasterForm(id)` | `closeMasterForms` の後、指定フォームの表示をトグル。開いたら `true` を返す |
+| `toggleAddForm(id)` / `toggleSearchForm(id)` | `toggleMasterForm` を呼ぶ（[追加] [検索] とも同じトグル動作）。写真から登録フォームも `toggleAddForm` で開く |
 | `syncMasterToolbarLayout(view)` | 1100px 以下でツールバーのボタンを折り返し可能な横並びに調整 |
 
 ## 5.9 クライアント状態
