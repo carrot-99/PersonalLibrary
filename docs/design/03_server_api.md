@@ -380,7 +380,8 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `update*Master` | `saveEdit`（テーブル ID により振り分け） |
 | `deleteLibraryMaster` | `deleteRow`（書籍マスタ管理のインライン編集中の [削除]） |
 | `getSeries` / `getBoxes` | `loadPhotoImportView` |
-| `analyzeBookSpines` / `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | `analyzePhotoImport` / 作品追加パネルの「追加して選択」 / `registerPhotoImport` |
+| `analyzeBookSpines` | `analyzePhotoImport`（写真で確認・登録の [チェック]） |
+| `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | 作品追加パネルの「追加して選択」 / `registerPhotoImport` |
 | `getTitles`, `addBulkVolumesWeb`, `getOwnedVolumesByTitle` | サーバー内部から使用（`analyzeBookSpines`, `bulkAddLibraryFromPhoto`） |
 | `testAnthropicConnection` | Apps Script エディタから手動実行 |
 | `getLibraryMaster` | なし（未使用） |

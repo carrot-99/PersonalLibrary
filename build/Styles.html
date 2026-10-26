@@ -631,6 +631,7 @@
     display: grid;
     grid-template-columns: 28px minmax(160px, 2fr) 80px minmax(140px, 1.4fr);
     grid-template-areas:
+      "verdict verdict verdict verdict"
       "check title volume box"
       ".     status status status"
       ".     recognized recognized recognized"
@@ -807,6 +808,7 @@
     .photo-import-row {
       grid-template-columns: 28px 80px 1fr;
       grid-template-areas:
+        "verdict verdict verdict"
         "check title title"
         ".     volume box"
         ".     status status"
@@ -815,12 +817,49 @@
     }
   }
 
-  .photo-import-continuity {
-    flex-basis: 100%;
-    font-size: 0.85rem;
+  /* 写真で確認・登録: 所持チェックの判定と確認／登録モード */
+  .photo-import-note { margin: 0 0 4px; font-size: 0.9rem; color: #cbd5e1; }
+  .photo-import-summary { margin-top: 14px; font-weight: bold; }
+  .photo-import-panel.is-check-mode .register-only,
+  .photo-import-panel:not(.is-check-mode) .check-only { display: none !important; }
+  .photo-import-back { background: #374151; box-shadow: none; margin-left: 8px; }
+  /* 確認モードではチェック欄を詰め、未チェック（所持済み）も薄くしない */
+  .photo-import-panel.is-check-mode .photo-import-row {
+    grid-template-columns: 0 minmax(160px, 2fr) 80px minmax(140px, 1.4fr);
+    column-gap: 0;
   }
-  .photo-import-continuity.is-ok { color: #86efac; }
-  .photo-import-continuity.is-warning { color: #fcd34d; font-weight: bold; }
+  .photo-import-panel.is-check-mode .photo-import-row > :not(.photo-verdict):not(.photo-import-check) { margin-left: 0; }
+  .photo-import-panel.is-check-mode .photo-import-row.is-unchecked { opacity: 1; }
+  /* 登録モードでは所持済みの本は登録できないので隠す（読み取り違いは確認モードで修正） */
+  .photo-import-panel:not(.is-check-mode) .photo-import-row[data-verdict="owned"] { display: none; }
+  .photo-verdict {
+    grid-area: verdict;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .photo-verdict-badge {
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #0b1220;
+  }
+  .photo-verdict-badge.status-owned { background: #4ade80; }
+  .photo-verdict-badge.status-next,
+  .photo-verdict-badge.status-fill { background: #60a5fa; }
+  .photo-verdict-badge.status-gap { background: #facc15; }
+  .photo-verdict-badge.status-new,
+  .photo-verdict-badge.status-unknown { background: #9ca3af; }
+  .photo-verdict-detail { font-size: 0.9rem; color: #e5e7eb; }
+  .photo-import-row { border-left-width: 6px; }
+  .photo-import-row[data-verdict="owned"] { border-left-color: #4ade80; }
+  .photo-import-row[data-verdict="next"],
+  .photo-import-row[data-verdict="fill"] { border-left-color: #60a5fa; }
+  .photo-import-row[data-verdict="gap"] { border-left-color: #facc15; }
+  .photo-import-row[data-verdict="new"],
+  .photo-import-row[data-verdict="unknown"] { border-left-color: #9ca3af; }
 
   /* 所持状況（作品表示） */
   .ownership-summary {
@@ -916,6 +955,7 @@
     .master-form > button,
     .photo-import-panel > button,
     #photoImportReview > button { width: 100%; }
+    .photo-import-back { margin: 8px 0 0; }
 
     /* ツールバーは横並び・等幅（syncMasterToolbarLayout のインライン指定より優先） */
     .master-toolbar { flex-direction: row !important; flex-wrap: nowrap !important; }
@@ -986,6 +1026,8 @@
     .photo-import-panel { padding: 12px; }
     .photo-import-thumb img { height: 110px; }
     .photo-import-row { grid-template-columns: 32px 88px 1fr; gap: 8px; padding: 12px; }
+    .photo-import-panel.is-check-mode .photo-import-row { grid-template-columns: 0 88px 1fr; column-gap: 8px; }
+    .photo-import-panel.is-check-mode .photo-import-volume { margin-left: -8px; }
     .photo-import-check { width: 26px; height: 26px; }
     .photo-import-status { font-size: 0.95rem; }
     .photo-import-badge { padding: 4px 10px; }
@@ -1002,7 +1044,8 @@
     .photo-title-add-mode label { min-height: 44px; font-size: 1rem; }
     .photo-title-add-mode input { width: 22px; height: 22px; }
     .photo-title-add-actions button { flex: 1 1 0; }
-    #photoImportRegisterButton {
+    #photoImportRegisterButton,
+    #photoImportStartRegister {
       position: sticky;
       bottom: 12px;
       z-index: 5;

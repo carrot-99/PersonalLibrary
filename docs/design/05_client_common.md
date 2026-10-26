@@ -164,7 +164,7 @@ callGAS(funcName, successHandler, ...args)
 | `currentTitleListFilter` | `Title.html` | 作品一覧の種別フィルタ（`all` / `漫画` / `ラノベ`） |
 | `messageTimeout` | `Common.html` | 通知自動消去タイマー |
 | `PAGE_SIZE`, `currentLibraryPage` | `Library.html` | 旧ページング用。現在は実質未使用 |
-| `photoImportState` | `PhotoImport.html` | 写真から登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `busy`） |
+| `photoImportState` | `PhotoImport.html` | 写真で確認・登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `mode`（`check` / `register`）, `busy`） |
 | `photoImportImagesPromise` | `PhotoImport.html` | 選択写真の縮小処理（長辺 1568px・JPEG 品質 0.9）の Promise。解析時に完了を待つ |
 
 ## 5.10 所持巻の集計
