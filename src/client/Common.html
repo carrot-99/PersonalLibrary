@@ -65,6 +65,7 @@ function showTab(tabId){
   document.querySelectorAll('.view')
     .forEach(v => v.style.display = 'none');
 
+  resetViewState(targetView);
   targetView.style.display = 'block';
 
   clearGlobalMessage();
@@ -452,32 +453,65 @@ function formatDate(date){
 //////////////////////////////
 // トグル切り替え
 //////////////////////////////
-function toggleAddForm(id){
+// 同一 View 内のフォームを閉じ、検索結果の一覧も隠す
+function closeMasterForms(view){
+  if(!view) return;
+
+  view.querySelectorAll('.master-form')
+    .forEach(f => f.style.display = 'none');
+
+  view.querySelectorAll('table[id$="MasterTable"]')
+    .forEach(t => t.style.display = 'none');
+}
+
+// 指定フォームの表示をトグル（他のフォームと一覧は閉じる）
+// 戻り値: フォームを開いたら true
+function toggleMasterForm(id){
   const form = document.getElementById(id);
-  if(!form) return;
+  if(!form) return false;
 
   const view = form.closest('.view') || form.parentElement;
-  if(view){
-    view.querySelectorAll('.master-form')
-      .forEach(f => f.style.display = 'none');
-  }
+  const wasHidden = form.style.display === 'none';
+  closeMasterForms(view);
 
-  form.style.display = 'block';
+  form.style.display = wasHidden ? 'block' : 'none';
   syncMasterToolbarLayout(view);
+  return wasHidden;
+}
+
+function toggleAddForm(id){
+  return toggleMasterForm(id);
 }
 
 function toggleSearchForm(id){
-  const form = document.getElementById(id);
-  if(!form) return;
+  return toggleMasterForm(id);
+}
 
-  const view = form.closest('.view') || form.parentElement;
-  if(view){
-    view.querySelectorAll('.master-form')
-      .forEach(f => f.style.display = 'none');
+// 画面（View）を開き直したときの状態リセット
+// フォーム・一覧を閉じ、検索キーワードと検索画面の結果をクリアする
+const SEARCH_VIEW_IDS = ['SeriesView', 'TitleView', 'BoxView'];
+
+function resetViewState(view){
+  if(!view) return;
+
+  closeMasterForms(view);
+
+  view.querySelectorAll('input[id$="SearchKeyword"]')
+    .forEach(input => input.value = '');
+
+  if(SEARCH_VIEW_IDS.includes(view.id)){
+    view.querySelectorAll('input[list]').forEach(input => {
+      input.value = '';
+      input.dataset.selectedId = '';
+    });
+    view.querySelectorAll('.autocomplete-suggestions')
+      .forEach(box => box.style.display = 'none');
+    view.querySelectorAll('table').forEach(table => {
+      table.style.display = 'none';
+      const tbody = table.querySelector('tbody');
+      if(tbody) tbody.innerHTML = '';
+    });
   }
-
-  form.style.display = (form.style.display === 'none') ? 'block' : 'none';
-  syncMasterToolbarLayout(view);
 }
 
 function syncMasterToolbarLayout(view){

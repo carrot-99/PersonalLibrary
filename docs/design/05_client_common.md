@@ -38,7 +38,9 @@ callGAS(funcName, successHandler, ...args)
 
 1. `tabId` の要素がなければ最初の `.view` を対象にする
 2. 全メニューボタンから `active` を外し、`data-tab` が一致するボタンに付与
-3. 全 `.view` を非表示 → 対象 View を表示
+3. 全 `.view` を非表示 → 対象 View の状態をリセット（`resetViewState`）して表示
+   - フォーム（`.master-form`）と一覧テーブルを閉じ、検索キーワード（`*SearchKeyword`）をクリア
+   - 検索系 View（`SeriesView` / `TitleView` / `BoxView`）は入力欄と結果テーブルもクリア
 4. 通知をクリア
 5. サマリー・最近追加を再取得
 6. View ごとのローダーを実行
@@ -144,8 +146,9 @@ callGAS(funcName, successHandler, ...args)
 
 | 関数 | 仕様 |
 |---|---|
-| `toggleAddForm(id)` | 同一 View 内の `.master-form` をすべて閉じ、指定フォームを表示（常に表示）。写真から登録フォームもこれで開く |
-| `toggleSearchForm(id)` | 同一 View 内の `.master-form` をすべて閉じ、指定フォームの表示をトグル |
+| `closeMasterForms(view)` | 同一 View 内の `.master-form` をすべて閉じ、一覧テーブル（`*MasterTable`）も非表示にする |
+| `toggleMasterForm(id)` | `closeMasterForms` の後、指定フォームの表示をトグル。開いたら `true` を返す |
+| `toggleAddForm(id)` / `toggleSearchForm(id)` | `toggleMasterForm` を呼ぶ（[追加] [検索] とも同じトグル動作）。写真から登録フォームも `toggleAddForm` で開く |
 | `syncMasterToolbarLayout(view)` | 1100px 以下でツールバーのボタンを折り返し可能な横並びに調整 |
 
 ## 5.9 クライアント状態
