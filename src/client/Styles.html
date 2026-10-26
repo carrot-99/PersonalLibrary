@@ -790,4 +790,175 @@
         "addform addform addform";
     }
   }
+
+  /* サイドメニュー外側の暗幕（タブレット・スマホでメニューを開いたとき。タップで閉じる） */
+  .side-menu-backdrop { display: none; }
+  @media (max-width: 1100px) {
+    .side-menu-backdrop.open {
+      display: block;
+      position: fixed;
+      inset: 0;
+      z-index: 900;
+      background: rgba(0, 0, 0, 0.5);
+    }
+  }
+
+  /* ======================================================
+     スマホ（720px 以下）: タッチ操作向けに文字・ボタンを大きくする
+     他のルールより後ろに置き、優先させる
+     ====================================================== */
+  @media (max-width: 720px) {
+    body { font-size: 16px; -webkit-text-size-adjust: 100%; }
+
+    /* 上部バー（タイトル・通知を固定表示） */
+    .main-content { padding: 0 12px 32px; min-width: 0; }
+    .page-header {
+      position: sticky;
+      top: 0;
+      z-index: 800;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      margin: 0 -12px 12px;
+      padding: 10px 12px 10px 68px;
+      min-height: 68px;
+      box-sizing: border-box;
+      justify-content: center;
+      background: #0b1220;
+      border-bottom: 1px solid #1f2937;
+    }
+    .page-header h2 { font-size: 1.2rem; line-height: 48px; }
+    .notification { margin: 0 0 4px -56px; font-size: 0.95rem; }
+    .menu-toggle {
+      top: 10px;
+      left: 10px;
+      width: 48px;
+      height: 48px;
+      font-size: 26px;
+    }
+
+    /* サイドメニュー */
+    .side-menu { width: min(86vw, 340px); padding: 72px 14px 24px; }
+    .tab-group { padding: 10px 12px; margin-bottom: 12px; }
+    .tab-title { font-size: 0.85rem; }
+    .tabs { gap: 8px; }
+    .tabs button { min-height: 52px; font-size: 1.05rem; padding: 14px 16px; }
+
+    /* サマリー（3 列で縦幅を抑える） */
+    .top-summary-panel { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 8px; }
+    .summary-item.compact { font-size: 0.75rem; padding: 2px; }
+    .summary-item.compact strong { font-size: 1.15rem; }
+
+    /* 入力・ボタン（16px 未満だと iPhone で入力時に拡大されるため 16px） */
+    h3 { font-size: 1.3rem; margin: 4px 0 12px; }
+    label { font-size: 1rem; margin-top: 12px; }
+    input, select {
+      font-size: 16px;
+      min-height: 48px;
+      padding: 12px;
+      box-sizing: border-box;
+    }
+    input[type="checkbox"], input[type="radio"] { min-height: 0; padding: 0; }
+    input[type="file"] { padding: 10px; }
+    button { min-height: 48px; font-size: 1rem; padding: 12px 18px; }
+    .view > button,
+    .master-form > button,
+    .photo-import-panel > button,
+    #photoImportReview > button { width: 100%; }
+
+    /* ツールバーは横並び・等幅（syncMasterToolbarLayout のインライン指定より優先） */
+    .master-toolbar { flex-direction: row !important; flex-wrap: nowrap !important; }
+    .master-toolbar button {
+      flex: 1 1 0 !important;
+      min-width: 0;
+      min-height: 52px;
+      padding: 12px 8px;
+      font-size: 1.05rem;
+    }
+
+    /* テーブル: 省略せず折り返し、列幅は内容に合わせる。自動採番の ID 列は隠す */
+    table { min-width: 0; font-size: 0.95rem; table-layout: auto; }
+    table th { width: auto !important; }
+    th, td,
+    td[data-field], th[data-field],
+    td:nth-child(2), td:nth-child(3),
+    th:nth-child(2), th:nth-child(3) {
+      padding: 10px 8px;
+      font-size: 0.95rem;
+      max-width: none;
+      width: auto;
+      white-space: normal;
+      overflow-wrap: break-word;
+      text-overflow: clip;
+    }
+    #seriesMasterTable th:first-child, #seriesMasterTable td:first-child,
+    #titleMasterTable th:first-child, #titleMasterTable td:first-child,
+    #libraryMasterTable th:first-child, #libraryMasterTable td:first-child,
+    #seriesListTable th:first-child, #seriesListTable td:first-child,
+    #titleListTable th:first-child, #titleListTable td:first-child,
+    #libraryListTable th:first-child, #libraryListTable td:first-child { display: none; }
+    td button,
+    .edit-action {
+      min-height: 44px;
+      margin: 2px 0 !important;
+      padding: 8px 12px;
+      font-size: 0.95rem;
+    }
+    td input { min-height: 44px; padding: 8px; }
+    /* インライン編集中は入力欄の幅を確保し、はみ出す分は横スクロール */
+    tr.editing td input { min-width: 9em; }
+    .view:not(#PhotoImportView) { overflow-x: auto; }
+
+    /* ページング */
+    .pagination-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .pagination-bar button {
+      margin: 0 !important;
+      min-width: 48px;
+      min-height: 48px;
+      padding: 8px 12px;
+    }
+    .pagination-bar span { margin: 0 4px !important; }
+
+    /* オートコンプリート候補 */
+    .autocomplete-item { padding: 14px; font-size: 1rem; }
+
+    /* 最近追加 */
+    .recent-history-panel h4 { font-size: 1.05rem; }
+    .recent-history-panel th,
+    .recent-history-panel td { padding: 8px 6px; font-size: 0.9rem; }
+
+    .inline-loading { font-size: 0.95rem; }
+
+    /* 写真から登録 */
+    .photo-import-panel { padding: 12px; }
+    .photo-import-thumb img { height: 110px; }
+    .photo-import-row { grid-template-columns: 32px 88px 1fr; gap: 8px; padding: 12px; }
+    .photo-import-check { width: 26px; height: 26px; }
+    .photo-import-status { font-size: 0.95rem; }
+    .photo-import-badge { padding: 4px 10px; }
+    .photo-import-recognized { font-size: 0.9rem; }
+    .photo-import-add-toggle,
+    .photo-import-final-toggle,
+    .photo-import-photo-link,
+    .photo-import-ok {
+      min-height: 40px;
+      padding: 8px 14px;
+      font-size: 0.95rem;
+    }
+    .photo-title-add { grid-template-columns: 1fr; }
+    .photo-title-add-mode label { min-height: 44px; font-size: 1rem; }
+    .photo-title-add-mode input { width: 22px; height: 22px; }
+    .photo-title-add-actions button { flex: 1 1 0; }
+    #photoImportRegisterButton {
+      position: sticky;
+      bottom: 12px;
+      z-index: 5;
+      min-height: 56px;
+      font-size: 1.1rem;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    }
+    .photo-import-viewer-bar { padding: 10px 12px; font-size: 0.95rem; }
+    .photo-import-viewer-bar button { min-height: 44px; }
+    .photo-import-result ul { font-size: 0.95rem; }
+  }
 </style>

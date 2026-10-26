@@ -56,7 +56,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 項目 | 内容 |
 |---|---|
 | 処理 | `Index` テンプレートを評価して HTML を返す |
-| 設定 | タイトル `漫画ライブラリ管理`、`XFrameOptionsMode.ALLOWALL` |
+| 設定 | タイトル `漫画ライブラリ管理`、`XFrameOptionsMode.ALLOWALL`、viewport メタタグ（`width=device-width, initial-scale=1`） |
 
 ---
 

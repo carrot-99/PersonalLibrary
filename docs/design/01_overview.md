@@ -122,6 +122,7 @@ node build.js
 | `webapp.executeAs` | `USER_DEPLOYING` | デプロイしたユーザーの権限でスプレッドシートにアクセス |
 | `webapp.access` | `MYSELF` | デプロイしたユーザー本人のみアクセス可能 |
 | X-Frame-Options | `ALLOWALL` | `doGet` で設定。他サイトへの iframe 埋め込みを許可 |
+| viewport | `width=device-width, initial-scale=1` | `doGet` で `addMetaTag` により設定。スマホで端末幅どおりに表示する（GAS では HTML 内の `<meta name="viewport">` は効かない） |
 
 ### スクリプトプロパティ
 
