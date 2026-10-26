@@ -1,6 +1,6 @@
 # 05. クライアント共通処理設計
 
-対象: `client/Common.html`（共通 JS）および各ドメインの JS（`Library.html` / `PhotoImport.html` / `Title.html` / `Series.html` / `Box.html`）。写真から登録固有の処理は [04 章 4.6.5](04_screen_design.md#465-写真から登録書籍マスタ管理内) を参照。
+対象: `client/Common.html`（共通 JS）および各ドメインの JS（`Library.html` / `PhotoImport.html` / `Title.html` / `Series.html` / `Box.html`）。写真から登録固有の処理は [04 章 4.7](04_screen_design.md#47-写真から登録画面) を参照。
 すべて `<script>` 直書きのグローバル関数で、HTML の `onclick` 属性から呼べるよう `window.*` にも公開しています。
 
 ## 5.1 読み込み順と初期化
@@ -20,7 +20,7 @@ init()
  │   └ getSeriesMaster → populateSeries
  ├ loadLibrarySummary('libraryGlobal')     サマリーパネル
  ├ loadRecentLibrary('globalRecentLibraryTable')
- ├ showTab('LibraryMasterView')            初期画面
+ ├ showTab('PhotoImportView')              初期画面
  └ closeSidebar()
 ```
 
@@ -47,6 +47,7 @@ callGAS(funcName, successHandler, ...args)
 
 | View | ローダー |
 |---|---|
+| `PhotoImportView` | `loadPhotoImportView()`（前回の写真・結果のクリアと、作品・シリーズ・Box の候補取得） |
 | `LibraryMasterView` | `loadLibraryMaster()` |
 | `SeriesMasterView` / `TitleMasterView` / `BoxMasterView` | `loadSeriesMaster()` / `loadTitleMaster()` / `loadBoxMaster()` |
 | `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | ローディング表示 → `load*List(1)` |
@@ -148,7 +149,7 @@ callGAS(funcName, successHandler, ...args)
 |---|---|
 | `closeMasterForms(view)` | 同一 View 内の `.master-form` をすべて閉じ、一覧テーブル（`*MasterTable`）も非表示にする |
 | `toggleMasterForm(id)` | `closeMasterForms` の後、指定フォームの表示をトグル。開いたら `true` を返す |
-| `toggleAddForm(id)` / `toggleSearchForm(id)` | `toggleMasterForm` を呼ぶ（[追加] [検索] とも同じトグル動作）。写真から登録フォームも `toggleAddForm` で開く |
+| `toggleAddForm(id)` / `toggleSearchForm(id)` | `toggleMasterForm` を呼ぶ（[追加] [検索] とも同じトグル動作） |
 | `syncMasterToolbarLayout(view)` | 1100px 以下でツールバーのボタンを折り返し可能な横並びに調整 |
 
 ## 5.9 クライアント状態

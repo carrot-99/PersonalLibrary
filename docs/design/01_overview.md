@@ -76,7 +76,7 @@ PersonalLibrary/
         ├── Styles.html          CSS
         ├── Common.html          共通 JS
         ├── Scripts.html         空テンプレート（未使用）
-        ├── library/  Library.html(JS) / PhotoImport.html(JS) / LibraryMasterView / LibraryListView / LibraryEntryView
+        ├── library/  Library.html(JS) / PhotoImport.html(JS) / PhotoImportView / LibraryMasterView / LibraryListView / LibraryEntryView
         ├── title/    Title.html(JS)   / TitleView / TitleListView / TitleMasterView
         ├── series/   Series.html(JS)  / SeriesView / SeriesListView / SeriesMasterView
         └── box/      Box.html(JS)     / BoxView / BoxListView / BoxMasterView

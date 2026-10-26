@@ -1,0 +1,32 @@
+<!-- PhotoImportView.html -->
+<div id="PhotoImportView" class="view">
+  <h3>写真から登録</h3>
+
+  <div id="photoImportPanel" class="photo-import-panel">
+    <label for="photoImportFiles">背表紙の写真（最大5枚）</label>
+    <input id="photoImportFiles" type="file" accept="image/*" multiple onchange="previewPhotoImportFiles()">
+    <div id="photoImportPreview" class="photo-import-preview"></div>
+    <button id="photoImportAnalyzeButton" type="button" onclick="analyzePhotoImport()">解析</button>
+
+    <div id="photoImportReview" style="display:none;">
+      <label for="photoImportBulkBox">一括Box</label>
+      <select id="photoImportBulkBox" onchange="applyPhotoImportBulkBox()"></select>
+
+      <datalist id="photoImportTitleList"></datalist>
+      <datalist id="photoImportSeriesList"></datalist>
+      <div id="photoImportRows" class="photo-import-rows"></div>
+
+      <button id="photoImportRegisterButton" type="button" onclick="registerPhotoImport()">登録確定</button>
+    </div>
+
+    <div id="photoImportResult" class="photo-import-result"></div>
+  </div>
+
+  <div id="photoImportViewer" class="photo-import-viewer" style="display:none;" onclick="closePhotoImportViewer(event)">
+    <div class="photo-import-viewer-bar">
+      <span id="photoImportViewerLabel"></span>
+      <button type="button" onclick="closePhotoImportViewer()">閉じる</button>
+    </div>
+    <img id="photoImportViewerImage" alt="選択した写真" onclick="this.classList.toggle('is-zoomed')">
+  </div>
+</div>

@@ -9,7 +9,7 @@ function init(){
   refreshMasterData();
   loadLibrarySummary('libraryGlobal');
   loadRecentLibrary('globalRecentLibraryTable');
-  showTab('LibraryMasterView');
+  showTab('PhotoImportView');
   closeSidebar();
 }
 
@@ -71,6 +71,7 @@ function showTab(tabId){
   clearGlobalMessage();
 
   const loaders = {
+    PhotoImportView: loadPhotoImportView,
     LibraryMasterView: loadLibraryMaster,
     BoxMasterView: loadBoxMaster,
     SeriesMasterView: loadSeriesMaster,

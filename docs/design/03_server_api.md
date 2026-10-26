@@ -350,7 +350,7 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 
 | API | 呼び出し元（クライアント関数） |
 |---|---|
-| `getTitleMaster` | `refreshMasterData`, `loadTitleMaster`, `loadTitleList`, `loadLibraryMaster`, `openPhotoImportForm` |
+| `getTitleMaster` | `refreshMasterData`, `loadTitleMaster`, `loadTitleList`, `loadLibraryMaster`, `loadPhotoImportView` |
 | `getSeriesMaster` | `refreshMasterData`, `loadSeriesMaster`, `loadSeriesList` |
 | `getBoxMaster` | `refreshMasterData`, `loadBoxMaster`, `loadBoxList`, `loadLibraryMaster` |
 | `getLibrarySummary` | `loadLibrarySummary`（初期化時・タブ切替毎・書籍追加後） |
@@ -360,7 +360,7 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `addNewVolumeWeb` | `addLibraryMaster`, `addVolume`（※ `addVolume` の画面は未表示） |
 | `addTitleMasterWeb` / `addSeriesMasterWeb` / `addBoxMasterWeb` | `addTitleMaster` / `addSeriesMaster` / `addBoxMaster` |
 | `update*Master` | `saveEdit`（テーブル ID により振り分け） |
-| `getSeries` / `getBoxes` | `openPhotoImportForm` |
+| `getSeries` / `getBoxes` | `loadPhotoImportView` |
 | `analyzeBookSpines` / `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | `analyzePhotoImport` / 作品追加パネルの「追加して選択」 / `registerPhotoImport` |
 | `getTitles`, `addBulkVolumesWeb` | サーバー内部から使用（`analyzeBookSpines`, `bulkAddLibraryFromPhoto`） |
 | `testAnthropicConnection` | Apps Script エディタから手動実行 |

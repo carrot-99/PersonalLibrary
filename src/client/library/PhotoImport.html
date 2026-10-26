@@ -25,10 +25,7 @@ const photoImportState = {
   busy: false
 };
 
-function openPhotoImportForm(){
-  const opened = toggleAddForm('libraryPhotoForm');
-  if(!opened) return;
-
+function loadPhotoImportView(){
   // 開き直したら前回の写真・解析結果は破棄する（解析・登録の処理中は残す）
   if(!photoImportState.busy){
     resetPhotoImport();
@@ -211,20 +208,20 @@ async function analyzePhotoImport(){
 
   setPhotoImportBusy(true);
   document.getElementById('photoImportResult').innerHTML = '';
-  showInlineLoading('libraryPhotoForm', '解析中...（数十秒かかることがあります）');
+  showInlineLoading('photoImportPanel', '解析中...（数十秒かかることがあります）');
 
   let images;
   try{
     images = await (photoImportImagesPromise || previewPhotoImportFiles());
   } catch(e){
-    hideInlineLoading('libraryPhotoForm');
+    hideInlineLoading('photoImportPanel');
     setPhotoImportBusy(false);
     return showError(e.message);
   }
 
   google.script.run
     .withSuccessHandler(function(res){
-      hideInlineLoading('libraryPhotoForm');
+      hideInlineLoading('photoImportPanel');
       setPhotoImportBusy(false);
 
       if(!res || !res.success){
@@ -264,7 +261,7 @@ async function analyzePhotoImport(){
       }
     })
     .withFailureHandler(function(error){
-      hideInlineLoading('libraryPhotoForm');
+      hideInlineLoading('photoImportPanel');
       setPhotoImportBusy(false);
       showError(error && error.message ? error.message : '解析に失敗しました');
     })
@@ -700,7 +697,6 @@ function registerPhotoImport(){
         showSuccess(`${res.added} 件を登録しました`);
         loadRecentLibrary('globalRecentLibraryTable');
         loadLibrarySummary('libraryGlobal');
-        loadLibraryMaster();
       } else {
         showError('登録された本はありません');
       }
@@ -752,7 +748,7 @@ function renderPhotoImportResult(res){
   addList(res.failed, '失敗');
 }
 
-window.openPhotoImportForm = openPhotoImportForm;
+window.loadPhotoImportView = loadPhotoImportView;
 window.previewPhotoImportFiles = previewPhotoImportFiles;
 window.closePhotoImportViewer = closePhotoImportViewer;
 window.analyzePhotoImport = analyzePhotoImport;
