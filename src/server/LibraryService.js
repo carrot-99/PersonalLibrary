@@ -203,7 +203,7 @@ function addBulkVolumesWeb(entries){
         String(row[1]).trim() === titleId &&
         String(row[3]).trim() === volume
       )){
-        errors.push({ line, message: `重複: ${titleId} 巻${volume}` });
+        errors.push({ line, message: `重複: ${titleId} 巻${volume}`, duplicate: true });
         return;
       }
 

@@ -269,8 +269,16 @@ function renderTable(tableId, data, columns){
 // テーブル描画（編集なし・検索用）
 //////////////////////////////
 function renderTableReadOnly(tableId, data, columns) {
-  const tbody = document.getElementById(tableId).querySelector('tbody');
+  const table = document.getElementById(tableId);
+  if(!table) return;
+
+  const tbody = table.querySelector('tbody');
   tbody.innerHTML = '';
+
+  if(!Array.isArray(data) || data.length === 0){
+    table.style.display = 'none';
+    return;
+  }
 
   data.forEach(row => {
     const tr = document.createElement('tr');
@@ -286,8 +294,8 @@ function renderTableReadOnly(tableId, data, columns) {
     tbody.appendChild(tr);
   });
 
-  const table = tbody.closest('table');
-  if(table) applyColumnWidthHints(table);
+  applyColumnWidthHints(table);
+  table.style.display = 'table';
 }
 
 //////////////////////////////
