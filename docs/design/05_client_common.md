@@ -1,0 +1,158 @@
+# 05. クライアント共通処理設計
+
+対象: `client/Common.html`（共通 JS）および各ドメインの JS（`Library.html` / `Title.html` / `Series.html` / `Box.html`）。
+すべて `<script>` 直書きのグローバル関数で、HTML の `onclick` 属性から呼べるよう `window.*` にも公開しています。
+
+## 5.1 読み込み順と初期化
+
+`Index.html` の `<body>` 末尾で次の順に読み込みます。
+
+1. `Common.html` — 共通処理、`masterCache` 定義
+2. `Library.html` → `Series.html` → `Title.html` → `Box.html`
+
+`<body onload="initApp()">` → `init()`:
+
+```
+init()
+ ├ refreshMasterData()                     各画面のオートコンプリート候補を構築
+ │   ├ getTitleMaster  → populateTitle
+ │   ├ getBoxMaster    → populateBoxes
+ │   └ getSeriesMaster → populateSeries
+ ├ loadLibrarySummary('libraryGlobal')     サマリーパネル
+ ├ loadRecentLibrary('globalRecentLibraryTable')
+ ├ showTab('LibraryMasterView')            初期画面
+ └ closeSidebar()
+```
+
+## 5.2 GAS 呼び出し
+
+```js
+callGAS(funcName, successHandler, ...args)
+```
+
+`google.script.run` のラッパー。失敗時は `showError(error.message || '通信に失敗しました')` を表示します。
+
+例外: 検索画面・一覧画面（`showSeries` / `loadTitleList` 等）は、ローディング表示の解除が必要なため `google.script.run` を直接使用し、成功・失敗の両方で `hideInlineLoading()` を呼びます。
+
+## 5.3 タブ（画面）切替 — `showTab(tabId)`
+
+1. `tabId` の要素がなければ最初の `.view` を対象にする
+2. 全メニューボタンから `active` を外し、`data-tab` が一致するボタンに付与
+3. 全 `.view` を非表示 → 対象 View を表示
+4. 通知をクリア
+5. サマリー・最近追加を再取得
+6. View ごとのローダーを実行
+
+| View | ローダー |
+|---|---|
+| `LibraryMasterView` | `loadLibraryMaster()` |
+| `SeriesMasterView` / `TitleMasterView` / `BoxMasterView` | `loadSeriesMaster()` / `loadTitleMaster()` / `loadBoxMaster()` |
+| `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | ローディング表示 → `load*List(1)` |
+| 検索系 View | なし（候補は初期化時に構築済み） |
+
+## 5.4 テーブル描画
+
+| 関数 | 用途 | 特徴 |
+|---|---|---|
+| `renderTableReadOnly(tableId, data, columns)` | 検索結果 | 0 件ならテーブル非表示 |
+| `renderPagedTableDOM(options)` | 一覧画面 | ページネーション付き。`editable` で編集列を付加可能 |
+| `renderFilteredTable(tableId, rows, columns, keywordInputId, editable = true)` | マスタ管理 | キーワードで絞り込み、編集ボタン付き。0 件なら非表示 |
+| `renderTable` / `renderTableRows` | 編集付き汎用 | 現在呼び出しなし |
+
+共通の表示ルール（`renderFilteredTable` 以外）:
+
+- 名称系の列（列名に `name` / `title` / `series` を含む）は **20 文字で切り詰めて `…`** を付与し、`title` 属性に全文を設定。
+- `applyColumnWidthHints()` で列名から列幅を割り当て（名称 36%、ID 10%、巻数 12%、Box/場所 14% など）。
+
+### ページネーション（`renderPagedTableDOM`）
+
+`options = { tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable }`
+
+- テーブル直後に `<tableId>_pagination` の `div` を生成（初回のみ）。
+- 総ページ数 1 以下では非表示。
+- 表示形式: `« 前へ  1 … [n-2] [n-1] **n** [n+1] [n+2] … 最終  次へ »`（中央 5 ページ）。
+- ボタン押下で `onPageChange(page)` を呼び、呼び出し元が再取得・再描画します。
+
+## 5.5 オートコンプリート
+
+選択項目（作品・シリーズ・Box）は `<input list="...">` ＋ `<datalist>` と、独自の候補ボックスで実装しています。互換用の非表示 `<select>` も併存します。
+
+| 関数 | 役割 |
+|---|---|
+| `populateSelect(selectIds, data, labelFn, valueKey, placeholderText, clear)` | 非表示 `<select>` に option を生成 |
+| `populateAutocomplete(inputId, data, labelFn, valueKey, placeholderText)` | datalist を生成し、`oninput` / `onfocus` / `onblur` を設定 |
+| `showAutocompleteSuggestions(inputId, data, labelFn, valueKey)` | 入力欄直下に部分一致候補（最大 10 件、0 件時は「該当なし」）を表示。クリックで確定 |
+| `getAutocompleteValue(inputId)` | 入力値を datalist と照合して ID を返す。完全一致または**部分一致の最初の候補**。なければ `''` |
+| `populateSeries` / `populateTitle` / `populateBoxes` | 上記を各画面の入力欄に適用 |
+
+選択肢のラベル:
+
+| 対象 | ラベル | 値 |
+|---|---|---|
+| シリーズ | シリーズ名 | SeriesID |
+| 作品 | 作品名 | TitleID |
+| Box | `<BoxID> : <保管場所>` | BoxID |
+
+候補の適用先:
+
+| 関数 | 適用する入力欄 |
+|---|---|
+| `populateSeries` | `seriesSelectInput`（シリーズ別検索）, `newTitleSeriesInput`（作品追加） |
+| `populateTitle` | `titleSelectInput`（未使用画面）, `titleViewSelectInput`（作品別検索） |
+| `populateBoxes` | `boxSelectInput`（未使用画面）, `boxViewSelectInput`（箱別検索） |
+
+書籍マスタ管理の入力欄（`libraryAddTitleInput` / `libraryAddBoxInput`）は `loadLibraryMaster()` 内で個別に datalist を構築します。
+
+## 5.6 通知・ローディング
+
+| 関数 | 仕様 |
+|---|---|
+| `showSuccess(message)` | 緑の通知。4 秒後に自動消去 |
+| `showError(message)` | 赤の通知。6 秒後に自動消去 |
+| `clearGlobalMessage()` | 即時消去（タブ切替時に呼び出し） |
+| `showInlineLoading(containerId, message)` | View 内にスピナー＋文言を追加 |
+| `hideInlineLoading(containerId)` | スピナーを削除 |
+
+`alert()` は使用せず、すべて `#globalNotification` に統一しています。
+
+## 5.7 インライン編集
+
+```
+[編集] → startEdit(btn)
+   各セル（操作列以外）を <input type="text"> に置換、元の値を data-original に退避
+   操作列を [保存] [取消] に置換
+[取消] → cancelEdit(btn)   元の値に戻し [編集] を再表示
+[保存] → saveEdit(btn)
+   id     = 1 列目の値
+   values = 2 列目〜最終列の 1 つ前までの値（画面上の表示値）
+   テーブル ID で API を振り分け → 成功時はマスタ再読込（＋選択肢再構築）
+```
+
+| テーブル ID | 更新 API | 再読込 | 選択肢再構築 |
+|---|---|---|---|
+| `seriesMasterTable` | `updateSeriesMaster` | `loadSeriesMaster` | ○ |
+| `titleMasterTable` | `updateTitleMaster` | `loadTitleMaster` | ○ |
+| `boxMasterTable` | `updateBoxMaster` | `loadBoxMaster` | ○ |
+| `libraryMasterTable` | `updateLibraryMaster` | `loadLibraryMaster` | — |
+
+注意:
+
+- ID 列も入力欄になりますが、送信される `id` は**編集後の値**です（ID を書き換えると別行を更新し得る／該当なしになる）。
+- 送信値は画面の**表示値**です（作品のシリーズ列は SeriesID ではなくシリーズ名）。サーバー側で名称 → ID 変換を行うのは `updateLibraryMaster` のみです（[06 章 B-2](06_known_issues.md)）。
+
+## 5.8 マスタ管理のフォーム制御
+
+| 関数 | 仕様 |
+|---|---|
+| `toggleAddForm(id)` | 同一 View 内の `.master-form` をすべて閉じ、指定フォームを表示（常に表示） |
+| `toggleSearchForm(id)` | 同一 View 内の `.master-form` をすべて閉じ、指定フォームの表示をトグル |
+| `syncMasterToolbarLayout(view)` | 1100px 以下でツールバーのボタンを折り返し可能な横並びに調整 |
+
+## 5.9 クライアント状態
+
+| 変数 | 定義 | 内容 |
+|---|---|---|
+| `masterCache` | `Common.html` | `{ series, title, box, library }` マスタ管理画面の取得結果 |
+| `currentTitleListFilter` | `Title.html` | 作品一覧の種別フィルタ（`all` / `漫画` / `ラノベ`） |
+| `messageTimeout` | `Common.html` | 通知自動消去タイマー |
+| `PAGE_SIZE`, `currentLibraryPage` | `Library.html` | 旧ページング用。現在は実質未使用 |
