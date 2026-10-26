@@ -64,14 +64,14 @@ callGAS(funcName, successHandler, ...args)
 
 共通の表示ルール（`renderFilteredTable` 以外）:
 
-- 名称系の列（列名に `name` / `title` / `series` を含む）は **20 文字で切り詰めて `…`** を付与し、`title` 属性に全文を設定。
+- 名称系の列（列名に `name` / `title` / `series` を含む）は **20 文字で切り詰めて `…`** を付与し、`title` 属性に全文を設定（スマホ幅 720px 以下ではセル内で折り返すため切り詰めない）。
 - `applyColumnWidthHints()` で列名から列幅を割り当て（名称 36%、ID 10%、巻数 12%、Box/場所 14% など）。
 
 ### ページネーション（`renderPagedTableDOM`）
 
 `options = { tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable }`
 
-- テーブル直後に `<tableId>_pagination` の `div` を生成（初回のみ）。
+- テーブル直後に `<tableId>_pagination` の `div`（クラス `pagination-bar`）を生成（初回のみ）。
 - 総ページ数 1 以下では非表示。
 - 表示形式: `« 前へ  1 … [n-2] [n-1] **n** [n+1] [n+2] … 最終  次へ »`（中央 5 ページ）。
 - ボタン押下で `onPageChange(page)` を呼び、呼び出し元が再取得・再描画します。
@@ -123,6 +123,7 @@ callGAS(funcName, successHandler, ...args)
 ```
 [編集] → startEdit(btn)
    各セル（ID 列・操作列以外）を <input type="text"> に置換、元の値を data-original に退避
+   行に editing クラスを付与（スマホで入力欄の幅を確保）、入力欄のプレースホルダーに列名
    操作列を [保存] [取消] に置換
 [取消] → cancelEdit(btn)   元の値に戻し [編集] を再表示（createEditButton で生成）
 [保存] → saveEdit(btn)

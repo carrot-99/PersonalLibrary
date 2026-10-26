@@ -16,13 +16,17 @@ function init(){
 function toggleSidebar(){
   const sideMenu = document.getElementById('sideMenu');
   if(!sideMenu) return;
-  sideMenu.classList.toggle('open');
+  const opened = sideMenu.classList.toggle('open');
+  const backdrop = document.getElementById('sideMenuBackdrop');
+  if(backdrop) backdrop.classList.toggle('open', opened);
 }
 
 function closeSidebar(){
   const sideMenu = document.getElementById('sideMenu');
   if(!sideMenu) return;
   sideMenu.classList.remove('open');
+  const backdrop = document.getElementById('sideMenuBackdrop');
+  if(backdrop) backdrop.classList.remove('open');
 }
 
 //////////////////////////////
@@ -173,7 +177,9 @@ function shouldTruncateTableText(fieldName){
 
 function getDisplayTableValue(value, fieldName){
   const text = value == null ? '' : String(value);
-  if(!shouldTruncateTableText(fieldName) || text.length <= 20){
+  // スマホ幅ではセル内で折り返すため省略しない
+  const isPhone = window.matchMedia('(max-width: 720px)').matches;
+  if(isPhone || !shouldTruncateTableText(fieldName) || text.length <= 20){
     return text;
   }
 
@@ -348,6 +354,7 @@ function renderPagedTableDOM(options){
   if(!paginationDiv){
     paginationDiv = document.createElement('div');
     paginationDiv.id = paginationDivId;
+    paginationDiv.className = 'pagination-bar';
     paginationDiv.style.marginTop = "10px";
     document.getElementById(tableId).after(paginationDiv);
   }
@@ -795,6 +802,8 @@ function renderFilteredTable(tableId, rows, columns, keywordInputId, editable = 
 function startEdit(btn){
 
   const tr = btn.closest('tr');
+  tr.classList.add('editing');
+  const headers = tr.closest('table').querySelectorAll('thead th');
 
   Array.from(tr.cells).forEach((td, index)=>{
 
@@ -807,6 +816,7 @@ function startEdit(btn){
     const input = document.createElement('input');
     input.type = 'text';
     input.value = value;
+    input.placeholder = headers[index] ? headers[index].textContent : '';
 
     td.textContent = '';
     td.appendChild(input);
@@ -838,6 +848,7 @@ function startEdit(btn){
 function cancelEdit(btn){
 
   const tr = btn.closest('tr');
+  tr.classList.remove('editing');
 
   Array.from(tr.cells).forEach((td, index)=>{
 
