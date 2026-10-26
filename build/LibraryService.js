@@ -409,10 +409,33 @@ function getSeriesDetail(seriesId){
     );
   });
 
+  const volumesMap = getOwnedVolumesByTitle();
+
   return filteredTitles.map(row => ({
     name: row[1],
-    count: countMap.get(row[0]) || 0
+    count: countMap.get(row[0]) || 0,
+    completed: row[4],
+    volumes: volumesMap[String(row[0]).trim()] || []
   }));
+}
+
+
+// ----------------------
+// 作品ごとの所持巻一覧
+// 戻り値: { TitleID: [巻数, ...] }（抜け・次の巻の判定はクライアントの summarizeOwnedVolumes）
+// ----------------------
+function getOwnedVolumesByTitle(){
+
+  const result = {};
+
+  getData(SHEETS.LIBRARY).forEach(row => {
+    const titleId = String(row[1]).trim();
+    if(!titleId) return;
+    if(!result[titleId]) result[titleId] = [];
+    result[titleId].push(String(row[3]).trim());
+  });
+
+  return result;
 }
 
 

@@ -189,6 +189,7 @@ function getDisplayTableValue(value, fieldName){
 function getPreferredColumnWidth(fieldName){
   const normalized = String(fieldName || '').toLowerCase();
 
+  if(normalized === 'owned') return '24%';
   if(normalized.includes('series') || normalized.includes('title') || normalized.includes('name')) return '36%';
   if(normalized.includes('id') || normalized === 'seriesid' || normalized === 'titleid' || normalized === 'boxid') return '10%';
   if(normalized.includes('volume') || normalized.includes('count') || normalized === '巻数' || normalized === '巻') return '12%';
@@ -519,6 +520,10 @@ function resetViewState(view){
       const tbody = table.querySelector('tbody');
       if(tbody) tbody.innerHTML = '';
     });
+    view.querySelectorAll('.ownership-summary').forEach(box => {
+      box.innerHTML = '';
+      box.style.display = 'none';
+    });
   }
 }
 
@@ -704,6 +709,7 @@ function populateSeries(series){
 
 // タイトル選択肢取得
 function populateTitle(titles){
+  masterCache.titleOptions = titles || [];
   populateSelect(
     ['titleSelect','titleViewSelect'],
     titles,
@@ -923,11 +929,99 @@ function saveEdit(btn){
   }, id, values);
 }
 
+//////////////////////////////
+// 所持巻の集計（抜け・次の巻）
+// 数値の巻は 1 巻から最大巻までの抜けを判定する。「上」「外伝」など数値以外の巻は別扱い
+//////////////////////////////
+function summarizeOwnedVolumes(volumes){
+  const numbers = new Set();
+  const others = new Set();
+
+  (volumes || []).forEach(value => {
+    const text = String(value ?? '').trim();
+    if(!text) return;
+    if(/^\d+$/.test(text)) numbers.add(Number(text));
+    else others.add(text);
+  });
+
+  const sorted = Array.from(numbers).sort((a, b) => a - b);
+  const max = sorted.length ? sorted[sorted.length - 1] : 0;
+  const missing = [];
+  for(let n = 1; n < max; n++){
+    if(!numbers.has(n)) missing.push(n);
+  }
+
+  return {
+    count: sorted.length + others.size,
+    numbers: sorted,
+    others: Array.from(others),
+    max,
+    missing,
+    next: max + 1
+  };
+}
+
+// [1,2,3,5,7,8] → "1〜3, 5, 7〜8"
+function formatVolumeRanges(numbers){
+  const parts = [];
+  let start = null;
+  let prev = null;
+
+  (numbers || []).forEach(n => {
+    if(start === null){
+      start = prev = n;
+      return;
+    }
+    if(n === prev + 1){
+      prev = n;
+      return;
+    }
+    parts.push(start === prev ? `${start}` : `${start}〜${prev}`);
+    start = prev = n;
+  });
+  if(start !== null) parts.push(start === prev ? `${start}` : `${start}〜${prev}`);
+
+  return parts.join(', ');
+}
+
+// 一覧用の短い表記: "1〜12巻, 上（抜け: 7巻）"
+function formatOwnershipText(summary, completed){
+  if(!summary || summary.count === 0) return '未所持';
+
+  const owned = [];
+  if(summary.numbers.length > 0) owned.push(`${formatVolumeRanges(summary.numbers)}巻`);
+  owned.push(...summary.others);
+
+  let text = owned.join(', ');
+  if(summary.missing.length > 0){
+    text += `（抜け: ${formatVolumeRanges(summary.missing)}巻）`;
+  } else if(String(completed || '').trim() === '完結済' && summary.numbers.length > 0){
+    text += '（完結・抜けなし）';
+  }
+  return text;
+}
+
+// 巻数の並べ替え用（数値の巻を昇順、その後に数値以外）
+function compareVolumes(a, b){
+  const textA = String(a ?? '').trim();
+  const textB = String(b ?? '').trim();
+  const numA = /^\d+$/.test(textA);
+  const numB = /^\d+$/.test(textB);
+  if(numA && numB) return Number(textA) - Number(textB);
+  if(numA) return -1;
+  if(numB) return 1;
+  return textA.localeCompare(textB, 'ja');
+}
+
 function initApp(){
   init();
 }
 
 window.initApp = initApp;
+window.summarizeOwnedVolumes = summarizeOwnedVolumes;
+window.formatVolumeRanges = formatVolumeRanges;
+window.formatOwnershipText = formatOwnershipText;
+window.compareVolumes = compareVolumes;
 window.toggleSidebar = toggleSidebar;
 window.closeSidebar = closeSidebar;
 window.refreshMasterData = refreshMasterData;

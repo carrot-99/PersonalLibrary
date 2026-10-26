@@ -132,11 +132,15 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 ### `getTitleDetail(titleId)` — 作品別検索
 
-戻り値 `[{ volume, box }]`。`box` は **BoxID**（保管場所名ではない）。行順。
+戻り値 `[{ volume, box }]`。`box` は **BoxID**（保管場所名ではない）。行順（画面側で巻数順に並べ替え）。
 
 ### `getSeriesDetail(seriesId)` — シリーズ別検索
 
-戻り値 `[{ name, count }]`。シリーズに属する作品ごとの作品名と `M_Library` 上の所持冊数（0 件の作品も含む）。
+戻り値 `[{ name, count, completed, volumes }]`。シリーズに属する作品ごとの作品名・`M_Library` 上の所持冊数（0 件の作品も含む）・完結状態・所持巻の配列。画面は `volumes` から所持巻と抜けを表示します。
+
+### `getOwnedVolumesByTitle()` — 作品ごとの所持巻
+
+戻り値 `{ TitleID: [巻数, ...] }`。`M_Library` 全件を作品ごとにまとめたもの。抜け・次の巻の判定はサーバーでは行わず、クライアントの `summarizeOwnedVolumes`（[05 章 5.10](05_client_common.md#510-所持巻の集計)）で行います。
 
 ### `getBoxDetail(boxId)` — 箱別検索
 
@@ -164,6 +168,10 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 ### `getTitleMaster()`
 
 戻り値 `[{ id, name, seriesName, type, completed }]`。`seriesName` は `M_Series` から結合（なければ空文字）。
+
+### `getTitleListWithOwnership()` — 作品一覧用
+
+戻り値 `{ titles, volumes }`。`titles` は `getTitleMaster()` と同じ配列、`volumes` は `getOwnedVolumesByTitle()` の結果。
 
 ### `getTitles()`
 
@@ -350,7 +358,8 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 
 | API | 呼び出し元（クライアント関数） |
 |---|---|
-| `getTitleMaster` | `refreshMasterData`, `loadTitleMaster`, `loadTitleList`, `loadLibraryMaster`, `loadPhotoImportView` |
+| `getTitleMaster` | `refreshMasterData`, `loadTitleMaster`, `loadLibraryMaster`, `loadPhotoImportView` |
+| `getTitleListWithOwnership` | `loadTitleList` |
 | `getSeriesMaster` | `refreshMasterData`, `loadSeriesMaster`, `loadSeriesList` |
 | `getBoxMaster` | `refreshMasterData`, `loadBoxMaster`, `loadBoxList`, `loadLibraryMaster` |
 | `getLibrarySummary` | `loadLibrarySummary`（初期化時・タブ切替毎・書籍追加後） |
@@ -362,6 +371,6 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `update*Master` | `saveEdit`（テーブル ID により振り分け） |
 | `getSeries` / `getBoxes` | `loadPhotoImportView` |
 | `analyzeBookSpines` / `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | `analyzePhotoImport` / 作品追加パネルの「追加して選択」 / `registerPhotoImport` |
-| `getTitles`, `addBulkVolumesWeb` | サーバー内部から使用（`analyzeBookSpines`, `bulkAddLibraryFromPhoto`） |
+| `getTitles`, `addBulkVolumesWeb`, `getOwnedVolumesByTitle` | サーバー内部から使用（`analyzeBookSpines`, `bulkAddLibraryFromPhoto`） |
 | `testAnthropicConnection` | Apps Script エディタから手動実行 |
 | `getLibraryMaster` | なし（未使用） |

@@ -157,9 +157,20 @@ callGAS(funcName, successHandler, ...args)
 
 | 変数 | 定義 | 内容 |
 |---|---|---|
-| `masterCache` | `Common.html` | `{ series, title, box, library }` マスタ管理画面の取得結果 |
+| `masterCache` | `Common.html` | `{ series, title, box, library }` マスタ管理画面の取得結果。`titleOptions` は選択肢用の作品一覧（`populateTitle` で保持。作品表示の完結状態判定に使用） |
 | `currentTitleListFilter` | `Title.html` | 作品一覧の種別フィルタ（`all` / `漫画` / `ラノベ`） |
 | `messageTimeout` | `Common.html` | 通知自動消去タイマー |
 | `PAGE_SIZE`, `currentLibraryPage` | `Library.html` | 旧ページング用。現在は実質未使用 |
 | `photoImportState` | `PhotoImport.html` | 写真から登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `busy`） |
 | `photoImportImagesPromise` | `PhotoImport.html` | 選択写真の縮小処理（長辺 1568px・JPEG 品質 0.9）の Promise。解析時に完了を待つ |
+
+## 5.10 所持巻の集計
+
+`Common.html` の関数。作品表示・シリーズ表示・作品一覧・写真から登録で共通に使います。
+
+| 関数 | 用途 |
+|---|---|
+| `summarizeOwnedVolumes(volumes)` | 巻数の配列から `{ count, numbers, others, max, missing, next }` を返す。数値の巻（`/^d+$/`）は重複を除いて昇順、`missing` は 1〜最大巻の未所持巻、`next` は最大巻＋1。数値以外の巻は `others` |
+| `formatVolumeRanges(numbers)` | `[1,2,3,5]` → `1〜3, 5` |
+| `formatOwnershipText(summary, completed)` | 一覧用の短い表記（`1〜12巻（抜け: 7巻）` 等） |
+| `compareVolumes(a, b)` | 巻数の並べ替え（数値の巻を昇順、その後に数値以外） |

@@ -28,6 +28,18 @@ function getTitleMaster(){
 
 
 // ----------------------
+// 作品一覧用（所持巻付き）
+// 戻り値: { titles: getTitleMaster() の配列, volumes: { TitleID: [巻数, ...] } }
+// ----------------------
+function getTitleListWithOwnership(){
+  return {
+    titles: getTitleMaster(),
+    volumes: getOwnedVolumesByTitle()
+  };
+}
+
+
+// ----------------------
 // 選択肢用取得
 // ----------------------
 function getTitles(){

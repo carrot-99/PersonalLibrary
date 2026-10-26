@@ -12,7 +12,12 @@ function showSeries(){
   google.script.run
     .withSuccessHandler(function(data){
       hideInlineLoading('SeriesView');
-      renderTableReadOnly('seriesTable', data, ['name','count']);
+      const rows = (data || []).map(item => ({
+        name: item.name,
+        count: item.count,
+        owned: formatOwnershipText(summarizeOwnedVolumes(item.volumes), item.completed)
+      }));
+      renderTableReadOnly('seriesTable', rows, ['name','count','owned']);
     })
     .withFailureHandler(function(error){
       hideInlineLoading('SeriesView');

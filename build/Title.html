@@ -12,7 +12,10 @@ function showTitle(){
   google.script.run
     .withSuccessHandler(function(data){
       hideInlineLoading('TitleView');
-      renderTableReadOnly('titleTable', data, ['volume','box']);
+      const rows = (data || []).slice().sort((a, b) => compareVolumes(a.volume, b.volume));
+      const title = (masterCache.titleOptions || []).find(t => String(t.id) === String(id));
+      renderTitleOwnershipSummary(rows.map(row => row.volume), title ? title.completed : '');
+      renderTableReadOnly('titleTable', rows, ['volume','box']);
     })
     .withFailureHandler(function(error){
       hideInlineLoading('TitleView');
@@ -21,22 +24,67 @@ function showTitle(){
     .getTitleDetail(id);
 }
 
+// 作品表示の所持状況（所持巻・抜け・次の巻）
+function renderTitleOwnershipSummary(volumes, completed){
+  const box = document.getElementById('titleOwnershipSummary');
+  if(!box) return;
+
+  const summary = summarizeOwnedVolumes(volumes);
+  const isCompleted = String(completed || '').trim() === '完結済';
+  box.innerHTML = '';
+
+  const addLine = (label, value, className) => {
+    const line = document.createElement('div');
+    line.className = `ownership-line ${className || ''}`.trim();
+    const strong = document.createElement('strong');
+    strong.textContent = label;
+    const span = document.createElement('span');
+    span.textContent = value;
+    line.appendChild(strong);
+    line.appendChild(span);
+    box.appendChild(line);
+  };
+
+  if(summary.count === 0){
+    addLine('所持', 'この作品の本はまだ登録されていません');
+  } else {
+    const owned = [];
+    if(summary.numbers.length > 0) owned.push(`${formatVolumeRanges(summary.numbers)}巻`);
+    owned.push(...summary.others);
+    addLine('所持', `${summary.count}冊（${owned.join(', ')}）`);
+    addLine('抜け',
+      summary.missing.length > 0 ? `${formatVolumeRanges(summary.missing)}巻` : 'なし',
+      summary.missing.length > 0 ? 'is-warning' : 'is-ok');
+  }
+
+  if(isCompleted){
+    const allOwned = summary.numbers.length > 0 && summary.missing.length === 0;
+    addLine('完結済', allOwned ? '抜けなく所持しています' : '抜けている巻があります', allOwned ? 'is-ok' : 'is-warning');
+  } else {
+    addLine('次の巻', `${summary.next}巻`);
+  }
+
+  box.style.display = 'block';
+}
+
 let currentTitleListFilter = 'all';
 
 function loadTitleList(page = 1, typeFilter = currentTitleListFilter){
   currentTitleListFilter = typeFilter;
   const pageSize = 20;
   google.script.run
-    .withSuccessHandler(function(data){
+    .withSuccessHandler(function(res){
       hideInlineLoading('TitleListView');
-      const rows = (data || [])
+      const volumesMap = res.volumes || {};
+      const rows = (res.titles || [])
         .filter(item => typeFilter === 'all' || item.type === typeFilter)
         .map(item => ({
           id: item.id,
           name: item.name,
           seriesName: item.seriesName,
           type: item.type,
-          completed: item.completed
+          completed: item.completed,
+          owned: formatOwnershipText(summarizeOwnedVolumes(volumesMap[String(item.id).trim()]), item.completed)
         }));
 
       const start = (page - 1) * pageSize;
@@ -45,7 +93,7 @@ function loadTitleList(page = 1, typeFilter = currentTitleListFilter){
       renderPagedTableDOM({
         tableId: 'titleListTable',
         data: pageRows,
-        columns: ['id', 'name', 'seriesName', 'type', 'completed'],
+        columns: ['id', 'name', 'seriesName', 'type', 'completed', 'owned'],
         currentPage: page,
         pageSize: pageSize,
         totalRows: rows.length,
@@ -57,7 +105,7 @@ function loadTitleList(page = 1, typeFilter = currentTitleListFilter){
       hideInlineLoading('TitleListView');
       showError(error && error.message ? error.message : '作品一覧の読み込みに失敗しました');
     })
-    .getTitleMaster();
+    .getTitleListWithOwnership();
 }
 
 //////////////////////////////
