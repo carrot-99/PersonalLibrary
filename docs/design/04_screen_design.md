@@ -151,7 +151,7 @@
 | | Box `#libraryAddBoxInput` | 必須（datalist、`<ID> : <場所>`） |
 | 写真から登録 | ツールバー [写真から登録] | 4.6.5 参照 |
 | 検索 | キーワード `#librarySearchKeyword` | |
-| 一覧 | ID, 作品名, 巻数, Box | 想定テーブル `#libraryMasterTable`（⚠ 現行 HTML に要素なし。[06 章 B-3](06_known_issues.md)） |
+| 一覧 | LibraryID, 作品名, 巻数, Box | `#libraryMasterTable` |
 | API | `getLibraryPage(1, 99999)` / `getTitleMaster` / `getBoxMaster` / `addNewVolumeWeb` / `updateLibraryMaster` | |
 
 書籍追加の処理フロー:

@@ -183,13 +183,11 @@ function loadLibraryMaster(){
 
     masterCache.library = items;
 
+    // 他のマスタ管理と同様、一覧は検索実行時に表示する
     const keyword = document.getElementById('librarySearchKeyword');
     if(keyword && keyword.value.trim()){
       filterLibrary();
-      return;
     }
-
-    renderFilteredTable('libraryMasterTable', items, ['id', 'title', 'volume', 'box'], 'librarySearchKeyword');
   }, 1, 99999);
 
   callGAS('getTitleMaster', function(titles){

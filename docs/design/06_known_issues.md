@@ -6,14 +6,7 @@
 
 ## 6.1 不具合（B）
 
-| ID | 優先度 | 箇所 | 内容 | 対応案 |
-|---|---|---|---|---|
-| B-1 | 高 | `server/LibraryService.js` `updateLibraryMaster` | 更新列指定が `{2: newBoxId, 4: newVolume}` となっており、**TitleID 列（2 列目）に BoxID を書き込む**。BoxID 列（3 列目）は更新されず、作品の変更も反映されない | `{2: newTitleId, 3: newBoxId, 4: newVolume}` に修正 |
-| B-2 | 高 | `client/Common.html` `saveEdit` × `server/TitleService.js` `updateTitleMaster` | 作品マスタの編集で、画面のシリーズ列（**シリーズ名**）がそのまま SeriesID 列に保存される。保存後はシリーズの紐付けが外れる | サーバー側でシリーズ名 → SeriesID 変換を行う（`updateLibraryMaster` と同様）か、編集 UI をセレクトにする |
-| B-3 | 中 | `client/library/LibraryMasterView.html` | `#libraryMasterTable` 要素が存在しないため、書籍マスタ管理で検索しても一覧が表示されず、書籍の編集もできない（`loadLibraryMaster` / `filterLibrary` は要素なしで何もしない） | テーブル要素（ID, 作品名, 巻数, Box, 操作）を追加。または一覧を書籍一覧画面に一本化し、関連コードを削除 |
-| B-4 | 中 | `client/title/Title.html` `addTitleMaster` | 追加後に完結状態を `'未完'` にリセットしているが選択肢に存在しない値のため、セレクトが未選択状態になる | `'連載中'` など既存の選択肢値に合わせる |
-| B-5 | 中 | `client/Common.html` `startEdit` / `saveEdit` | ID 列も編集可能で、書き換えた ID で更新 API を呼ぶ | ID 列は入力欄にしない（`data-original` の値を送る） |
-| B-6 | 低 | `client/Common.html` `cancelEdit` | 取消後に生成する [編集] ボタンに `edit-action` クラスと `type="button"` が付かず、見た目が変わる | `renderFilteredTable` と同じ生成処理を共通化 |
+現在、既知の不具合はありません（B-1〜B-6 は 2026-10-26 に修正済み）。
 
 ## 6.2 仕様上の注意・リスク（R）
 

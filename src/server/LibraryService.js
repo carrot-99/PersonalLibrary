@@ -279,15 +279,28 @@ function updateLibraryMaster(id, values){
     const titleRows = getData(SHEETS.TITLE);
     const boxRows = getData(SHEETS.BOX);
 
-    const titleMap = new Map(titleRows.map(row => [row[1], row[0]]));
-    const boxMap = new Map(boxRows.map(row => [row[1], row[0]]));
+    const titleInput = String(values[0] ?? '').trim();
+    const newVolume = String(values[1] ?? '').trim();
+    const boxInput = String(values[2] ?? '').trim();
 
-    const newTitleId = titleMap.get(String(values[0]).trim()) || String(values[0]).trim();
-    const newBoxId = boxMap.get(String(values[2]).trim()) || String(values[2]).trim();
-    const newVolume = String(values[1]).trim();
-
-    if(!newTitleId || !newVolume || !newBoxId){
+    if(!titleInput || !newVolume || !boxInput){
       return failure('作品名・巻数・Boxは必須です');
+    }
+
+    const currentRow = libraryRows.find(row => String(row[0]) === String(id));
+    if(!currentRow){
+      return failure('該当データが見つかりません');
+    }
+
+    // 名前が同じマスタが複数ある場合に備え、現在の紐付け先を優先する
+    const newTitleId = resolveMasterId(titleRows, titleInput, currentRow[1]);
+    if(!newTitleId){
+      return failure(`作品「${titleInput}」が見つかりません`);
+    }
+
+    const newBoxId = resolveMasterId(boxRows, boxInput, currentRow[2]);
+    if(!newBoxId){
+      return failure(`Box「${boxInput}」が見つかりません`);
     }
 
     const exists = libraryRows.some(row =>
@@ -304,7 +317,8 @@ function updateLibraryMaster(id, values){
       SHEETS.LIBRARY,
       id,
       {
-        2: newBoxId,
+        2: newTitleId,
+        3: newBoxId,
         4: newVolume
       }
     );
