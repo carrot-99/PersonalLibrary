@@ -1,0 +1,28 @@
+# CLAUDE.md（AI 向け作業ルール）
+
+個人用の蔵書管理 Web アプリ（Google Apps Script + スプレッドシート）。開発者はオーナー本人と AI のみ。
+人間向けの手順書は [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)、設計書は `docs/design/`。
+
+## 必ず守ること
+
+- **ブランチ**: 機能追加は `feature/<lowerCamelCase>`、バグ修正は `bugfix/<lowerCamelCase>`。main から切る。main へ直接コミットしない
+- **コミット前に必ずオーナーの動作確認を待つ**: 実装 → `node build.js` → `clasp push` → `/dev` URL での確認手順を伝えて止まる。OK が出てからコミット
+- **編集は `src/` のみ**。`build/` は `node build.js` の生成物。コミット時は `src/` と `build/` をそろえる
+- `src/` 配下で**ファイル名を重複させない**（`build/` にフラット化されるため）。新しい HTML は `src/client/Index.html` で `include`
+- 本番デプロイ（`clasp update-deployment` / `create-deployment`）は**オーナーの指示があるときだけ**。`create-deployment` は URL が変わるので使わない
+- API キー等は**スクリプトプロパティ**に置き、リポジトリ・クライアント HTML に書かない
+- コミットメッセージ・ドキュメントは日本語
+
+## 実装の前提
+
+- データはバインドされたスプレッドシート（`SpreadsheetApp.getActive()`）。シート定義は `src/server/Commons.js` の `SHEETS`。列は番号で参照しているので列順を変える変更は慎重に
+- ID 採番は最終行 + 1（シート並べ替えに弱い）
+- 巻数式の解析はサーバー `parseVolumeExpression`（`LibraryService.js`）とクライアント `parseVolumeInput`（`Library.html`）の 2 か所。仕様変更時は両方直す。一括登録は既存の `addBulkVolumesWeb` / `parseVolumeExpression` を再利用する
+- クライアント → サーバーは `google.script.run`。外部ライブラリは Bootstrap CSS のみ
+- 自動テスト・Lint なし
+
+## 変更時のドキュメント更新
+
+- 仕様を変えたら `docs/design/` の該当設計書も同じブランチで更新し、`07_change_history.md` に 1 行追記
+- `06_known_issues.md` の項目を直したらその行を削除
+- 手順・設定（スクリプトプロパティ等）が変わったら `docs/DEVELOPMENT.md` も更新

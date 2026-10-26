@@ -107,7 +107,7 @@ node build.js
 3. `src/client/**/*.html` をすべて `build/` 直下にコピー（ファイル名の重複不可）
 4. `src/server/**/*.js, *.gs` をすべて `build/` 直下にコピー
 
-その後、`build/` を clasp のルートとして `clasp push` する運用を想定しています（`.clasp.json` は `.gitignore` 対象のためリポジトリには含まれません）。
+その後、`build/` を clasp のルートとして `clasp push` する運用を想定しています（`.clasp.json` は `.gitignore` 対象のためリポジトリには含まれません）。環境構築・push・デプロイの具体的な手順は [../DEVELOPMENT.md](../DEVELOPMENT.md) を参照してください。
 
 > 注意: `include('Xxx')` はファイル名（拡張子なし）で解決されるため、`client/` 配下のサブフォルダが異なっても**同名ファイルは作れません**。
 
