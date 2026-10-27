@@ -3,8 +3,9 @@
 //////////////////////////////
 // タイトル一覧
 //////////////////////////////
-function showTitle(){
-  const id = getAutocompleteValue('titleViewSelectInput') || document.getElementById('titleViewSelect').value;
+// titleId: 上部バーの検索から呼ぶときに指定（入力欄の部分一致による取り違えを避ける）
+function showTitle(titleId){
+  const id = titleId || getAutocompleteValue('titleViewSelectInput') || document.getElementById('titleViewSelect').value;
   if(!id) return showError('作品を選択してください');
 
   showInlineLoading('TitleView', '検索中...');

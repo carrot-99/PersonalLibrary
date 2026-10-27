@@ -235,6 +235,11 @@
     font-size: 1.3rem;
   }
 
+  /* 上部バーの検索 */
+  .global-search { flex: 1 1 280px; max-width: 420px; }
+  .global-search input { margin: 0; }
+  .page-header .notification { flex-basis: 100%; }
+
   .app-layout {
     display: flex;
     align-items: flex-start;
@@ -919,6 +924,8 @@
     }
     .page-header h2 { font-size: 1.2rem; line-height: 48px; }
     .notification { margin: 0 0 4px -56px; font-size: 0.95rem; }
+    .global-search { flex: 0 0 auto; max-width: none; margin-left: -56px; }
+    .global-search input { min-height: 44px; padding: 10px 12px; }
     .menu-toggle {
       top: 10px;
       left: 10px;
