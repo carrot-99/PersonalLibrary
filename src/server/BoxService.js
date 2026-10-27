@@ -30,6 +30,10 @@ function getBoxes(){
 // 追加
 // ----------------------
 function addBoxMasterWeb(id, place){
+  return withScriptLock(() => addBoxMasterCore(id, place));
+}
+
+function addBoxMasterCore(id, place){
 
   if(!id || !place){
     return failure('BoxIDと保管場所は必須です');
@@ -54,6 +58,10 @@ function addBoxMasterWeb(id, place){
 // values[0] = place
 // ----------------------
 function updateBoxMaster(id, values){
+  return withScriptLock(() => updateBoxMasterCore(id, values));
+}
+
+function updateBoxMasterCore(id, values){
 
   if(!id){
     return failure('IDが指定されていません');

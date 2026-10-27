@@ -58,7 +58,7 @@ function fillPhotoImportDatalist(listId, items){
   list.innerHTML = '';
   items.forEach(item => {
     const option = document.createElement('option');
-    option.value = item.name;
+    option.value = getTitleLabel(item);
     list.appendChild(option);
   });
 }
@@ -460,7 +460,7 @@ function renderPhotoImportRows(){
     titleInput.value = row.titleName;
     titleInput.oninput = function(){
       const name = titleInput.value.trim();
-      const match = photoImportState.titles.find(t => String(t.name).trim() === name);
+      const match = photoImportState.titles.find(t => getTitleLabel(t).trim() === name);
       row.titleName = titleInput.value;
       row.titleId = match ? String(match.id) : '';
       row.needsReview = false;
@@ -721,6 +721,7 @@ function buildPhotoTitleAddPanel(row){
 function applyAddedPhotoTitle(row, res){
   photoImportState.titles.push(res.title);
   fillPhotoImportDatalist('photoImportTitleList', photoImportState.titles);
+  const label = getTitleLabel(res.title);
 
   if(res.series && res.series.created){
     photoImportState.series.push({ id: res.series.id, name: res.series.name });
@@ -732,19 +733,39 @@ function applyAddedPhotoTitle(row, res){
   photoImportState.rows.forEach(other => {
     if(other === row){
       other.titleId = res.title.id;
-      other.titleName = res.title.name;
+      other.titleName = label;
       other.needsReview = false;
       return;
     }
     if(!other.titleId && recognized && String(other.recognizedTitle || '').trim() === recognized){
       other.titleId = res.title.id;
-      other.titleName = res.title.name;
+      other.titleName = label;
       other.needsReview = !!other.uncertain;
     }
   });
 
   renderPhotoImportRows();
   refreshMasterData();
+  refreshPhotoTitleLabels();
+}
+
+// 作品を追加すると、同じ名前の既存作品のラベルが「作品名（種別）」に変わることがあるため取り直す
+function refreshPhotoTitleLabels(){
+  callGAS('getTitleMaster', function(titles){
+    photoImportState.titles = titles || [];
+    fillPhotoImportDatalist('photoImportTitleList', photoImportState.titles);
+
+    const labelById = new Map(photoImportState.titles.map(t => [String(t.id), getTitleLabel(t)]));
+    let changed = false;
+    photoImportState.rows.forEach(row => {
+      const label = labelById.get(String(row.titleId));
+      if(row.titleId && label && row.titleName !== label){
+        row.titleName = label;
+        changed = true;
+      }
+    });
+    if(changed) renderPhotoImportRows();
+  });
 }
 
 function refreshPhotoImportStatuses(){

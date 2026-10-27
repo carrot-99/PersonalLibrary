@@ -49,7 +49,7 @@ callGAS(funcName, successHandler, ...args)
 |---|---|
 | `PhotoImportView` | `loadPhotoImportView()`（前回の写真・結果のクリアと、作品・シリーズ・Box の候補取得） |
 | `WishListView` | `loadWishListView()`（作品候補の設定と欲しい巻一覧の取得） |
-| `LibraryMasterView` | `loadLibraryMaster()` |
+| `LibraryMasterView` | `loadLibraryMaster()`（作品・Box の候補を取得。書籍一覧は取得せず、キーワード入力済みなら再検索） |
 | `SeriesMasterView` / `TitleMasterView` / `BoxMasterView` | `loadSeriesMaster()` / `loadTitleMaster()` / `loadBoxMaster()` |
 | `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | ローディング表示 → `load*List(1)` |
 | 検索系 View | なし（候補は初期化時に構築済み） |
@@ -86,7 +86,9 @@ callGAS(funcName, successHandler, ...args)
 | `populateSelect(selectIds, data, labelFn, valueKey, placeholderText, clear)` | 非表示 `<select>` に option を生成 |
 | `populateAutocomplete(inputId, data, labelFn, valueKey, placeholderText)` | datalist を生成し、`oninput` / `onfocus` / `onblur` を設定 |
 | `showAutocompleteSuggestions(inputId, data, labelFn, valueKey)` | 入力欄直下に部分一致候補（最大 10 件、0 件時は「該当なし」）を表示。クリックで確定 |
-| `getAutocompleteValue(inputId)` | 入力値を datalist と照合して ID を返す。完全一致または**部分一致の最初の候補**。なければ `''` |
+| `getTitleLabel(title)` | 作品の表示ラベル（`title.label`、なければ `title.name`）。作品を選ぶ入力欄の候補と照合はすべてこのラベルで行う |
+| `findDatalistOption(list, value)` | datalist から候補を探す。**完全一致（大文字小文字無視）を優先**し、なければ部分一致が 1 件のときだけ採用。複数・0 件は `null` |
+| `getAutocompleteValue(inputId)` | 入力値を `findDatalistOption` で照合して ID を返す。なければ `''` |
 | `populateSeries` / `populateTitle` / `populateBoxes` | 上記を各画面の入力欄に適用 |
 
 選択肢のラベル:
@@ -105,7 +107,7 @@ callGAS(funcName, successHandler, ...args)
 | `populateTitle` | `titleSelectInput`（未使用画面）, `titleViewSelectInput`（作品別検索） |
 | `populateBoxes` | `boxSelectInput`（未使用画面）, `boxViewSelectInput`（箱別検索） |
 
-書籍マスタ管理の入力欄（`libraryAddTitleInput` / `libraryAddBoxInput`）は `loadLibraryMaster()` 内で個別に datalist を構築します。
+書籍マスタ管理の入力欄（`libraryAddTitleInput` / `libraryAddBoxInput`）は `loadLibraryMaster()` 内で個別に datalist を構築します（照合は同じく `findDatalistOption`）。
 
 ## 5.6 通知・ローディング
 
@@ -142,7 +144,7 @@ callGAS(funcName, successHandler, ...args)
 | `seriesMasterTable` | `updateSeriesMaster` | `loadSeriesMaster` | ○ |
 | `titleMasterTable` | `updateTitleMaster` | `loadTitleMaster` | ○ |
 | `boxMasterTable` | `updateBoxMaster` | `loadBoxMaster` | ○ |
-| `libraryMasterTable` | `updateLibraryMaster` | `loadLibraryMaster`（＋最近追加・サマリー） | — |
+| `libraryMasterTable` | `updateLibraryMaster` | `loadLibraryMaster`（キーワードで再検索＋最近追加・サマリー） | — |
 
 注意:
 

@@ -268,13 +268,6 @@ function validateSpineResult(parsed, imageCount){
 // ----------------------
 // M_Title 照合
 // ----------------------
-function normalizeTitleForMatch(value){
-  return String(value || '')
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[ぁ-ゖ]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60))
-    .replace(/[\s・:：!！?？\-‐ー〜~、。,.「」『』()（）【】\[\]'"’”#＃&＆\/／☆★♪]/g, '');
-}
 
 function titleSimilarity(a, b){
   if(!a || !b) return 0;
@@ -315,7 +308,7 @@ function matchExistingTitles(books, titles){
 
   const normalizedTitles = titles.map(t => ({
     id: String(t.id),
-    name: String(t.name || ''),
+    name: String(t.label || t.name || ''),
     key: normalizeTitleForMatch(t.name)
   }));
 
@@ -376,10 +369,9 @@ function addTitleFromPhotoImport(input){
 
   try{
 
-    const nameKey = normalizeTitleForMatch(name);
-    const sameTitle = getData(SHEETS.TITLE).find(row => normalizeTitleForMatch(row[1]) === nameKey);
+    const sameTitle = findDuplicateTitle(getData(SHEETS.TITLE), name, type);
     if(sameTitle){
-      return failure(`同じ名前の作品が既に登録されています（${sameTitle[1]}）。作品欄から選択してください`);
+      return failure(`同じ名前・種別の作品が既に登録されています（${sameTitle[1]}・${sameTitle[3] || '種別未設定'}）。作品欄から選択してください`);
     }
 
     const seriesRows = getData(SHEETS.SERIES);
@@ -391,9 +383,9 @@ function addTitleFromPhotoImport(input){
         return failure(`シリーズ「${newSeriesName}」は既に登録されています。既存シリーズから選択してください`);
       }
 
-      const seriesRes = addSeriesMasterWeb(newSeriesName);
+      const seriesRes = addSeriesMasterCore(newSeriesName);
       if(!seriesRes.success) return seriesRes;
-      series = { id: String(getLastId(SHEETS.SERIES)), name: newSeriesName, created: true };
+      series = { id: String(getMaxId(SHEETS.SERIES)), name: newSeriesName, created: true };
 
     } else {
       const found = seriesRows.find(row => String(row[0]).trim() === seriesId);
@@ -403,17 +395,17 @@ function addTitleFromPhotoImport(input){
       series = { id: String(found[0]).trim(), name: String(found[1]), created: false };
     }
 
-    const titleRes = addTitleMasterWeb(name, series.id, type, completed);
+    const titleRes = addTitleMasterCore(name, series.id, type, completed);
     if(!titleRes.success) return titleRes;
 
-    const titleId = String(getLastId(SHEETS.TITLE));
+    const titleId = String(getMaxId(SHEETS.TITLE));
 
     return {
       success: true,
       message: series.created
         ? `シリーズ「${series.name}」と作品「${name}」を追加しました`
         : `作品「${name}」を追加しました`,
-      title: { id: titleId, name, completed },
+      title: { id: titleId, name, completed, type, label: buildTitleLabelMap(getData(SHEETS.TITLE)).get(titleId) || name },
       series
     };
 

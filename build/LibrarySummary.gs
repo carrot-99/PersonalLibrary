@@ -17,11 +17,7 @@ function getLibrarySummary(){
   const uniqueTitles = new Set(libs.map(row => row[1])).size;
   const uniqueBoxes = new Set(libs.map(row => row[2])).size;
 
-  const lastAdded = libs.length === 0 ? null : Utilities.formatDate(
-    libs[libs.length - 1][4],
-    Session.getScriptTimeZone(),
-    'yyyy/MM/dd'
-  );
+  const lastAdded = libs.length === 0 ? null : formatDateCell(sortLibraryRowsByNewest(libs)[0][4]);
 
   return {
     total,

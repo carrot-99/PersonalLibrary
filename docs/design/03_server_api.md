@@ -27,7 +27,12 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | `getData(sheetName, startRow = 2)` | 指定行〜最終行・全列の値を 2 次元配列で返す。シートなし／データなしは `[]` |
 | `include(filename)` | HTML テンプレートからファイルを埋め込むための関数（`<?!= include('Xxx') ?>`） |
 | `generateNextId(prefix, lastId)` | 次 ID を生成（[02_data_design.md 2.4](02_data_design.md#24-id-採番) 参照） |
-| `getLastId(sheetName)` | 最終行 1 列目の値。データなしは `null` |
+| `withScriptLock(fn)` | スクリプトロック（10 秒待機）を取って `fn` を実行。取れなければ `failure('他の登録処理が実行中です。…')`。追加・更新の公開関数はこれで `*Core` を包む |
+| `normalizeTitleForMatch(value)` | 名前の照合用正規化（NFKC・小文字化・ひらがな→カタカナ・空白記号除去） |
+| `getMaxId(sheetName)` | 1 列目のうち末尾の数字が最大の ID（並べ替えに強い）。データなしは `null` |
+| `getToday()` | 今日の日付（0:00）の `Date`。追加日の書き込みに使用 |
+| `getDateValue(value)` / `getIdNumber(id)` / `sortLibraryRowsByNewest(rows)` | 追加日（日単位）と ID 番号で書籍行を新しい順に並べる。最近追加・最新登録に使用 |
+| `formatDateCell(value, pattern)` | 日付セルを `yyyy/MM/dd` 等に整形。`Date` 以外はそのまま文字列で返す |
 | `updateRowById(sheetName, id, columnMap)` | 1 列目が `id` に一致する最初の行の、`columnMap` (`{列番号: 値}`) で指定した列を更新。見つかれば `true` |
 | `resolveMasterId(rows, input, currentId)` | 画面の表示値（ID または名前）からマスタ ID を解決。ID 一致を優先し、次に 2 列目の名前一致。同名が複数あれば `currentId` を優先。見つからなければ `null` |
 | `success(message)` / `failure(message)` | 共通レスポンス生成 |
@@ -56,7 +61,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 項目 | 内容 |
 |---|---|
 | 処理 | `Index` テンプレートを評価して HTML を返す |
-| 設定 | タイトル `漫画ライブラリ管理`、`XFrameOptionsMode.ALLOWALL`、viewport メタタグ（`width=device-width, initial-scale=1`） |
+| 設定 | タイトル `漫画ライブラリ管理`、viewport メタタグ（`width=device-width, initial-scale=1`）。iframe 埋め込みは許可しない（既定） |
 
 ---
 
@@ -74,11 +79,12 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 1. `titleId` または `boxId` が空 → `failure('入力が不完全です')`
 2. 巻数式を解析。不正 → `failure(<解析エラーメッセージ>)`
-3. 解析した全巻について、`M_Library` に同一 (TitleID, 巻数) が存在するか確認。1 件でもあれば
+3. 作品・Box がマスタに存在するか確認。なければ `failure('作品ID … が存在しません')` / `failure('BoxID … が存在しません')`
+4. 解析した全巻について、`M_Library` に同一 (TitleID, 巻数) が存在するか確認。1 件でもあれば
    `failure('同じ作品に既に登録済みの巻数があります: <巻数一覧>')`（**全件登録しない**）
-4. 巻ごとに ID を採番し `[LibraryID, TitleID, BoxID, 巻数, 今日(yyyy-MM-dd)]` を `appendRow`
-5. 登録した巻を欲しい巻リストから外す（`removeWishesForLibrary`）
-6. `success('<titleId> に巻 <巻数一覧> を追加しました（<件数>件）')`（欲しい巻から外した場合は「。欲しい巻リストから n 件外しました」を付加）
+5. 巻ごとに ID を採番し `[LibraryID, TitleID, BoxID, 巻数, 今日(Date)]` を `appendLibraryRows` で一括書き込み（`setValues` 1 回）
+6. 登録した巻を欲しい巻リストから外す（`removeWishesForLibrary`）
+7. `success('<titleId> に巻 <巻数一覧> を追加しました（<件数>件）')`（欲しい巻から外した場合は「。欲しい巻リストから n 件外しました」を付加）
 
 備考: `titleId` / `boxId` がマスタに存在するかの確認は行いません。
 
@@ -87,8 +93,16 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 項目 | 内容 |
 |---|---|
 | 戻り値 | `[{ title, volume, box, date }]`（最大 **10** 件、新しい順） |
-| 処理 | `M_Library` の末尾 10 行を逆順にし、作品名・Box 保管場所を結合。`date` は `yyyy/MM/dd` |
-| 備考 | 「新しい順」は**行順**に基づく（追加日ではない） |
+| 処理 | `sortLibraryRowsByNewest` で追加日の降順（日単位、同日は ID の降順）に並べた先頭 10 件に、作品名・Box 保管場所を結合。`date` は `yyyy/MM/dd` |
+| 備考 | シートの行順に依存しない |
+
+### `searchLibraryMaster(keyword, limit)` — 書籍マスタ管理の検索
+
+| 項目 | 内容 |
+|---|---|
+| 戻り値 | `{ items: [{ id, title, volume, box, date }], total, truncated }` |
+| 処理 | ID・作品名・巻数・保管場所・追加日の部分一致（大文字小文字無視）で絞り込み、先頭 `limit` 件（上限 300 件、`LIBRARY_SEARCH_LIMIT`）を返す。`keyword` が空なら全件が対象 |
+| 備考 | 全件を画面に送らないための検索 API（書籍マスタ管理を開いたときは一覧を取得しない） |
 
 ### `getLibraryPage(page, pageSize)` — 書籍のページ取得
 
@@ -105,7 +119,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 ### `getLibraryMaster()` — 書籍全件取得
 
-戻り値は `getLibraryPage` の `items` と同形式の全件配列。**現在クライアントからの呼び出しなし**（書籍マスタ管理は `getLibraryPage(1, 99999)` を使用）。
+戻り値は `getLibraryPage` の `items` と同形式の全件配列。**現在クライアントからの呼び出しなし**（書籍マスタ管理は `searchLibraryMaster` を使用）。
 
 ### `updateLibraryMaster(id, values)` — 書籍更新
 
@@ -137,7 +151,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 |---|---|
 | 引数 | `entries: [{ titleId, volume, boxId }]` |
 | 戻り値 | `{ success: true, added, errors: [{ line, message }], messages: [] }` |
-| 処理 | 行ごとに必須・作品/Box 存在・重複をチェックし、OK の行だけ登録（部分成功） |
+| 処理 | 行ごとに必須・作品/Box 存在・重複をチェックし、OK の行だけ最後に `appendLibraryRows` でまとめて書き込み（部分成功） |
 | 備考 | 巻数式は解釈しない（1 行 1 巻）。重複エラーには `duplicate: true` を付与。写真から登録の `bulkAddLibraryFromPhoto` から呼び出される（排他は呼び出し側で実施） |
 
 ### `getTitleDetail(titleId)` — 作品別検索
@@ -177,7 +191,15 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 ### `getTitleMaster()`
 
-戻り値 `[{ id, name, seriesName, type, completed }]`。`seriesName` は `M_Series` から結合（なければ空文字）。
+戻り値 `[{ id, name, label, seriesName, type, completed }]`。`label` は選択肢の表示名（同名の作品が複数あれば「作品名（種別）」、それ以外は作品名）。`seriesName` は `M_Series` から結合（なければ空文字）。
+
+### `findDuplicateName(rows, name, excludeId)` / `findDuplicateTitle(rows, name, type, excludeId)`
+
+`findDuplicateName` は `[[ID, 名前, ...]]` から、`normalizeTitleForMatch` で正規化した名前が一致する行（`excludeId` の行を除く）を返す（シリーズの追加・更新で使用）。`findDuplicateTitle` は名前に加えて種別（4 列目）も一致する作品を返す（作品の追加・更新、写真からの作品追加で使用）。
+
+### `buildTitleLabelMap(titleRows)`
+
+`Map(TitleID → 表示ラベル)`。正規化した名前が同じ作品が 2 件以上あれば「作品名（種別）」（種別が空なら「種別未設定」）、それ以外は作品名。`getTitleMaster` / `getTitles` の `label`、書籍の一覧・検索・最近追加の作品名、写真の照合結果の作品名に使用。書籍の更新（`updateLibraryMaster`）はラベルでの一致を優先して作品を特定します。
 
 ### `getTitleListWithOwnership()` — 作品一覧用
 
@@ -192,7 +214,8 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 項目 | 内容 |
 |---|---|
 | 必須 | `name`（空なら `failure('作品名は必須です')`） |
-| 処理 | `T` で採番し `[ID, name, seriesId, type, completed, 0]` を追加。未指定項目は空文字 |
+| 重複 | 同じ名前（正規化して比較）**かつ同じ種別**の作品があれば `failure('同じ名前・種別の作品が既に登録されています（…）')`。種別が違えば登録可 |
+| 処理 | スクリプトロック内で（`addTitleMasterCore`）`T` で採番し `[ID, name, seriesId, type, completed, 0]` を追加。未指定項目は空文字 |
 | 成功 | `success('<name> を追加しました（<ID>）')` |
 
 ### `updateTitleMaster(id, values)`
@@ -200,6 +223,8 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 項目 | 内容 |
 |---|---|
 | `values` | `[作品名, シリーズ名 or SeriesID, 種別, 完結状態]`（要素数 4 未満はエラー） |
+| 重複 | 自分以外に同じ名前・種別の作品があればエラー |
+| 排他 | スクリプトロック（`updateTitleMasterCore`） |
 | 処理 | シリーズを `resolveMasterId` で SeriesID に変換（同名複数なら現在の紐付け先を優先、空欄は空のまま）し、2〜5 列目を更新 |
 | エラー | ID 空 / 値不正 / 作品名空 / 該当なし / シリーズが見つからない / 例外 |
 
@@ -211,8 +236,8 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 |---|---|
 | `getSeriesMaster()` | `[{ id, name }]` |
 | `getSeries()` | `getSeriesMaster()` の別名。写真から登録画面のシリーズ候補に使用 |
-| `addSeriesMasterWeb(name)` | `name` 必須。`S` で採番し追加。`success('<name> を追加しました（<ID>）')` |
-| `updateSeriesMaster(id, values)` | `values[0]` で 2 列目（シリーズ名）を更新 |
+| `addSeriesMasterWeb(name)` | `name` 必須。同じ名前のシリーズがあればエラー。`S` で採番し追加（ロック内、`addSeriesMasterCore`）。`success('<name> を追加しました（<ID>）')` |
+| `updateSeriesMaster(id, values)` | `values[0]` で 2 列目（シリーズ名）を更新。自分以外に同じ名前があればエラー（ロック内） |
 
 ---
 
@@ -390,7 +415,8 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `getBoxMaster` | `refreshMasterData`, `loadBoxMaster`, `loadBoxList`, `loadLibraryMaster` |
 | `getLibrarySummary` | `loadLibrarySummary`（初期化時・タブ切替毎・書籍追加後） |
 | `getRecentLibrary` | `loadRecentLibrary`（初期化時・タブ切替毎・書籍追加後） |
-| `getLibraryPage` | `loadLibraryMaster`（全件: 1, 99999）, `loadLibraryList`（20 件/頁） |
+| `getLibraryPage` | `loadLibraryList`（20 件/頁） |
+| `searchLibraryMaster` | `filterLibrary`（書籍マスタ管理の [検索実行]） |
 | `getSeriesDetail` / `getTitleDetail` / `getBoxDetail` | `showSeries` / `showTitle` / `showBox` |
 | `addNewVolumeWeb` | `addLibraryMaster`, `addVolume`（※ `addVolume` の画面は未表示） |
 | `addTitleMasterWeb` / `addSeriesMasterWeb` / `addBoxMasterWeb` | `addTitleMaster` / `addSeriesMaster` / `addBoxMaster` |

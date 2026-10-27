@@ -171,24 +171,14 @@ function renderRecentLibrary(data, tableId = 'recentLibraryTable') {
 function loadLibraryMaster(){
   const table = document.getElementById('libraryMasterTable');
   if(table) table.style.display = 'none';
+  setLibrarySearchNote('');
 
-  callGAS('getLibraryPage', function(res){
-    const items = (res.items || []).map(item => ({
-      id: item.id,
-      title: item.title,
-      volume: item.volume,
-      box: item.box,
-      date: item.date
-    }));
-
-    masterCache.library = items;
-
-    // 他のマスタ管理と同様、一覧は検索実行時に表示する
-    const keyword = document.getElementById('librarySearchKeyword');
-    if(keyword && keyword.value.trim()){
-      filterLibrary();
-    }
-  }, 1, 99999);
+  // 一覧は検索実行時にサーバーで絞り込んで取得する（全件は読み込まない）。
+  // 更新・削除後の再読込では、入力済みのキーワードで検索し直す
+  const keyword = document.getElementById('librarySearchKeyword');
+  if(keyword && keyword.value.trim()){
+    filterLibrary();
+  }
 
   callGAS('getTitleMaster', function(titles){
     const input = document.getElementById('libraryAddTitleInput');
@@ -197,15 +187,12 @@ function loadLibraryMaster(){
     list.innerHTML = '';
     titles.forEach(item => {
       const option = document.createElement('option');
-      option.value = item.name;
+      option.value = getTitleLabel(item);
       option.dataset.value = String(item.id);
       list.appendChild(option);
     });
     input.oninput = function(){
-      const keyword = input.value.trim().toLowerCase();
-      const match = Array.from(list.options).find(opt =>
-        opt.value.toLowerCase() === keyword || opt.value.toLowerCase().includes(keyword)
-      );
+      const match = findDatalistOption(list, input.value);
       input.dataset.selectedId = match ? match.dataset.value : '';
     };
   });
@@ -222,10 +209,7 @@ function loadLibraryMaster(){
       list.appendChild(option);
     });
     input.oninput = function(){
-      const keyword = input.value.trim().toLowerCase();
-      const match = Array.from(list.options).find(opt =>
-        opt.value.toLowerCase() === keyword || opt.value.toLowerCase().includes(keyword)
-      );
+      const match = findDatalistOption(list, input.value);
       input.dataset.selectedId = match ? match.dataset.value : '';
     };
   });
@@ -263,8 +247,33 @@ function addLibraryMaster(){
 }
 
 function filterLibrary(){
-  const data = masterCache.library || [];
-  renderFilteredTable('libraryMasterTable', data, ['id', 'title', 'volume', 'box'], 'librarySearchKeyword');
+  const keyword = document.getElementById('librarySearchKeyword').value.trim();
+  showInlineLoading('librarySearchForm', '検索中...');
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideInlineLoading('librarySearchForm');
+      renderFilteredTable('libraryMasterTable', res.items || [], ['id', 'title', 'volume', 'box'], 'librarySearchKeyword');
+      if(!res.total){
+        setLibrarySearchNote('該当する書籍はありません');
+      } else if(res.truncated){
+        setLibrarySearchNote(`${res.items.length}件まで表示しています（該当 ${res.total}件）。キーワードを絞り込んでください`);
+      } else {
+        setLibrarySearchNote(`${res.total}件`);
+      }
+    })
+    .withFailureHandler(function(error){
+      hideInlineLoading('librarySearchForm');
+      showError(error && error.message ? error.message : '検索に失敗しました');
+    })
+    .searchLibraryMaster(keyword);
+}
+
+function setLibrarySearchNote(text){
+  const note = document.getElementById('librarySearchNote');
+  if(!note) return;
+  note.textContent = text;
+  note.style.display = text ? 'block' : 'none';
 }
 
 function loadLibraryList(page = 1){
