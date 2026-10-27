@@ -11,6 +11,7 @@
 | `SHEETS.TITLE` | `M_Title` | 作品マスタ |
 | `SHEETS.SERIES` | `M_Series` | シリーズマスタ |
 | `SHEETS.BOX` | `M_Box` | 保管 Box マスタ |
+| `SHEETS.WISH` | `M_Wish` | 欲しい巻リスト（**初回利用時に自動作成**） |
 
 共通ルール:
 
@@ -69,6 +70,20 @@ M_Series 1 ──── 0..* M_Title 1 ──── 0..* M_Library *..1 ──�
 | A (1) | BoxID | 文字列 | ○ | **利用者が任意に入力**（自動採番なし）。重複不可 |
 | B (2) | 保管場所 | 文字列 | ○ | |
 
+### 2.3.5 M_Wish（欲しい巻）
+
+`getWishSheet()`（`server/WishService.js`）がシートの有無を確認し、なければヘッダー行（1 行目、固定表示）付きで作成します。
+
+| 列 | 項目 | 型 | 必須 | 説明 |
+|---|---|---|---|---|
+| A (1) | WishID | 文字列 | ○ | `W` + 6 桁連番 |
+| B (2) | TitleID | 文字列 | ○ | `M_Title.TitleID` |
+| C (3) | 巻数 | 文字列 | ○ | 1 行 1 巻（`M_Library` と同じ表記） |
+| D (4) | メモ | 文字列 | — | 任意 |
+| E (5) | 追加日 | 日付 | ○ | `yyyy-MM-dd` 形式の文字列で書き込み |
+
+一意制約（アプリ側でチェック）: (TitleID, 巻数) の重複なし。`M_Library` に登録済みの巻は追加しません。書籍を登録すると（`addNewVolumeWeb` / `bulkAddLibraryFromPhoto`）同じ (TitleID, 巻数) の行は自動で削除されます。
+
 ## 2.4 ID 採番
 
 `M_Library` / `M_Title` / `M_Series` は `generateNextId(prefix, lastId)`（`server/Commons.js`）で採番します。
@@ -82,6 +97,7 @@ M_Series 1 ──── 0..* M_Title 1 ──── 0..* M_Library *..1 ──�
 | M_Library | `L` | `L000001` |
 | M_Title | `T` | `T000001` |
 | M_Series | `S` | `S000001` |
+| M_Wish | `W` | `W000001` |
 
 前提・制約:
 

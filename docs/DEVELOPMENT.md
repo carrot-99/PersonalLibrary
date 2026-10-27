@@ -8,7 +8,7 @@
 ## 0. まず全体像（30 秒で思い出す）
 
 - **何のアプリ?** 所有している漫画・ラノベを「どの作品の何巻を、どの箱に入れたか」で管理する Web アプリ（画面名「にんじん図書館」）
-- **どこで動く?** Google Apps Script（GAS）の Web アプリ。データは GAS にバインドされた **Google スプレッドシート**（シート `M_Library` / `M_Title` / `M_Series` / `M_Box`）
+- **どこで動く?** Google Apps Script（GAS）の Web アプリ。データは GAS にバインドされた **Google スプレッドシート**（シート `M_Library` / `M_Title` / `M_Series` / `M_Box` / `M_Wish`。`M_Wish` は欲しい巻リストの初回利用時に自動作成）
 - **コードはどこ?** このリポジトリ（GitHub: `carrot-99/PersonalLibrary`）
 - **反映の流れ**
 

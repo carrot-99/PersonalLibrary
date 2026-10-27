@@ -116,7 +116,14 @@ function addNewVolumeWeb(titleId, volume, boxId){
       ]);
     });
 
-    return success(`${normalizedTitleId} に巻 ${parsedVolume.text} を追加しました（${parsedVolume.values.length}件）`);
+    const wishRemoved = removeWishesForLibrary(
+      parsedVolume.values.map(value => ({ titleId: normalizedTitleId, volume: value }))
+    );
+
+    return success(
+      `${normalizedTitleId} に巻 ${parsedVolume.text} を追加しました（${parsedVolume.values.length}件）` +
+      (wishRemoved > 0 ? `。欲しい巻リストから${wishRemoved}件外しました` : '')
+    );
 
   } catch(e){
 

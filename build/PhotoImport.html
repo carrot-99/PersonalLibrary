@@ -22,6 +22,7 @@ const photoImportState = {
   images: [],
   rows: [],
   existingKeys: new Set(),
+  wishKeys: new Set(),
   // 'check': 所持チェック結果の表示のみ／'register': 未所持の本の登録（Box・登録確定などを表示）
   mode: 'check',
   busy: false
@@ -231,6 +232,7 @@ async function analyzePhotoImport(){
       }
 
       photoImportState.existingKeys = new Set(res.existingKeys || []);
+      photoImportState.wishKeys = new Set(res.wishKeys || []);
       const bulkSelect = document.getElementById('photoImportBulkBox');
       if(!bulkSelect.value && res.defaultBoxId){
         bulkSelect.value = String(res.defaultBoxId);
@@ -372,6 +374,28 @@ function getPhotoImportVerdict(row){
   return { status: PHOTO_VERDICT.NEXT, detail: withOwned(`${prefix}続きになります`) };
 }
 
+function isPhotoRowWished(row){
+  const volume = getSinglePhotoVolume(row);
+  return !!row.titleId && !!volume && photoImportState.wishKeys.has(`${row.titleId}|${volume}`);
+}
+
+function addPhotoRowToWishList(row, button){
+  const volume = getSinglePhotoVolume(row);
+  if(!row.titleId || !volume) return;
+
+  button.disabled = true;
+  callGAS('addWishes', function(res){
+    button.disabled = false;
+    if(res && res.success){
+      (res.addedKeys || []).forEach(key => photoImportState.wishKeys.add(key));
+      showSuccess(res.message);
+      refreshPhotoImportStatuses();
+    } else {
+      showError(res && res.message ? res.message : '追加に失敗しました');
+    }
+  }, row.titleId, volume, '');
+}
+
 function getOwnedVolumesForPhotoTitle(titleId){
   const prefix = `${titleId}|`;
   const volumes = [];
@@ -495,6 +519,13 @@ function renderPhotoImportRows(){
     };
     recognized.appendChild(addToggle);
 
+    const wishButton = document.createElement('button');
+    wishButton.type = 'button';
+    wishButton.className = 'photo-import-wish check-only';
+    wishButton.textContent = '★ 欲しい巻に追加';
+    wishButton.onclick = function(){ addPhotoRowToWishList(row, wishButton); };
+    recognized.appendChild(wishButton);
+
     const finalToggle = document.createElement('button');
     finalToggle.type = 'button';
     finalToggle.className = 'photo-import-final-toggle register-only';
@@ -517,9 +548,12 @@ function renderPhotoImportRows(){
     row.render = function(status, verdictResult){
       verdictBadge.className = `photo-verdict-badge status-${verdictResult.status.key}`;
       verdictBadge.textContent = verdictResult.status.label;
-      verdictDetail.textContent = row.needsReview && row.titleId
+      const wished = isPhotoRowWished(row);
+      const detailText = row.needsReview && row.titleId
         ? `要確認（読み取りがあいまいです）: ${verdictResult.detail}`
         : verdictResult.detail;
+      verdictDetail.textContent = wished ? `★欲しい巻リストにあります ／ ${detailText}` : detailText;
+      wishButton.style.display = (row.titleId && getSinglePhotoVolume(row) && !isPhotoRowOwned(row) && !wished) ? '' : 'none';
       card.dataset.verdict = verdictResult.status.key;
 
       statusArea.innerHTML = '';
@@ -835,7 +869,7 @@ function registerPhotoImport(){
       if(res.added > 0 && !pending) resetPhotoImport();
 
       if(res.added > 0){
-        showSuccess(`${res.added} 件を登録しました`);
+        showSuccess(`${res.added} 件を登録しました` + (res.wishRemoved > 0 ? `（欲しい巻リストから${res.wishRemoved}件外しました）` : ''));
         loadRecentLibrary('globalRecentLibraryTable');
         loadLibrarySummary('libraryGlobal');
       } else {

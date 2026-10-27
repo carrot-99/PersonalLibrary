@@ -1,0 +1,154 @@
+<!-- Wish.html -->
+<script>
+//////////////////////////////
+// 欲しい巻リスト
+//////////////////////////////
+const wishState = {
+  list: [],
+  selectedTitleId: '',
+  nextVolume: ''
+};
+
+function loadWishListView(){
+  const list = document.getElementById('wishTitleList');
+  list.innerHTML = '';
+  (masterCache.titleOptions || []).forEach(t => {
+    const option = document.createElement('option');
+    option.value = t.name;
+    list.appendChild(option);
+  });
+
+  const titleInput = document.getElementById('wishTitleInput');
+  titleInput.oninput = onWishTitleInput;
+  onWishTitleInput();
+
+  reloadWishList();
+}
+
+function reloadWishList(){
+  callGAS('getWishList', function(items){
+    wishState.list = items || [];
+    renderWishList();
+  });
+}
+
+// 作品を選んだら所持巻を取得し、「次の巻」を候補として出す
+function onWishTitleInput(){
+  const name = document.getElementById('wishTitleInput').value.trim();
+  const title = (masterCache.titleOptions || []).find(t => String(t.name).trim() === name);
+  const nextButton = document.getElementById('wishNextButton');
+
+  wishState.selectedTitleId = title ? String(title.id) : '';
+  wishState.nextVolume = '';
+  nextButton.style.display = 'none';
+  if(!title) return;
+
+  const requestedId = wishState.selectedTitleId;
+  callGAS('getTitleDetail', function(rows){
+    if(wishState.selectedTitleId !== requestedId) return;
+    const summary = summarizeOwnedVolumes((rows || []).map(r => r.volume));
+    wishState.nextVolume = String(summary.next);
+    nextButton.textContent = `次の巻（${summary.next}巻）`;
+    nextButton.style.display = '';
+  }, requestedId);
+}
+
+function fillNextWishVolume(){
+  if(wishState.nextVolume) document.getElementById('wishVolumeInput').value = wishState.nextVolume;
+}
+
+function addWishFromForm(){
+  const volume = document.getElementById('wishVolumeInput').value.trim();
+  const memo = document.getElementById('wishMemoInput').value.trim();
+  if(!wishState.selectedTitleId) return showError('作品を候補から選択してください');
+  if(!volume) return showError('巻数を入力してください');
+
+  const button = document.getElementById('wishAddButton');
+  button.disabled = true;
+  callGAS('addWishes', function(res){
+    button.disabled = false;
+    if(res && res.success){
+      showSuccess(res.message);
+      document.getElementById('wishVolumeInput').value = '';
+      document.getElementById('wishMemoInput').value = '';
+      reloadWishList();
+    } else {
+      showError(res && res.message ? res.message : '追加に失敗しました');
+    }
+  }, wishState.selectedTitleId, volume, memo);
+}
+
+function deleteWishItem(id, btn){
+  btn.disabled = true;
+  callGAS('deleteWish', function(res){
+    if(res && res.success){
+      showSuccess(res.message);
+      reloadWishList();
+    } else {
+      btn.disabled = false;
+      showError(res && res.message ? res.message : '削除に失敗しました');
+    }
+  }, id);
+}
+
+//////////////////////////////
+// 一覧（作品ごとにまとめて表示）
+//////////////////////////////
+function renderWishList(){
+  const container = document.getElementById('wishListGroups');
+  const summary = document.getElementById('wishListSummary');
+  container.innerHTML = '';
+
+  const groups = new Map();
+  wishState.list.forEach(item => {
+    if(!groups.has(item.titleId)) groups.set(item.titleId, { name: item.titleName || item.titleId, items: [] });
+    groups.get(item.titleId).items.push(item);
+  });
+
+  summary.textContent = wishState.list.length > 0
+    ? `${groups.size}作品・${wishState.list.length}冊`
+    : '欲しい巻はまだありません';
+
+  Array.from(groups.values())
+    .sort((a, b) => a.name.localeCompare(b.name, 'ja'))
+    .forEach(group => {
+      group.items.sort((a, b) => compareVolumes(a.volume, b.volume));
+
+      const card = document.createElement('div');
+      card.className = 'wish-group';
+
+      const head = document.createElement('div');
+      head.className = 'wish-group-head';
+      const name = document.createElement('strong');
+      name.textContent = group.name;
+      const volumes = document.createElement('span');
+      volumes.className = 'wish-group-volumes';
+      const numbers = group.items.map(i => i.volume).filter(v => /^\d+$/.test(v)).map(Number);
+      const others = group.items.map(i => i.volume).filter(v => !/^\d+$/.test(v));
+      volumes.textContent = [numbers.length ? `${formatVolumeRanges(numbers)}巻` : '', ...others].filter(Boolean).join(', ');
+      head.appendChild(name);
+      head.appendChild(volumes);
+      card.appendChild(head);
+
+      group.items.forEach(item => {
+        const line = document.createElement('div');
+        line.className = 'wish-item';
+        const text = document.createElement('span');
+        text.textContent = `${item.volume}巻${item.memo ? `（${item.memo}）` : ''}`;
+        const date = document.createElement('span');
+        date.className = 'wish-item-date';
+        date.textContent = item.date;
+        line.appendChild(text);
+        line.appendChild(date);
+        line.appendChild(createDeleteButton(btn => deleteWishItem(item.id, btn)));
+        card.appendChild(line);
+      });
+
+      container.appendChild(card);
+    });
+}
+
+window.loadWishListView = loadWishListView;
+window.fillNextWishVolume = fillNextWishVolume;
+window.addWishFromForm = addWishFromForm;
+</script>

@@ -17,6 +17,7 @@
 | 一覧 | シリーズ一覧、作品一覧（種別で絞り込み）、箱一覧、書籍一覧（ページング） |
 | マスタ管理 | シリーズ／作品／Box の追加・検索・インライン編集、書籍の追加（巻数の範囲・複数指定による一括登録） |
 | 写真で確認・登録 | 本の表紙・背表紙の写真（最大 5 枚）を AI（Anthropic Messages API）で解析し、持っている巻か・買うと続きになるかを判定（書店での確認用）。持っていない本はそのまま確認のうえ一括登録 |
+| 欲しい巻リスト | 買いたい巻を記録（作品＋巻数式）。写真で確認・登録の確認結果からも追加でき、登録すると自動でリストから外れる |
 | 常時表示 | 所蔵サマリー（所蔵冊数・漫画/ラノベ別冊数・作品数・Box 数・最新登録日）、最近追加した書籍（10 件） |
 
 ## 1.2 システム構成
@@ -69,6 +70,7 @@ PersonalLibrary/
     │   ├── SeriesService.js     M_Series 関連 API
     │   ├── BoxService.js        M_Box 関連 API
     │   ├── PhotoImportService.js 写真解析（AI）・作品照合・一括登録 API
+    │   ├── WishService.js       M_Wish（欲しい巻リスト）関連 API
     │   └── Code.js              旧実装（全行コメントアウト済み）
     └── client/              クライアントサイド（HTML テンプレート）
         ├── Index.html           ベースレイアウト
@@ -76,7 +78,7 @@ PersonalLibrary/
         ├── Styles.html          CSS
         ├── Common.html          共通 JS
         ├── Scripts.html         空テンプレート（未使用）
-        ├── library/  Library.html(JS) / PhotoImport.html(JS) / PhotoImportView / LibraryMasterView / LibraryListView / LibraryEntryView
+        ├── library/  Library.html(JS) / PhotoImport.html(JS) / Wish.html(JS) / PhotoImportView / WishListView / LibraryMasterView / LibraryListView / LibraryEntryView
         ├── title/    Title.html(JS)   / TitleView / TitleListView / TitleMasterView
         ├── series/   Series.html(JS)  / SeriesView / SeriesListView / SeriesMasterView
         └── box/      Box.html(JS)     / BoxView / BoxListView / BoxMasterView
