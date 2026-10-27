@@ -177,3 +177,13 @@ callGAS(funcName, successHandler, ...args)
 | `formatVolumeRanges(numbers)` | `[1,2,3,5]` → `1〜3, 5` |
 | `formatOwnershipText(summary, completed)` | 一覧用の短い表記（`1〜12巻（抜け: 7巻）` 等） |
 | `compareVolumes(a, b)` | 巻数の並べ替え（数値の巻を昇順、その後に数値以外） |
+
+## 5.11 上部バーの検索
+
+`runGlobalSearch()`（`Common.html`）。`#globalSearchInput` の `change` と Enter で呼ばれます。
+
+1. 入力が空なら何もしない（Enter の後の `change` で二重実行しないよう、成功時は入力をクリア）
+2. `masterCache.titleOptions` から作品名の完全一致（大文字小文字無視）を探し、なければ部分一致が 1 件のときだけ採用。2 件以上・0 件はエラー通知
+3. `showTab('TitleView')` → 作品名入力欄に作品名を設定 → `showTitle(titleId)`（ID を直接渡し、入力欄の部分一致による取り違えを避ける）
+
+候補の datalist（`#globalSearchList`）は `populateTitle` で作品選択肢と一緒に構築します。

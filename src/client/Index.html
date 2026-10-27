@@ -21,6 +21,11 @@
       <main class="main-content">
         <div class="page-header">
           <h2>にんじん図書館</h2>
+          <div class="global-search">
+            <input id="globalSearchInput" type="search" list="globalSearchList" placeholder="作品名で所持巻を検索" enterkeyhint="search" autocomplete="off"
+              onchange="runGlobalSearch()" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); runGlobalSearch(); }">
+            <datalist id="globalSearchList"></datalist>
+          </div>
           <div id="globalNotification" class="notification" aria-live="polite"></div>
         </div>
 

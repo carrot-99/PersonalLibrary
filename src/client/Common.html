@@ -710,6 +710,16 @@ function populateSeries(series){
 // タイトル選択肢取得
 function populateTitle(titles){
   masterCache.titleOptions = titles || [];
+
+  const globalList = document.getElementById('globalSearchList');
+  if(globalList){
+    globalList.innerHTML = '';
+    masterCache.titleOptions.forEach(t => {
+      const option = document.createElement('option');
+      option.value = t.name;
+      globalList.appendChild(option);
+    });
+  }
   populateSelect(
     ['titleSelect','titleViewSelect'],
     titles,
@@ -1078,11 +1088,44 @@ function compareVolumes(a, b){
   return textA.localeCompare(textB, 'ja');
 }
 
+//////////////////////////////
+// 上部バーの検索（作品名 → 作品別検索を表示）
+// 完全一致、なければ部分一致が 1 件のときだけ確定する
+//////////////////////////////
+function runGlobalSearch(){
+  const input = document.getElementById('globalSearchInput');
+  const keyword = input.value.trim();
+  if(!keyword) return;
+
+  const titles = masterCache.titleOptions || [];
+  const lower = keyword.toLowerCase();
+  let match = titles.find(t => String(t.name).trim().toLowerCase() === lower);
+
+  if(!match){
+    const partial = titles.filter(t => String(t.name).toLowerCase().includes(lower));
+    if(partial.length !== 1){
+      showError(partial.length > 0
+        ? `「${keyword}」を含む作品が${partial.length}件あります。候補から選んでください`
+        : `「${keyword}」に一致する作品がありません`);
+      return;
+    }
+    match = partial[0];
+  }
+
+  input.value = '';
+  input.blur();
+  closeSidebar();
+  showTab('TitleView');
+  document.getElementById('titleViewSelectInput').value = match.name;
+  showTitle(String(match.id));
+}
+
 function initApp(){
   init();
 }
 
 window.initApp = initApp;
+window.runGlobalSearch = runGlobalSearch;
 window.summarizeOwnedVolumes = summarizeOwnedVolumes;
 window.formatVolumeRanges = formatVolumeRanges;
 window.formatOwnershipText = formatOwnershipText;
