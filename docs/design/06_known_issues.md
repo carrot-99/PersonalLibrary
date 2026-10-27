@@ -15,6 +15,7 @@
 | R-10 | 低 | 写真から登録の作品照合はリクエストごとに全作品との類似度を総当たりで計算し、AI へも最大 1500 件の作品名を送る。作品数の増加で処理時間と API 費用が増える | 作品数が増えたら候補の絞り込み（読み・先頭文字など）を検討 |
 | R-11 | 低 | `ANTHROPIC_API_KEY` はスクリプトプロパティに平文で保存される。スクリプトの編集権限を持つユーザーは閲覧可能 | 編集者を本人に限定する運用を維持。キー漏えい時は Anthropic Console で失効・再発行 |
 | R-12 | 低 | 写真の解析（`UrlFetchApp`）は Apps Script の外部通信の時間制限を受ける。写真 5 枚・解析の深さ `medium` で時間切れになる可能性がある（未発生） | 時間切れが出たら写真を分けて解析する、`ANTHROPIC_EFFORT` を `low` にする、または写真ごとに順番に解析する方式に変更 |
+| R-13 | 低 | 書籍一覧は絞り込みのため全件を読み込む（`getLibraryListAll`）。数千冊程度までは問題ないが、それ以上で表示が遅くなる | 件数が増えたらサーバー側で絞り込み・ページングする方式に変更 |
 
 ## 6.3 未使用コード・資産（U）
 
@@ -26,6 +27,7 @@
 | U-4 | `server/LibraryService.js` `getLibraryMaster` | 呼び出しなし |
 | U-5 | `client/Common.html` `renderTable` / `renderTableRows` / `filterMaster` / `formatDate` | 呼び出しなし |
 | U-6 | `client/library/Library.html` `PAGE_SIZE` / `currentLibraryPage` | 実質未使用 |
+| U-7 | `server/LibraryService.js` `getLibraryPage` | 呼び出しなし（書籍一覧は `getLibraryListAll`、書籍マスタ管理は `searchLibraryMaster` に移行） |
 
 ## 6.4 構成管理（C）
 

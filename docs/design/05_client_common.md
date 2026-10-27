@@ -165,7 +165,7 @@ callGAS(funcName, successHandler, ...args)
 | 変数 | 定義 | 内容 |
 |---|---|---|
 | `masterCache` | `Common.html` | `{ series, title, box, library }` マスタ管理画面の取得結果。`titleOptions` は選択肢用の作品一覧（`populateTitle` で保持。作品表示の完結状態判定に使用） |
-| `currentTitleListFilter` | `Title.html` | 作品一覧の種別フィルタ（`all` / `漫画` / `ラノベ`） |
+| `titleListFilter` / `seriesListFilter` / `boxListFilter` / `libraryListFilter` | `Title.html` / `Series.html` / `Box.html` / `Library.html` | 各一覧の `createListFilter` インスタンス（初回表示時に作成し、絞り込み条件・並び順を保持） |
 | `messageTimeout` | `Common.html` | 通知自動消去タイマー |
 | `PAGE_SIZE`, `currentLibraryPage` | `Library.html` | 旧ページング用。現在は実質未使用 |
 | `photoImportState` | `PhotoImport.html` | 写真で確認・登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `wishKeys`, `mode`（`check` / `register`）, `busy`） |
@@ -192,3 +192,18 @@ callGAS(funcName, successHandler, ...args)
 3. `showTab('TitleView')` → 作品名入力欄に作品名を設定 → `showTitle(titleId)`（ID を直接渡し、入力欄の部分一致による取り違えを避ける）
 
 候補の datalist（`#globalSearchList`）は `populateTitle` で作品選択肢と一緒に構築します。
+
+## 5.12 一覧の絞り込み・並べ替え
+
+`createListFilter(options)`（`Common.html`）。一覧画面で共通に使う、画面側の絞り込み・並べ替え・ページングです。
+
+| オプション | 内容 |
+|---|---|
+| `tableId` | 対象テーブル。直前に絞り込み欄（`.list-filter`）を作る |
+| `columns` | `[{ key, compare? }]`。テーブルの列順。`compare(a, b)` を省略すると値で比較（数値なら数値、それ以外は日本語の自然順） |
+| `keywordKeys` | キーワードの検索対象のキー |
+| `filters` | `[{ key, label, options? }]`。選択式の絞り込み。`options` 省略時は行の値から選択肢を作る（「ラベル: すべて」が先頭） |
+| `defaultSort` | 初期の並び `{ key, dir }` |
+| `pageSize` | 1 ページの件数（既定 20） |
+
+戻り値 `{ setRows(rows) }`。行を入れ替えて再描画します（条件・並び順は保持）。描画は `renderPagedTableDOM`、見出しにはクラス `sortable` / `sort-asc` / `sort-desc` を付けます。

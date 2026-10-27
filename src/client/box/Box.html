@@ -21,29 +21,23 @@ function showBox() {
     .getBoxDetail(id);
 }
 
-function loadBoxList(page = 1){
-  const pageSize = 20;
+let boxListFilter = null;
+
+function loadBoxList(){
+  if(!boxListFilter){
+    boxListFilter = createListFilter({
+      tableId: 'boxListTable',
+      pageSize: 20,
+      columns: [{ key: 'id' }, { key: 'place' }],
+      keywordKeys: ['id', 'place'],
+      defaultSort: { key: 'id', dir: 'asc' }
+    });
+  }
+
   google.script.run
     .withSuccessHandler(function(data){
       hideInlineLoading('BoxListView');
-      const rows = (data || []).map(item => ({
-        id: item.id,
-        place: item.place
-      }));
-
-      const start = (page - 1) * pageSize;
-      const pageRows = rows.slice(start, start + pageSize);
-
-      renderPagedTableDOM({
-        tableId: 'boxListTable',
-        data: pageRows,
-        columns: ['id', 'place'],
-        currentPage: page,
-        pageSize: pageSize,
-        totalRows: rows.length,
-        editable: false,
-        onPageChange: loadBoxList
-      });
+      boxListFilter.setRows((data || []).map(item => ({ id: item.id, place: item.place })));
     })
     .withFailureHandler(function(error){
       hideInlineLoading('BoxListView');

@@ -418,6 +418,31 @@ function searchLibraryMaster(keyword, limit){
   };
 }
 
+// ----------------------
+// 書籍一覧（全件。画面側で絞り込み・並べ替え・ページングする）
+// 戻り値: [{ id, title, type, volume, box, date, month, dateValue }]
+// ----------------------
+function getLibraryListAll(){
+  const titles = getData(SHEETS.TITLE);
+  const labelMap = buildTitleLabelMap(titles);
+  const typeMap = new Map(titles.map(r => [String(r[0]).trim(), String(r[3] || '').trim()]));
+  const boxMap = new Map(getData(SHEETS.BOX).map(r => [String(r[0]).trim(), r[1]]));
+
+  return getData(SHEETS.LIBRARY).map(r => {
+    const titleId = String(r[1]).trim();
+    return {
+      id: r[0],
+      title: labelMap.get(titleId) || '',
+      type: typeMap.get(titleId) || '',
+      volume: String(r[3]).trim(),
+      box: boxMap.get(String(r[2]).trim()) || '',
+      date: formatDateCell(r[4]),
+      month: formatDateCell(r[4], 'yyyy/MM'),
+      dateValue: getDateValue(r[4])
+    };
+  });
+}
+
 function getLibraryPage(page, pageSize) {
   const sheet = getSheet(SHEETS.LIBRARY);
   if (!sheet || sheet.getLastRow() < 2) {
