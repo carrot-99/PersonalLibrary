@@ -1021,6 +1021,187 @@ function saveEdit(btn){
 }
 
 //////////////////////////////
+// 一覧の絞り込み・並べ替え・ページング（クライアント側）
+// テーブルの直前に絞り込み欄（キーワード＋項目ごとの選択）を作り、見出しのクリックで並べ替える。
+// options: {
+//   tableId, pageSize,
+//   columns: [{ key, compare?: (a, b) => number }]  … テーブルの列順。compare 省略時は値で比較
+//   keywordKeys: ['name', ...]                      … キーワードの検索対象
+//   filters: [{ key, label, options?: [...] }]      … 選択式フィルタ。options 省略時は行の値から作る
+//   defaultSort: { key, dir: 'asc' | 'desc' }
+// }
+// 戻り値: { setRows(rows) } … 行を入れ替えて再描画（絞り込み条件は保持）
+//////////////////////////////
+function createListFilter(options){
+  const table = document.getElementById(options.tableId);
+  const state = {
+    rows: [],
+    keyword: '',
+    values: {},
+    sort: options.defaultSort ? Object.assign({}, options.defaultSort) : null,
+    page: 1
+  };
+
+  // 絞り込み欄
+  const panel = document.createElement('div');
+  panel.className = 'list-filter';
+
+  const keywordInput = document.createElement('input');
+  keywordInput.type = 'search';
+  keywordInput.className = 'list-filter-keyword';
+  keywordInput.placeholder = 'キーワードで絞り込み';
+  keywordInput.oninput = function(){
+    state.keyword = keywordInput.value.trim().toLowerCase();
+    state.page = 1;
+    render();
+  };
+  panel.appendChild(keywordInput);
+
+  const selects = {};
+  (options.filters || []).forEach(filter => {
+    const select = document.createElement('select');
+    select.className = 'list-filter-select';
+    select.onchange = function(){
+      state.values[filter.key] = select.value;
+      state.page = 1;
+      render();
+    };
+    selects[filter.key] = select;
+    panel.appendChild(select);
+  });
+
+  const footer = document.createElement('div');
+  footer.className = 'list-filter-footer';
+  const count = document.createElement('span');
+  count.className = 'list-filter-count';
+  const clear = document.createElement('button');
+  clear.type = 'button';
+  clear.className = 'list-filter-clear';
+  clear.textContent = 'クリア';
+  clear.onclick = function(){
+    state.keyword = '';
+    state.values = {};
+    keywordInput.value = '';
+    Object.values(selects).forEach(select => { select.value = ''; });
+    state.page = 1;
+    render();
+  };
+  footer.appendChild(count);
+  footer.appendChild(clear);
+  panel.appendChild(footer);
+
+  table.parentNode.insertBefore(panel, table);
+
+  // 見出しクリックで並べ替え（同じ列をもう一度押すと逆順）
+  const headers = Array.from(table.querySelectorAll('thead th'));
+  headers.forEach((th, index) => {
+    const column = options.columns[index];
+    if(!column) return;
+    th.classList.add('sortable');
+    th.onclick = function(){
+      if(state.sort && state.sort.key === column.key){
+        state.sort.dir = state.sort.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.sort = { key: column.key, dir: 'asc' };
+      }
+      state.page = 1;
+      render();
+    };
+  });
+
+  function fillSelectOptions(){
+    (options.filters || []).forEach(filter => {
+      const select = selects[filter.key];
+      const values = filter.options || Array.from(new Set(
+        state.rows.map(row => String(row[filter.key] ?? '').trim()).filter(Boolean)
+      )).sort((a, b) => a.localeCompare(b, 'ja', { numeric: true }));
+      const current = state.values[filter.key] || '';
+
+      select.innerHTML = '';
+      const all = document.createElement('option');
+      all.value = '';
+      all.textContent = `${filter.label}: すべて`;
+      select.appendChild(all);
+      values.forEach(value => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = `${filter.label}: ${value}`;
+        select.appendChild(option);
+      });
+      select.value = values.includes(current) ? current : '';
+      if(select.value !== current) state.values[filter.key] = select.value;
+    });
+  }
+
+  function compareValues(a, b){
+    const textA = String(a ?? '');
+    const textB = String(b ?? '');
+    const numA = Number(textA);
+    const numB = Number(textB);
+    if(textA !== '' && textB !== '' && !isNaN(numA) && !isNaN(numB)) return numA - numB;
+    return textA.localeCompare(textB, 'ja', { numeric: true });
+  }
+
+  function render(){
+    const keys = options.keywordKeys || options.columns.map(c => c.key);
+    const filtered = state.rows.filter(row => {
+      if(state.keyword && !keys.some(key => String(row[key] ?? '').toLowerCase().includes(state.keyword))){
+        return false;
+      }
+      return (options.filters || []).every(filter => {
+        const value = state.values[filter.key];
+        return !value || String(row[filter.key] ?? '').trim() === value;
+      });
+    });
+
+    if(state.sort){
+      const column = options.columns.find(c => c.key === state.sort.key) || { key: state.sort.key };
+      const direction = state.sort.dir === 'desc' ? -1 : 1;
+      filtered.sort((a, b) => direction * (column.compare
+        ? column.compare(a, b)
+        : compareValues(a[column.key], b[column.key])));
+    }
+
+    headers.forEach((th, index) => {
+      const column = options.columns[index];
+      const active = column && state.sort && state.sort.key === column.key;
+      th.classList.toggle('sort-asc', !!active && state.sort.dir === 'asc');
+      th.classList.toggle('sort-desc', !!active && state.sort.dir === 'desc');
+    });
+
+    const pageSize = options.pageSize || 20;
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    if(state.page > totalPages) state.page = totalPages;
+    const start = (state.page - 1) * pageSize;
+
+    renderPagedTableDOM({
+      tableId: options.tableId,
+      data: filtered.slice(start, start + pageSize),
+      columns: options.columns.map(c => c.key),
+      currentPage: state.page,
+      pageSize,
+      totalRows: filtered.length,
+      editable: false,
+      onPageChange: page => { state.page = page; render(); }
+    });
+
+    const filteredOut = filtered.length !== state.rows.length;
+    count.textContent = filteredOut
+      ? `${filtered.length}件 ／ 全${state.rows.length}件`
+      : `全${state.rows.length}件`;
+    clear.style.display = (state.keyword || Object.values(state.values).some(Boolean)) ? '' : 'none';
+  }
+
+  return {
+    setRows(rows){
+      state.rows = rows || [];
+      fillSelectOptions();
+      render();
+    }
+  };
+}
+
+//////////////////////////////
 // 所持巻の集計（抜け・次の巻）
 // 数値の巻は 1 巻から最大巻までの抜けを判定する。「上」「外伝」など数値以外の巻は別扱い
 //////////////////////////////
@@ -1142,6 +1323,7 @@ function initApp(){
 
 window.initApp = initApp;
 window.runGlobalSearch = runGlobalSearch;
+window.createListFilter = createListFilter;
 window.getTitleLabel = getTitleLabel;
 window.summarizeOwnedVolumes = summarizeOwnedVolumes;
 window.formatVolumeRanges = formatVolumeRanges;

@@ -104,6 +104,10 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 処理 | ID・作品名・巻数・保管場所・追加日の部分一致（大文字小文字無視）で絞り込み、先頭 `limit` 件（上限 300 件、`LIBRARY_SEARCH_LIMIT`）を返す。`keyword` が空なら全件が対象 |
 | 備考 | 全件を画面に送らないための検索 API（書籍マスタ管理を開いたときは一覧を取得しない） |
 
+### `getLibraryListAll()` — 書籍一覧（全件）
+
+戻り値 `[{ id, title, type, volume, box, date, month, dateValue }]`。`title` は作品の表示ラベル、`type` は作品の種別、`month` は追加月（`yyyy/MM`）、`dateValue` は並べ替え用の数値（日単位）。書籍一覧の絞り込み・並べ替え・ページングは画面側で行います。
+
 ### `getLibraryPage(page, pageSize)` — 書籍のページ取得
 
 | 引数 | 説明 |
@@ -415,7 +419,8 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `getBoxMaster` | `refreshMasterData`, `loadBoxMaster`, `loadBoxList`, `loadLibraryMaster` |
 | `getLibrarySummary` | `loadLibrarySummary`（初期化時・タブ切替毎・書籍追加後） |
 | `getRecentLibrary` | `loadRecentLibrary`（初期化時・タブ切替毎・書籍追加後） |
-| `getLibraryPage` | `loadLibraryList`（20 件/頁） |
+| `getLibraryListAll` | `loadLibraryList` |
+| `getLibraryPage` | なし（未使用。U-7） |
 | `searchLibraryMaster` | `filterLibrary`（書籍マスタ管理の [検索実行]） |
 | `getSeriesDetail` / `getTitleDetail` / `getBoxDetail` | `showSeries` / `showTitle` / `showBox` |
 | `addNewVolumeWeb` | `addLibraryMaster`, `addVolume`（※ `addVolume` の画面は未表示） |

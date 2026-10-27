@@ -26,29 +26,23 @@ function showSeries(){
     .getSeriesDetail(id);
 }
 
-function loadSeriesList(page = 1){
-  const pageSize = 20;
+let seriesListFilter = null;
+
+function loadSeriesList(){
+  if(!seriesListFilter){
+    seriesListFilter = createListFilter({
+      tableId: 'seriesListTable',
+      pageSize: 20,
+      columns: [{ key: 'id' }, { key: 'name' }],
+      keywordKeys: ['id', 'name'],
+      defaultSort: { key: 'name', dir: 'asc' }
+    });
+  }
+
   google.script.run
     .withSuccessHandler(function(data){
       hideInlineLoading('SeriesListView');
-      const rows = (data || []).map(item => ({
-        id: item.id,
-        name: item.name
-      }));
-
-      const start = (page - 1) * pageSize;
-      const pageRows = rows.slice(start, start + pageSize);
-
-      renderPagedTableDOM({
-        tableId: 'seriesListTable',
-        data: pageRows,
-        columns: ['id', 'name'],
-        currentPage: page,
-        pageSize: pageSize,
-        totalRows: rows.length,
-        editable: false,
-        onPageChange: loadSeriesList
-      });
+      seriesListFilter.setRows((data || []).map(item => ({ id: item.id, name: item.name })));
     })
     .withFailureHandler(function(error){
       hideInlineLoading('SeriesListView');
