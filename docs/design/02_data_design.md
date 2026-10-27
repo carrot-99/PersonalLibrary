@@ -41,7 +41,7 @@ M_Series 1 ──── 0..* M_Title 1 ──── 0..* M_Library *..1 ──�
 | B (2) | TitleID | 文字列 | ○ | `M_Title.TitleID` |
 | C (3) | BoxID | 文字列 | ○ | `M_Box.BoxID` |
 | D (4) | 巻数 | 文字列 | ○ | `1`, `12` などの数値文字列のほか、`上`, `外伝` などの任意文字列も可 |
-| E (5) | 追加日 | 日付 | ○ | 登録時に `yyyy-MM-dd` 形式の文字列で書き込み。シート側で日付型に変換される前提で、読み出し時は `Utilities.formatDate` で `yyyy/MM/dd` に整形 |
+| E (5) | 追加日 | 日付 | ○ | 登録時に `Date`（その日の 0:00、`getToday()`）を書き込み。読み出し時は `formatDateCell` で `yyyy/MM/dd` に整形（過去に文字列で保存された値はそのまま表示） |
 
 一意制約（アプリ側でチェック）: **(TitleID, 巻数) の組み合わせが重複しないこと**。
 
@@ -80,15 +80,15 @@ M_Series 1 ──── 0..* M_Title 1 ──── 0..* M_Library *..1 ──�
 | B (2) | TitleID | 文字列 | ○ | `M_Title.TitleID` |
 | C (3) | 巻数 | 文字列 | ○ | 1 行 1 巻（`M_Library` と同じ表記） |
 | D (4) | メモ | 文字列 | — | 任意 |
-| E (5) | 追加日 | 日付 | ○ | `yyyy-MM-dd` 形式の文字列で書き込み |
+| E (5) | 追加日 | 日付 | ○ | `Date`（`getToday()`）を書き込み |
 
 一意制約（アプリ側でチェック）: (TitleID, 巻数) の重複なし。`M_Library` に登録済みの巻は追加しません。書籍を登録すると（`addNewVolumeWeb` / `bulkAddLibraryFromPhoto`）同じ (TitleID, 巻数) の行は自動で削除されます。
 
 ## 2.4 ID 採番
 
-`M_Library` / `M_Title` / `M_Series` は `generateNextId(prefix, lastId)`（`server/Commons.js`）で採番します。
+`M_Library` / `M_Title` / `M_Series` / `M_Wish` は `generateNextId(prefix, lastId)`（`server/Commons.js`）で採番します。
 
-1. `getLastId(sheetName)` で**シート最終行の 1 列目**の値を取得（データなしの場合 `null`）
+1. `getMaxId(sheetName)` で**1 列目のうち末尾の数字が最大の ID** を取得（データなしの場合 `null`）。シートを並べ替えても重複しません
 2. その値から `prefix` を除去して整数化し、+1
 3. `prefix` + 6 桁ゼロ埋めで返却（解析不能・`null` の場合は `000001`）
 
@@ -101,8 +101,10 @@ M_Series 1 ──── 0..* M_Title 1 ──── 0..* M_Library *..1 ──�
 
 前提・制約:
 
-- 行が ID 昇順に並んでいること（並べ替えると最終行が最大 ID でなくなり、ID が重複し得る）。
-- 写真から登録の処理以外は排他制御なし（同時登録で同一 ID が発行され得る。単一ユーザー前提）。
+- 最大 ID の行を削除すると、次の登録で同じ ID が再利用されます（ID は他シートから参照されない LibraryID・WishID では影響なし）。
+- 追加・更新・削除はすべてスクリプトロックで排他するため、同時登録でも同一 ID は発行されません。
+- シリーズ名は重複不可（全角半角・大文字小文字・ひらがな/カタカナ・空白記号の違いを無視して比較。`findDuplicateName`）。
+- 作品は**作品名と種別の組み合わせ**が重複不可（同じ作品名でも漫画とラノベは別作品として登録できる。`findDuplicateTitle`）。同名の作品は画面の選択肢で「作品名（種別）」と表示して区別します（`buildTitleLabelMap`）。
 - 6 桁を超える（1,000,000 件以上）と桁あふれで下 6 桁に切り詰められます。
 
 ## 2.5 画面とデータのマッピング（主要項目）

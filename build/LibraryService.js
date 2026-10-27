@@ -61,9 +61,23 @@ function parseVolumeExpression(volumeExpression){
 }
 
 // ----------------------
+// M_Library への一括書き込み（1 行ずつ appendRow せず setValues でまとめて書く）
+// rows: [[LibraryID, TitleID, BoxID, 巻数, 追加日(Date)], ...]
+// ----------------------
+function appendLibraryRows(rows){
+  if(!rows || rows.length === 0) return;
+  const sheet = getSheet(SHEETS.LIBRARY);
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
+}
+
+// ----------------------
 // 新刊追加
 // ----------------------
 function addNewVolumeWeb(titleId, volume, boxId){
+  return withScriptLock(() => addNewVolumeCore(titleId, volume, boxId));
+}
+
+function addNewVolumeCore(titleId, volume, boxId){
 
   const normalizedTitleId = String(titleId || '').trim();
 
@@ -78,8 +92,15 @@ function addNewVolumeWeb(titleId, volume, boxId){
 
   try{
 
-    const sheet = getSheet(SHEETS.LIBRARY);
     const data  = getData(SHEETS.LIBRARY);
+
+    // 作品・Box の存在チェック
+    if(!getData(SHEETS.TITLE).some(r => String(r[0]).trim() === normalizedTitleId)){
+      return failure(`作品ID ${normalizedTitleId} が存在しません`);
+    }
+    if(!getData(SHEETS.BOX).some(r => String(r[0]).trim() === String(boxId).trim())){
+      return failure(`BoxID ${boxId} が存在しません`);
+    }
 
     const duplicates = [];
     parsedVolume.values.forEach(value => {
@@ -95,26 +116,14 @@ function addNewVolumeWeb(titleId, volume, boxId){
       return failure(`同じ作品に既に登録済みの巻数があります: ${duplicates.join(', ')}`);
     }
 
-    let lastId = getLastId(SHEETS.LIBRARY);
-    const today = Utilities.formatDate(
-      new Date(),
-      Session.getScriptTimeZone(),
-      'yyyy-MM-dd'
-    );
+    let lastId = getMaxId(SHEETS.LIBRARY);
+    const today = getToday();
 
-    parsedVolume.values.forEach(value => {
-      lastId = lastId || null;
-      const newId = generateNextId('L', lastId);
-      lastId = newId;
-
-      sheet.appendRow([
-        newId,
-        normalizedTitleId,
-        boxId,
-        String(value),
-        today
-      ]);
+    const rows = parsedVolume.values.map(value => {
+      lastId = generateNextId('L', lastId);
+      return [lastId, normalizedTitleId, boxId, String(value), today];
     });
+    appendLibraryRows(rows);
 
     const wishRemoved = removeWishesForLibrary(
       parsedVolume.values.map(value => ({ titleId: normalizedTitleId, volume: value }))
@@ -144,21 +153,17 @@ function getRecentLibrary(){
   const titles = getData(SHEETS.TITLE);
   const boxes  = getData(SHEETS.BOX);
 
-  const titleMap = new Map(titles.map(r => [r[0], r[1]]));
+  const titleMap = buildTitleLabelMap(titles);
   const boxMap   = new Map(boxes.map(r => [r[0], r[1]]));
 
-  const recent = data.slice(-10).reverse();
+  const recent = sortLibraryRowsByNewest(data).slice(0, 10);
 
   return recent.map(row => ({
 
-    title: titleMap.get(row[1]) || '',
+    title: titleMap.get(String(row[1]).trim()) || '',
     volume: row[3],
     box: boxMap.get(row[2]) || '',
-    date: Utilities.formatDate(
-      row[4],
-      Session.getScriptTimeZone(),
-      'yyyy/MM/dd'
-    )
+    date: formatDateCell(row[4])
 
   }));
 }
@@ -174,14 +179,14 @@ function addBulkVolumesWeb(entries){
     return failure('入力データが不正です');
   }
 
-  const sheet = getSheet(SHEETS.LIBRARY);
   const data  = getData(SHEETS.LIBRARY);
   const titles = getData(SHEETS.TITLE).map(r => r[0]);
   const boxes  = getData(SHEETS.BOX).map(r => r[0]);
 
   const errors = [];
-  let added = 0;
-  let lastId = getLastId(SHEETS.LIBRARY);
+  const rows = [];
+  let lastId = getMaxId(SHEETS.LIBRARY);
+  const today = getToday();
 
   try{
     entries.forEach((e, idx) => {
@@ -214,29 +219,17 @@ function addBulkVolumesWeb(entries){
         return;
       }
 
-      // 新規ID生成
-      lastId = lastId || null;
-      const newId = generateNextId('L', lastId);
-      lastId = newId;
-
-      const today = Utilities.formatDate(
-        new Date(),
-        Session.getScriptTimeZone(),
-        'yyyy-MM-dd'
-      );
-
-      sheet.appendRow([
-        newId,
-        titleId,
-        boxId,
-        volume,
-        today
-      ]);
+      // 新規ID生成（書き込みは最後にまとめて行う）
+      lastId = generateNextId('L', lastId);
+      const row = [lastId, titleId, boxId, volume, today];
+      rows.push(row);
 
       // 追従データにも追加して重複チェックに反映
-      data.push([newId, titleId, boxId, volume, today]);
-      added++;
+      data.push(row);
     });
+
+    appendLibraryRows(rows);
+    const added = rows.length;
 
     const messages = [];
     if(added > 0) messages.push(`${added} 件を追加しました`);
@@ -268,11 +261,15 @@ function getLibraryMaster() {
     title: titleMap.get(r[1]) || '',
     box: boxMap.get(r[2]) || '',
     volume: r[3],
-    date: Utilities.formatDate(r[4], Session.getScriptTimeZone(), 'yyyy/MM/dd')
+    date: formatDateCell(r[4])
   }));
 }
 
 function updateLibraryMaster(id, values){
+  return withScriptLock(() => updateLibraryMasterCore(id, values));
+}
+
+function updateLibraryMasterCore(id, values){
   if(!id){
     return failure('IDが指定されていません');
   }
@@ -299,8 +296,11 @@ function updateLibraryMaster(id, values){
       return failure('該当データが見つかりません');
     }
 
-    // 名前が同じマスタが複数ある場合に備え、現在の紐付け先を優先する
-    const newTitleId = resolveMasterId(titleRows, titleInput, currentRow[1]);
+    // 表示ラベル（同名作品は「作品名（種別）」）で一致を優先し、なければ ID・名前で解決。
+    // 名前が同じマスタが複数ある場合は現在の紐付け先を優先する
+    const labelMap = buildTitleLabelMap(titleRows);
+    const byLabel = titleRows.find(row => labelMap.get(String(row[0]).trim()) === titleInput);
+    const newTitleId = byLabel ? byLabel[0] : resolveMasterId(titleRows, titleInput, currentRow[1]);
     if(!newTitleId){
       return failure(`作品「${titleInput}」が見つかりません`);
     }
@@ -384,6 +384,40 @@ function deleteLibraryMaster(id){
   }
 }
 
+// ----------------------
+// 書籍マスタ管理の検索（サーバー側で絞り込み、最大 limit 件を返す）
+// keyword が空なら全件が対象。ID・作品名・巻数・保管場所・追加日の部分一致（大文字小文字無視）
+// 戻り値: { items: [{ id, title, volume, box, date }], total, truncated }
+// ----------------------
+const LIBRARY_SEARCH_LIMIT = 300;
+
+function searchLibraryMaster(keyword, limit){
+
+  const max = Math.min(Number(limit) || LIBRARY_SEARCH_LIMIT, LIBRARY_SEARCH_LIMIT);
+  const word = String(keyword || '').trim().toLowerCase();
+
+  const titleMap = buildTitleLabelMap(getData(SHEETS.TITLE));
+  const boxMap = new Map(getData(SHEETS.BOX).map(r => [String(r[0]).trim(), r[1]]));
+
+  const matched = getData(SHEETS.LIBRARY)
+    .map(r => ({
+      id: r[0],
+      title: titleMap.get(String(r[1]).trim()) || '',
+      volume: r[3],
+      box: boxMap.get(String(r[2]).trim()) || '',
+      date: formatDateCell(r[4])
+    }))
+    .filter(item => !word || Object.values(item).some(value =>
+      String(value ?? '').toLowerCase().includes(word)
+    ));
+
+  return {
+    items: matched.slice(0, max),
+    total: matched.length,
+    truncated: matched.length > max
+  };
+}
+
 function getLibraryPage(page, pageSize) {
   const sheet = getSheet(SHEETS.LIBRARY);
   if (!sheet || sheet.getLastRow() < 2) {
@@ -404,15 +438,15 @@ function getLibraryPage(page, pageSize) {
   const titles = getData(SHEETS.TITLE);
   const boxes  = getData(SHEETS.BOX);
 
-  const titleMap = new Map(titles.map(t => [t[0], t[1]]));
+  const titleMap = buildTitleLabelMap(titles);
   const boxMap   = new Map(boxes.map(b => [b[0], b[1]]));
 
   const items = data.map(r => ({
     id: r[0],
-    title: titleMap.get(r[1]) || '',
+    title: titleMap.get(String(r[1]).trim()) || '',
     box: boxMap.get(r[2]) || '',
     volume: r[3],
-    date: Utilities.formatDate(r[4], Session.getScriptTimeZone(), 'yyyy/MM/dd')
+    date: formatDateCell(r[4])
   }));
 
   return { items, total };

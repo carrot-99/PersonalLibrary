@@ -470,7 +470,7 @@ function closeMasterForms(view){
   view.querySelectorAll('.master-form')
     .forEach(f => f.style.display = 'none');
 
-  view.querySelectorAll('table[id$="MasterTable"]')
+  view.querySelectorAll('table[id$="MasterTable"], [id$="SearchNote"]')
     .forEach(t => t.style.display = 'none');
 }
 
@@ -652,11 +652,7 @@ function populateAutocomplete(inputId, data, labelFn, valueKey = 'id', placehold
   });
 
   input.oninput = function(){
-    const keyword = input.value.trim().toLowerCase();
-    const match = Array.from(list.options).find(opt =>
-      opt.value.toLowerCase() === keyword ||
-      opt.value.toLowerCase().includes(keyword)
-    );
+    const match = findDatalistOption(list, input.value);
     input.dataset.selectedId = match ? match.dataset.value : '';
     showAutocompleteSuggestions(inputId, data, labelFn, valueKey);
   };
@@ -673,6 +669,21 @@ function populateAutocomplete(inputId, data, labelFn, valueKey = 'id', placehold
   };
 }
 
+// datalist から入力値に対応する候補を探す
+// 完全一致（大文字小文字無視）を優先し、なければ部分一致が 1 件のときだけ採用。
+// 部分一致が複数ある場合は取り違えを防ぐため未選択（null）扱い
+function findDatalistOption(list, value){
+  const keyword = String(value || '').trim().toLowerCase();
+  if(!list || !keyword) return null;
+
+  const options = Array.from(list.options);
+  const exact = options.find(opt => opt.value.trim().toLowerCase() === keyword);
+  if(exact) return exact;
+
+  const partial = options.filter(opt => opt.value.toLowerCase().includes(keyword));
+  return partial.length === 1 ? partial[0] : null;
+}
+
 function getAutocompleteValue(inputId){
   const input = document.getElementById(inputId);
   const listId = input ? input.getAttribute('list') : null;
@@ -682,16 +693,14 @@ function getAutocompleteValue(inputId){
   const value = input.value.trim();
   if(!value) return '';
 
-  const match = Array.from(list.options).find(opt =>
-    opt.value.toLowerCase() === value.toLowerCase() ||
-    opt.value.toLowerCase().includes(value.toLowerCase())
-  );
+  const match = findDatalistOption(list, value);
 
   if(match){
     input.dataset.selectedId = match.dataset.value;
     return match.dataset.value;
   }
 
+  input.dataset.selectedId = '';
   return '';
 }
 
@@ -717,19 +726,24 @@ function populateTitle(titles){
     globalList.innerHTML = '';
     masterCache.titleOptions.forEach(t => {
       const option = document.createElement('option');
-      option.value = t.name;
+      option.value = getTitleLabel(t);
       globalList.appendChild(option);
     });
   }
   populateSelect(
     ['titleSelect','titleViewSelect'],
     titles,
-    t => t.name,
+    getTitleLabel,
     'id',
     '作品を選択'
   );
-  populateAutocomplete('titleSelectInput', titles, t => t.name, 'id', '作品名を入力');
-  populateAutocomplete('titleViewSelectInput', titles, t => t.name, 'id', '作品名を入力');
+  populateAutocomplete('titleSelectInput', titles, getTitleLabel, 'id', '作品名を入力');
+  populateAutocomplete('titleViewSelectInput', titles, getTitleLabel, 'id', '作品名を入力');
+}
+
+// 作品の表示ラベル。同じ名前の作品（漫画とラノベ等）はサーバーが「作品名（種別）」を label に入れる
+function getTitleLabel(title){
+  return String((title && (title.label || title.name)) || '');
 }
 
 // 箱選択肢取得
@@ -1101,10 +1115,10 @@ function runGlobalSearch(){
 
   const titles = masterCache.titleOptions || [];
   const lower = keyword.toLowerCase();
-  let match = titles.find(t => String(t.name).trim().toLowerCase() === lower);
+  let match = titles.find(t => getTitleLabel(t).trim().toLowerCase() === lower);
 
   if(!match){
-    const partial = titles.filter(t => String(t.name).toLowerCase().includes(lower));
+    const partial = titles.filter(t => getTitleLabel(t).toLowerCase().includes(lower));
     if(partial.length !== 1){
       showError(partial.length > 0
         ? `「${keyword}」を含む作品が${partial.length}件あります。候補から選んでください`
@@ -1118,7 +1132,7 @@ function runGlobalSearch(){
   input.blur();
   closeSidebar();
   showTab('TitleView');
-  document.getElementById('titleViewSelectInput').value = match.name;
+  document.getElementById('titleViewSelectInput').value = getTitleLabel(match);
   showTitle(String(match.id));
 }
 
@@ -1128,6 +1142,7 @@ function initApp(){
 
 window.initApp = initApp;
 window.runGlobalSearch = runGlobalSearch;
+window.getTitleLabel = getTitleLabel;
 window.summarizeOwnedVolumes = summarizeOwnedVolumes;
 window.formatVolumeRanges = formatVolumeRanges;
 window.formatOwnershipText = formatOwnershipText;

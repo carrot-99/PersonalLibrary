@@ -98,12 +98,29 @@
     text-overflow: clip;
   }
   #libraryMasterTable td:last-child .delete-action { margin-left: 8px; }
+  /* マスタ管理の列幅（PC・タブレット）。applyColumnWidthHints の幅指定は合計が 100% を超え、
+     作品マスタでは操作列が 0 幅になっていたため、表ごとに合計 100% で指定する。
+     操作列は [保存] [取消]（書籍は [編集] [削除]）が並ぶ幅を確保 */
   @media (min-width: 721px) {
-    #libraryMasterTable th:last-child,
-    #libraryMasterTable td:last-child {
-      width: 150px !important;
-      max-width: none !important;
-    }
+    #libraryMasterTable th:nth-child(1), #libraryMasterTable td:nth-child(1) { width: 11% !important; max-width: none !important; }
+    #libraryMasterTable th:nth-child(2), #libraryMasterTable td:nth-child(2) { width: 37% !important; max-width: none !important; }
+    #libraryMasterTable th:nth-child(3), #libraryMasterTable td:nth-child(3) { width: 9% !important; max-width: none !important; }
+    #libraryMasterTable th:nth-child(4), #libraryMasterTable td:nth-child(4) { width: 23% !important; max-width: none !important; }
+    #libraryMasterTable th:nth-child(5), #libraryMasterTable td:nth-child(5) { width: 20% !important; max-width: none !important; }
+    #titleMasterTable th:nth-child(1), #titleMasterTable td:nth-child(1) { width: 10% !important; max-width: none !important; }
+    #titleMasterTable th:nth-child(2), #titleMasterTable td:nth-child(2) { width: 27% !important; max-width: none !important; }
+    #titleMasterTable th:nth-child(3), #titleMasterTable td:nth-child(3) { width: 21% !important; max-width: none !important; }
+    #titleMasterTable th:nth-child(4), #titleMasterTable td:nth-child(4) { width: 10% !important; max-width: none !important; }
+    #titleMasterTable th:nth-child(5), #titleMasterTable td:nth-child(5) { width: 12% !important; max-width: none !important; }
+    #titleMasterTable th:nth-child(6), #titleMasterTable td:nth-child(6) { width: 20% !important; max-width: none !important; }
+    #seriesMasterTable th:nth-child(1), #seriesMasterTable td:nth-child(1) { width: 15% !important; max-width: none !important; }
+    #seriesMasterTable th:nth-child(2), #seriesMasterTable td:nth-child(2) { width: 60% !important; max-width: none !important; }
+    #seriesMasterTable th:nth-child(3), #seriesMasterTable td:nth-child(3) { width: 25% !important; max-width: none !important; }
+    #boxMasterTable th:nth-child(1), #boxMasterTable td:nth-child(1) { width: 15% !important; max-width: none !important; }
+    #boxMasterTable th:nth-child(2), #boxMasterTable td:nth-child(2) { width: 60% !important; max-width: none !important; }
+    #boxMasterTable th:nth-child(3), #boxMasterTable td:nth-child(3) { width: 25% !important; max-width: none !important; }
+    tr.editing td:last-child { white-space: nowrap; overflow: visible; }
+    tr.editing td:last-child button { margin: 2px 4px 2px 0; }
   }
   .delete-action.is-confirm {
     background: #ef4444;

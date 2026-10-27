@@ -123,7 +123,6 @@ node build.js
 | `oauthScopes` | `spreadsheets`, `script.external_request` | スプレッドシート操作と外部 API 呼び出し（`UrlFetchApp`）の権限 |
 | `webapp.executeAs` | `USER_DEPLOYING` | デプロイしたユーザーの権限でスプレッドシートにアクセス |
 | `webapp.access` | `MYSELF` | デプロイしたユーザー本人のみアクセス可能 |
-| X-Frame-Options | `ALLOWALL` | `doGet` で設定。他サイトへの iframe 埋め込みを許可 |
 | viewport | `width=device-width, initial-scale=1` | `doGet` で `addMetaTag` により設定。スマホで端末幅どおりに表示する（GAS では HTML 内の `<meta name="viewport">` は効かない） |
 
 ### スクリプトプロパティ
@@ -143,7 +142,7 @@ node build.js
 | 観点 | 現行の扱い |
 |---|---|
 | 認証・認可 | Google アカウント認証に委譲（`access: MYSELF`）。アプリ独自の権限制御なし |
-| 同時実行 | 単一ユーザー前提。写真から登録の作品追加・一括登録のみ `LockService.getScriptLock()`（最大 10 秒待機）で排他。その他の追加・更新は排他なし |
+| 同時実行 | すべての追加・更新・削除を `LockService.getScriptLock()`（最大 10 秒待機）で排他（`withScriptLock`）。ロックは入れ子にできないため、ロック中の処理からは `*Core` 関数を呼ぶ |
 | 性能 | 取得系 API は対象シートを全件読み込みメモリ上で結合・集計（件数数千規模を想定） |
 | 入力検証 | クライアントとサーバーの両方で必須チェック。巻数式は両側で同等ロジックにより解析 |
 | ログ | 例外は STACKDRIVER。AI API のエラー応答・通信失敗のみ `console.error` で記録 |

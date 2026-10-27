@@ -14,7 +14,7 @@ function loadWishListView(){
   list.innerHTML = '';
   (masterCache.titleOptions || []).forEach(t => {
     const option = document.createElement('option');
-    option.value = t.name;
+    option.value = getTitleLabel(t);
     list.appendChild(option);
   });
 
@@ -35,7 +35,7 @@ function reloadWishList(){
 // 作品を選んだら所持巻を取得し、「次の巻」を候補として出す
 function onWishTitleInput(){
   const name = document.getElementById('wishTitleInput').value.trim();
-  const title = (masterCache.titleOptions || []).find(t => String(t.name).trim() === name);
+  const title = (masterCache.titleOptions || []).find(t => getTitleLabel(t).trim() === name);
   const nextButton = document.getElementById('wishNextButton');
 
   wishState.selectedTitleId = title ? String(title.id) : '';

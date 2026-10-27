@@ -30,15 +30,26 @@ function getSeries(){
 // 追加
 // ----------------------
 function addSeriesMasterWeb(name){
+  return withScriptLock(() => addSeriesMasterCore(name));
+}
 
+// ロックなし版（ロック取得済みの処理から呼ぶ）
+function addSeriesMasterCore(name){
+
+  name = String(name || '').trim();
   if(!name){
     return failure('シリーズ名は必須です');
   }
 
   try{
 
+    const duplicate = findDuplicateName(getData(SHEETS.SERIES), name);
+    if(duplicate){
+      return failure(`同じ名前のシリーズが既に登録されています（${duplicate[1]}）`);
+    }
+
     const sheet  = getSheet(SHEETS.SERIES);
-    const lastId = getLastId(SHEETS.SERIES);
+    const lastId = getMaxId(SHEETS.SERIES);
     const newId  = generateNextId('S', lastId);
 
     sheet.appendRow([newId, name]);
@@ -57,6 +68,10 @@ function addSeriesMasterWeb(name){
 // values[0] = name
 // ----------------------
 function updateSeriesMaster(id, values){
+  return withScriptLock(() => updateSeriesMasterCore(id, values));
+}
+
+function updateSeriesMasterCore(id, values){
 
   if(!id){
     return failure('IDが指定されていません');
@@ -66,13 +81,23 @@ function updateSeriesMaster(id, values){
     return failure('更新値が不正です');
   }
 
+  const name = String(values[0] ?? '').trim();
+  if(!name){
+    return failure('シリーズ名は必須です');
+  }
+
   try{
+
+    const duplicate = findDuplicateName(getData(SHEETS.SERIES), name, id);
+    if(duplicate){
+      return failure(`同じ名前のシリーズが既に登録されています（${duplicate[1]}）`);
+    }
 
     const updated = updateRowById(
       SHEETS.SERIES,
       id,
       {
-        2: values[0] // name
+        2: name
       }
     );
 

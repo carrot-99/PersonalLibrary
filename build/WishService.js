@@ -38,9 +38,7 @@ function getWishList(){
     titleName: titleMap.get(String(row[1]).trim()) || '',
     volume: String(row[2]).trim(),
     memo: row[3] || '',
-    date: row[4] instanceof Date
-      ? Utilities.formatDate(row[4], Session.getScriptTimeZone(), 'yyyy/MM/dd')
-      : String(row[4] || '')
+    date: formatDateCell(row[4])
   }));
 }
 
@@ -84,9 +82,8 @@ function addWishes(titleId, volume, memo){
     const ownedKeys = new Set(getLibraryKeys());
     const wishKeys = new Set(getWishKeys());
 
-    const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-    let lastId = getLastId(SHEETS.WISH);
-    if(lastId === 'WishID') lastId = null;
+    const today = getToday();
+    let lastId = getMaxId(SHEETS.WISH);
 
     const rows = [];
     const owned = [];
