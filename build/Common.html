@@ -76,6 +76,7 @@ function showTab(tabId){
 
   const loaders = {
     PhotoImportView: loadPhotoImportView,
+    WishListView: loadWishListView,
     LibraryMasterView: loadLibraryMaster,
     BoxMasterView: loadBoxMaster,
     SeriesMasterView: loadSeriesMaster,
@@ -871,7 +872,8 @@ function appendRowActions(actionTd, tableId){
 }
 
 // 削除ボタン（誤操作防止のため 2 回押しで確定。4 秒で元に戻る）
-function createDeleteButton(){
+// onConfirm(btn): 確定時の処理（省略時は書籍マスタの行削除）
+function createDeleteButton(onConfirm = deleteRow){
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'delete-action';
@@ -890,7 +892,7 @@ function createDeleteButton(){
     }
 
     clearTimeout(resetTimer);
-    deleteRow(btn);
+    onConfirm(btn);
   });
 
   return btn;

@@ -866,6 +866,52 @@
   .photo-import-row[data-verdict="new"],
   .photo-import-row[data-verdict="unknown"] { border-left-color: #9ca3af; }
 
+  /* 欲しい巻リスト */
+  .wish-add-row { display: flex; gap: 8px; align-items: center; }
+  .wish-add-row input { flex: 1 1 auto; min-width: 0; }
+  .wish-next {
+    flex: 0 0 auto;
+    margin: 6px 0 0;
+    padding: 8px 12px;
+    background: #374151;
+    box-shadow: none;
+    white-space: nowrap;
+  }
+  .wish-groups { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+  .wish-group {
+    padding: 10px 12px;
+    border: 1px solid #374151;
+    border-left: 6px solid #f472b6;
+    border-radius: 8px;
+    background: #0b1220;
+  }
+  .wish-group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .wish-group-volumes { color: #f9a8d4; font-weight: bold; }
+  .wish-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+    border-top: 1px solid #1f2937;
+  }
+  .wish-item > span:first-child { flex: 1 1 auto; }
+  .wish-item-date { font-size: 0.8rem; color: #9ca3af; }
+  .wish-item .delete-action { margin: 0; padding: 6px 12px; }
+  .photo-import-wish {
+    margin: 0;
+    padding: 3px 10px;
+    font-size: 0.8rem;
+    background: #be185d;
+    box-shadow: none;
+  }
+  .ownership-line.is-wish span { color: #f9a8d4; font-weight: bold; }
+
   /* 所持状況（作品表示） */
   .ownership-summary {
     margin-top: 12px;
@@ -1040,6 +1086,7 @@
     .photo-import-badge { padding: 4px 10px; }
     .photo-import-recognized { font-size: 0.9rem; }
     .photo-import-add-toggle,
+    .photo-import-wish,
     .photo-import-final-toggle,
     .photo-import-photo-link,
     .photo-import-ok {

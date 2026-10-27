@@ -1,0 +1,19 @@
+<!-- WishListView.html -->
+<div id="WishListView" class="view">
+  <h3>欲しい巻リスト</h3>
+
+  <div class="photo-import-panel">
+    <p class="photo-import-note">買いたい巻を記録しておけます。登録（写真で確認・登録／書籍マスタ管理）すると自動でリストから外れます。</p>
+    <input id="wishTitleInput" list="wishTitleList" placeholder="作品名を選択">
+    <datalist id="wishTitleList"></datalist>
+    <div class="wish-add-row">
+      <input id="wishVolumeInput" placeholder="巻数 例: 13 / 13-15">
+      <button id="wishNextButton" type="button" class="wish-next" style="display:none;" onclick="fillNextWishVolume()"></button>
+    </div>
+    <input id="wishMemoInput" placeholder="メモ（任意）">
+    <button id="wishAddButton" type="button" onclick="addWishFromForm()">欲しい巻に追加</button>
+  </div>
+
+  <div id="wishListSummary" class="photo-import-summary"></div>
+  <div id="wishListGroups" class="wish-groups"></div>
+</div>

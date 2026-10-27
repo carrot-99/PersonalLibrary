@@ -1,6 +1,6 @@
 # 05. クライアント共通処理設計
 
-対象: `client/Common.html`（共通 JS）および各ドメインの JS（`Library.html` / `PhotoImport.html` / `Title.html` / `Series.html` / `Box.html`）。写真から登録固有の処理は [04 章 4.7](04_screen_design.md#47-写真から登録画面) を参照。
+対象: `client/Common.html`（共通 JS）および各ドメインの JS（`Library.html` / `PhotoImport.html` / `Wish.html` / `Title.html` / `Series.html` / `Box.html`）。写真で確認・登録・欲しい巻リスト固有の処理は [04 章 4.7](04_screen_design.md#47-写真で確認登録画面)・[4.8](04_screen_design.md#48-欲しい巻リスト画面) を参照。
 すべて `<script>` 直書きのグローバル関数で、HTML の `onclick` 属性から呼べるよう `window.*` にも公開しています。
 
 ## 5.1 読み込み順と初期化
@@ -48,6 +48,7 @@ callGAS(funcName, successHandler, ...args)
 | View | ローダー |
 |---|---|
 | `PhotoImportView` | `loadPhotoImportView()`（前回の写真・結果のクリアと、作品・シリーズ・Box の候補取得） |
+| `WishListView` | `loadWishListView()`（作品候補の設定と欲しい巻一覧の取得） |
 | `LibraryMasterView` | `loadLibraryMaster()` |
 | `SeriesMasterView` / `TitleMasterView` / `BoxMasterView` | `loadSeriesMaster()` / `loadTitleMaster()` / `loadBoxMaster()` |
 | `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | ローディング表示 → `load*List(1)` |
@@ -127,6 +128,7 @@ callGAS(funcName, successHandler, ...args)
    操作列を [保存] [取消] に置換
 [取消] → cancelEdit(btn)   元の値に戻し操作ボタンを再表示（appendRowActions）
 操作ボタン appendRowActions(actionTd, tableId): [編集]（createEditButton）。書籍マスタ管理のみ横に [削除]（createDeleteButton）
+   createDeleteButton(onConfirm) は確定時の処理を受け取れる（省略時は deleteRow。欲しい巻リストでも使用）
 [削除] → 1 回目: 「本当に削除」に変更（4 秒で元に戻る）／2 回目: deleteRow(btn)
    deleteLibraryMaster(1 列目の ID) → 成功時は書籍マスタ・最近追加・サマリーを再読込
 [保存] → saveEdit(btn)
@@ -164,7 +166,8 @@ callGAS(funcName, successHandler, ...args)
 | `currentTitleListFilter` | `Title.html` | 作品一覧の種別フィルタ（`all` / `漫画` / `ラノベ`） |
 | `messageTimeout` | `Common.html` | 通知自動消去タイマー |
 | `PAGE_SIZE`, `currentLibraryPage` | `Library.html` | 旧ページング用。現在は実質未使用 |
-| `photoImportState` | `PhotoImport.html` | 写真で確認・登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `mode`（`check` / `register`）, `busy`） |
+| `photoImportState` | `PhotoImport.html` | 写真で確認・登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `wishKeys`, `mode`（`check` / `register`）, `busy`） |
+| `wishState` | `Wish.html` | 欲しい巻リストの状態（`list`, `selectedTitleId`, `nextVolume`） |
 | `photoImportImagesPromise` | `PhotoImport.html` | 選択写真の縮小処理（長辺 1568px・JPEG 品質 0.9）の Promise。解析時に完了を待つ |
 
 ## 5.10 所持巻の集計

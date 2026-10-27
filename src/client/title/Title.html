@@ -16,6 +16,7 @@ function showTitle(titleId){
       const rows = (data || []).slice().sort((a, b) => compareVolumes(a.volume, b.volume));
       const title = (masterCache.titleOptions || []).find(t => String(t.id) === String(id));
       renderTitleOwnershipSummary(rows.map(row => row.volume), title ? title.completed : '');
+      appendTitleWishLine(id);
       renderTableReadOnly('titleTable', rows, ['volume','box']);
     })
     .withFailureHandler(function(error){
@@ -66,6 +67,32 @@ function renderTitleOwnershipSummary(volumes, completed){
   }
 
   box.style.display = 'block';
+}
+
+// 作品表示に欲しい巻を追記（欲しい巻リストに登録がある場合のみ）
+function appendTitleWishLine(titleId){
+  callGAS('getWishKeys', function(keys){
+    const box = document.getElementById('titleOwnershipSummary');
+    if(!box || box.style.display === 'none') return;
+    const prefix = `${titleId}|`;
+    const volumes = (keys || []).filter(k => k.startsWith(prefix)).map(k => k.slice(prefix.length));
+    if(volumes.length === 0) return;
+
+    const summary = summarizeOwnedVolumes(volumes);
+    const parts = [];
+    if(summary.numbers.length > 0) parts.push(`${formatVolumeRanges(summary.numbers)}巻`);
+    parts.push(...summary.others);
+
+    const line = document.createElement('div');
+    line.className = 'ownership-line is-wish';
+    const strong = document.createElement('strong');
+    strong.textContent = '欲しい巻';
+    const span = document.createElement('span');
+    span.textContent = `★ ${parts.join(', ')}`;
+    line.appendChild(strong);
+    line.appendChild(span);
+    box.appendChild(line);
+  });
 }
 
 let currentTitleListFilter = 'all';

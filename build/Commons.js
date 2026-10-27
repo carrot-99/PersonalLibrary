@@ -10,7 +10,8 @@ const SHEETS = {
   LIBRARY: 'M_Library',
   TITLE:   'M_Title',
   BOX:     'M_Box',
-  SERIES:  'M_Series'
+  SERIES:  'M_Series',
+  WISH:    'M_Wish'
 };
 
 // ----------------------

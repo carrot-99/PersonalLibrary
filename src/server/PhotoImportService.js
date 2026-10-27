@@ -80,6 +80,7 @@ function analyzeBookSpines(images){
       success: true,
       rows,
       existingKeys: getLibraryKeys(),
+      wishKeys: getWishKeys(),
       defaultBoxId: getDefaultPhotoImportBoxId()
     };
 
@@ -499,6 +500,7 @@ function bulkAddLibraryFromPhoto(rows){
   const duplicates = [];
   const failed = invalid.slice();
   let addedRowIds = [];
+  let wishRemoved = 0;
   const completedTitles = [];
 
   if(entries.length > 0){
@@ -526,6 +528,12 @@ function bulkAddLibraryFromPhoto(rows){
       const addedSources = sources.filter(source => !skippedRowIds.has(source.rowId));
       addedRowIds = addedSources.map(source => source.rowId);
 
+      // 登録できた巻は欲しい巻リストから外す
+      wishRemoved = removeWishesForLibrary(addedSources.map(source => {
+        const entry = entries[sources.indexOf(source)];
+        return { titleId: entry.titleId, volume: entry.volume };
+      }));
+
       // 最終巻として登録できた作品を完結済に更新
       const titleNameMap = new Map(getData(SHEETS.TITLE).map(r => [String(r[0]).trim(), String(r[1])]));
       new Set(addedSources.filter(source => source.markCompleted).map(source => source.titleId))
@@ -546,6 +554,7 @@ function bulkAddLibraryFromPhoto(rows){
     duplicates,
     failed,
     addedRowIds,
-    completedTitles
+    completedTitles,
+    wishRemoved
   };
 }

@@ -77,7 +77,8 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 3. 解析した全巻について、`M_Library` に同一 (TitleID, 巻数) が存在するか確認。1 件でもあれば
    `failure('同じ作品に既に登録済みの巻数があります: <巻数一覧>')`（**全件登録しない**）
 4. 巻ごとに ID を採番し `[LibraryID, TitleID, BoxID, 巻数, 今日(yyyy-MM-dd)]` を `appendRow`
-5. `success('<titleId> に巻 <巻数一覧> を追加しました（<件数>件）')`
+5. 登録した巻を欲しい巻リストから外す（`removeWishesForLibrary`）
+6. `success('<titleId> に巻 <巻数一覧> を追加しました（<件数>件）')`（欲しい巻から外した場合は「。欲しい巻リストから n 件外しました」を付加）
 
 備考: `titleId` / `boxId` がマスタに存在するかの確認は行いません。
 
@@ -252,11 +253,11 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
                                            ├ requestSpineAnalysis … AI に背表紙の読み取りを依頼（JSON スキーマ指定）
                                            ├ validateSpineResult … 応答の検証・正規化
                                            └ matchExistingTitles … M_Title と照合
-確認画面で修正（作品・巻数・Box）◀── rows / existingKeys / defaultBoxId
+確認画面で修正（作品・巻数・Box）◀── rows / existingKeys / wishKeys / defaultBoxId
   （マスタ未登録なら addTitleFromPhotoImport で作品・シリーズを追加）
 登録確定 ──rows──▶ bulkAddLibraryFromPhoto
-                    └ addBulkVolumesWeb（＋最終巻指定の作品を完結済へ更新）
-結果表示 ◀── added / duplicates / failed / addedRowIds / completedTitles
+                    └ addBulkVolumesWeb（＋最終巻指定の作品を完結済へ更新、登録した巻を欲しい巻リストから外す）
+結果表示 ◀── added / duplicates / failed / addedRowIds / completedTitles / wishRemoved
 ```
 
 ### `analyzeBookSpines(images)` — 写真解析・作品照合
@@ -363,12 +364,28 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 
 ---
 
-## 3.9 API 呼び出し元一覧
+## 3.9 欲しい巻リスト（`server/WishService.js`）
+
+| 関数 | 内容 |
+|---|---|
+| `getWishSheet()` | `M_Wish` を取得。なければヘッダー付きで作成 |
+| `getWishList()` | `[{ id, titleId, titleName, volume, memo, date }]`（シートが無ければ空配列） |
+| `getWishKeys()` | `["TitleID|巻数", ...]`。写真解析の戻り値 `wishKeys`・作品表示の欲しい巻表示に使用 |
+| `addWishes(titleId, volume, memo)` | 巻数式で複数追加。作品の存在を検証し、所持済み・追加済みの巻はスキップ。`LockService` で排他し `setValues` で一括書き込み。戻り値 `{ success, message, added, addedKeys }`（追加 0 件は `success: false`） |
+| `deleteWish(id)` | 1 件削除（排他あり） |
+| `removeWishesForLibrary(entries)` | `[{ titleId, volume }]` に一致する行を削除し、削除件数を返す。書籍登録処理から呼ぶ（排他は呼び出し側） |
+
+---
+
+## 3.10 API 呼び出し元一覧
 
 | API | 呼び出し元（クライアント関数） |
 |---|---|
 | `getTitleMaster` | `refreshMasterData`, `loadTitleMaster`, `loadLibraryMaster`, `loadPhotoImportView` |
 | `getTitleListWithOwnership` | `loadTitleList` |
+| `getWishList` / `addWishes` / `deleteWish` | `loadWishListView`・`reloadWishList` / `addWishFromForm`・`addPhotoRowToWishList` / `deleteWishItem` |
+| `getWishKeys` | `appendTitleWishLine`（作品表示） |
+| `getTitleDetail` | `showTitle`, `onWishTitleInput`（欲しい巻リストの「次の巻」） |
 | `getSeriesMaster` | `refreshMasterData`, `loadSeriesMaster`, `loadSeriesList` |
 | `getBoxMaster` | `refreshMasterData`, `loadBoxMaster`, `loadBoxList`, `loadLibraryMaster` |
 | `getLibrarySummary` | `loadLibrarySummary`（初期化時・タブ切替毎・書籍追加後） |
