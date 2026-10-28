@@ -336,15 +336,3 @@
 | 状況 | `#animeEntryStatus` | 初期値 `視聴中` |
 
 [登録する] で `addAnimeSeasonWeb`。成功後は期名・話数・シリーズ欄をクリア（作品名は残す）し、フォームを開いたまま視聴中・視聴予定のカードを再読込（続けて登録できる）。書籍側の選択肢も再読込（`refreshMasterData`。シリーズが増えた場合のため）。
-
----|---|---|
-| 作品 | AnimeID / 作品名 / シリーズ | `updateAnimeMaster`（シリーズは既存の名前のみ） |
-| 期 | SeasonID / 作品 / 期名 / 種別 / 視聴済話数 / 状況 | `updateAnimeSeasonMaster`。キーワードはシリーズ名にも一致。各行に [削除]（2 回押しで確定、`deleteAnimeSeason`） |
-
----
-
-## 4.9 未使用の画面
-
-| View | 状態 |
-|---|---|
-| `LibraryEntryView`（ライブラリ登録） | ファイルは存在するが `Index.html` で `include` されておらず、メニューにもない。旧「購入登録専用タブ」。関連 JS（`addVolume`, `loadLibraryEntry`）も実質未使用（`parseVolumeInput` は写真から登録で使用） |

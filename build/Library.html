@@ -1,7 +1,7 @@
 <!-- Library.html -->
 <script>
 //////////////////////////////
-// 新刊追加処理
+// 巻数式の解析（写真で確認・登録で使用。サーバーの parseVolumeExpression と同じ仕様）
 //////////////////////////////
 function parseVolumeInput(rawVolume) {
   const input = String(rawVolume ?? '').trim();
@@ -60,41 +60,16 @@ function parseVolumeInput(rawVolume) {
   return { valid: true, values, text: values.join(', ') };
 }
 
-function addVolume() {
-  const titleId = getAutocompleteValue('titleSelectInput') || document.getElementById('titleSelect').value;
-  const volumeRaw = document.getElementById('volumeInput').value;
-  const boxId   = getAutocompleteValue('boxSelectInput') || document.getElementById('boxSelect').value;
-
-  if(!titleId || !boxId) return showError('入力が不完全です');
-
-  const parsedVolume = parseVolumeInput(volumeRaw);
-  if(!parsedVolume.valid) return showError(parsedVolume.message);
-
-  callGAS('addNewVolumeWeb', function(res){
-    if(res.success){
-      showSuccess(res.message);
-      document.getElementById('volumeInput').value = '';
-      loadRecentLibrary('recentLibraryTableEntry');
-      loadRecentLibrary('globalRecentLibraryTable');
-      loadLibrarySummary('libraryEntry');
-      loadLibrarySummary('libraryGlobal');
-      loadLibraryList();
-    } else {
-      showError(res.message);
-    }
-  }, titleId, volumeRaw, boxId);
-}
-
 //////////////////////////////
 // 最近追加ライブラリ読み込み
 //////////////////////////////
-function loadRecentLibrary(tableId = 'recentLibraryTable') {
+function loadRecentLibrary(tableId = 'globalRecentLibraryTable') {
   callGAS('getRecentLibrary', function(data){
     renderRecentLibrary(data, tableId);
   });
 }
 
-function loadLibrarySummary(prefix = 'library') {
+function loadLibrarySummary(prefix = 'libraryGlobal') {
   callGAS('getLibrarySummary', function(summary){
     updateLibrarySummary(summary, prefix);
   });
@@ -128,15 +103,10 @@ function updateLibrarySummary(summary, prefix) {
   });
 }
 
-function loadLibraryEntry(){
-  loadRecentLibrary('recentLibraryTableEntry');
-  loadLibrarySummary('libraryEntry');
-}
-
 //////////////////////////////
-// 最近追加テーブル描画
+// 最近追加テーブル描画（作品名・巻数）
 //////////////////////////////
-function renderRecentLibrary(data, tableId = 'recentLibraryTable') {
+function renderRecentLibrary(data, tableId = 'globalRecentLibraryTable') {
   const table = document.getElementById(tableId);
   if(!table) return;
 
@@ -145,9 +115,7 @@ function renderRecentLibrary(data, tableId = 'recentLibraryTable') {
 
   tbody.innerHTML = '';
 
-  const columns = tableId === 'globalRecentLibraryTable'
-    ? ['title', 'volume']
-    : ['date', 'title', 'volume', 'box'];
+  const columns = ['title', 'volume'];
 
   data.forEach(row => {
     const tr = document.createElement('tr');
@@ -281,12 +249,10 @@ function loadLibraryList(){
     .getLibraryListAll();
 }
 
-window.addVolume = addVolume;
 window.addLibraryMaster = addLibraryMaster;
 window.loadRecentLibrary = loadRecentLibrary;
 window.loadLibrarySummary = loadLibrarySummary;
 window.updateLibrarySummary = updateLibrarySummary;
-window.loadLibraryEntry = loadLibraryEntry;
 window.loadLibraryAddForm = loadLibraryAddForm;
 window.loadLibraryList = loadLibraryList;
 
