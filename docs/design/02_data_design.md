@@ -158,7 +158,7 @@ M_Series 1 ──── 0..* M_Anime 1 ──── 0..* M_AnimeSeason 1 ──�
 | 作品名（書籍一覧など） | `M_Library.TitleID` → `M_Title.作品名` |
 | Box（書籍一覧など） | `M_Library.BoxID` → `M_Box.保管場所` |
 | シリーズ（作品一覧など） | `M_Title.SeriesID` → `M_Series.シリーズ名` |
-| 所持巻数（シリーズ別検索） | `M_Library` を TitleID ごとに件数集計 |
+| 所持巻数（シリーズの詳細） | `M_Library` を TitleID ごとに件数集計 |
 | 漫画/ラノベ所蔵冊数 | `M_Library` × `M_Title.種別` で件数集計 |
 | アニメの作品名・シリーズ（期の一覧） | `M_AnimeSeason.AnimeID` → `M_Anime.作品名` → `M_Anime.SeriesID` → `M_Series.シリーズ名` |
 | アニメの話数・状況 | `M_AnimeSeason.SeasonID` → `M_AnimeWatch` |

@@ -1,7 +1,7 @@
 <!-- Series.html -->
 <script>
 //////////////////////////////
-// シリーズ一覧
+// シリーズの詳細（書籍・アニメ共通）
 //////////////////////////////
 // seriesId: 一覧などのリンクから開くときに指定
 function showSeries(seriesId){
@@ -13,26 +13,71 @@ function showSeries(seriesId){
   google.script.run
     .withSuccessHandler(function(data){
       hideInlineLoading('SeriesView');
-      const rows = (data || []).map(item => ({
-        id: item.id,
-        name: item.name,
-        type: item.type,
-        count: item.count,
-        owned: formatOwnershipText(summarizeOwnedVolumes(item.volumes), item.completed)
-      }));
-      renderTableReadOnly('seriesTable', rows, ['name','type','count','owned'], {
-        name: row => openTitleDetail(row.id)
-      });
+      renderSeriesBooks((data && data.titles) || []);
+      renderSeriesAnime((data && data.seasons) || []);
     })
     .withFailureHandler(function(error){
       hideInlineLoading('SeriesView');
       showError(error && error.message ? error.message : '検索に失敗しました');
     })
-    .getSeriesDetail(id);
+    .getSeriesOverview(id);
+}
+
+// 書籍: 作品ごとの所持巻（作品名から作品の詳細へ）
+function renderSeriesBooks(titles){
+  const rows = titles.map(item => ({
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    count: item.count,
+    owned: formatOwnershipText(summarizeOwnedVolumes(item.volumes), item.completed)
+  }));
+  renderTableReadOnly('seriesTable', rows, ['name','type','count','owned'], {
+    name: row => openTitleDetail(row.id)
+  });
+  document.getElementById('seriesBookEmpty').style.display = rows.length === 0 ? 'block' : 'none';
+  document.getElementById('seriesBookSection').style.display = 'block';
+}
+
+// アニメ: まとめ（期の件数・状況・視聴話数）と期の表
+function renderSeriesAnime(seasons){
+  const box = document.getElementById('seriesAnimeSummary');
+  box.innerHTML = '';
+
+  const countBy = (key, values) => values
+    .map(value => [value, seasons.filter(s => s[key] === value).length])
+    .filter(([, count]) => count > 0)
+    .map(([value, count]) => `${value} ${count}`)
+    .join(' / ');
+
+  const totalEpisodes = seasons.reduce((sum, s) => sum + (Number(s.episodes) || 0), 0);
+  const lines = seasons.length === 0
+    ? [['期', 'このシリーズのアニメは登録されていません']]
+    : [
+        ['期', `${seasons.length}件（${countBy('type', ANIME_TYPE_OPTIONS) || '種別未設定'}）`],
+        ['状況', countBy('status', ANIME_STATUS_OPTIONS) || '未設定'],
+        ['視聴話数', `合計 ${totalEpisodes}話`]
+      ];
+
+  lines.forEach(([label, value]) => {
+    const line = document.createElement('div');
+    line.className = 'ownership-line';
+    const strong = document.createElement('strong');
+    strong.textContent = label;
+    const span = document.createElement('span');
+    span.textContent = value;
+    line.appendChild(strong);
+    line.appendChild(span);
+    box.appendChild(line);
+  });
+  box.style.display = 'block';
+
+  renderTableReadOnly('seriesAnimeTable', seasons.map(toAnimeSeasonRow), ['animeName', 'name', 'type', 'episodes', 'status']);
+  document.getElementById('seriesAnimeSection').style.display = 'block';
 }
 
 //////////////////////////////
-// シリーズ一覧（追加・編集・統合もこの画面で行う）
+// シリーズ一覧（書籍・アニメ共通。追加・編集・統合もこの画面で行う）
 //////////////////////////////
 let seriesListFilter = null;
 
@@ -41,8 +86,17 @@ function loadSeriesList(){
     seriesListFilter = createListFilter({
       tableId: 'seriesListTable',
       pageSize: 20,
-      columns: [{ key: 'id' }, { key: 'name', edit: true, link: row => openSeriesDetail(row.id) }],
+      columns: [
+        { key: 'id' },
+        { key: 'name', edit: true, link: row => openSeriesDetail(row.id) },
+        { key: 'titleCount' },
+        { key: 'seasonCount' }
+      ],
       keywordKeys: ['id', 'name'],
+      filters: [
+        { key: 'hasBooks', label: '書籍', options: ['あり', 'なし'] },
+        { key: 'hasAnime', label: 'アニメ', options: ['あり', 'なし'] }
+      ],
       defaultSort: { key: 'name', dir: 'asc' },
       edit: {
         update: 'updateSeriesMaster',
@@ -55,13 +109,20 @@ function loadSeriesList(){
     .withSuccessHandler(function(data){
       hideInlineLoading('SeriesListView');
       masterCache.series = data || [];
-      seriesListFilter.setRows(masterCache.series.map(item => ({ id: item.id, name: item.name })));
+      seriesListFilter.setRows(masterCache.series.map(item => ({
+        id: item.id,
+        name: item.name,
+        titleCount: item.titleCount,
+        seasonCount: item.seasonCount,
+        hasBooks: item.titleCount > 0 ? 'あり' : 'なし',
+        hasAnime: item.seasonCount > 0 ? 'あり' : 'なし'
+      })));
     })
     .withFailureHandler(function(error){
       hideInlineLoading('SeriesListView');
       showError(error && error.message ? error.message : 'シリーズ一覧の読み込みに失敗しました');
     })
-    .getSeriesMaster();
+    .getSeriesListWithCounts();
 }
 
 //////////////////////////////

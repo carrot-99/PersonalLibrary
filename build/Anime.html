@@ -165,113 +165,6 @@ function updateAnimeWatchFromCard(btn, season, episodes, status){
 }
 
 //////////////////////////////
-// シリーズ別検索
-//////////////////////////////
-function loadAnimeSeriesView(){
-  loadAnimeData('AnimeSeriesView', function(){
-    // アニメが登録されているシリーズだけを候補にする
-    const seen = new Set();
-    const options = [];
-    animeState.anime.forEach(a => {
-      if(!a.seriesId || seen.has(a.seriesId)) return;
-      seen.add(a.seriesId);
-      options.push({ id: a.seriesId, name: a.seriesName || a.seriesId });
-    });
-    options.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-    populateAutocomplete('animeSeriesSelectInput', options, s => s.name, 'id', 'シリーズ名を入力');
-  });
-}
-
-function showAnimeSeries(){
-  const id = getAutocompleteValue('animeSeriesSelectInput');
-  if(!id) return showError('シリーズを候補から選択してください');
-
-  // 作品ごと（作品の登録順）→ 期の登録順
-  const animeOrder = new Map(animeState.anime.map((a, index) => [a.id, index]));
-  const seasons = animeState.seasons
-    .filter(s => s.seriesId === id)
-    .sort((a, b) => ((animeOrder.get(a.animeId) ?? 0) - (animeOrder.get(b.animeId) ?? 0)) || a.id.localeCompare(b.id));
-
-  renderAnimeSeriesSummary(seasons);
-  renderTableReadOnly('animeSeriesTable', seasons.map(toAnimeSeasonRow), ['animeName', 'name', 'type', 'episodes', 'status']);
-  loadAnimeSeriesBooks(id);
-}
-
-// 同じシリーズの書籍（作品ごとの所持巻）を表示する
-function loadAnimeSeriesBooks(seriesId){
-  const box = document.getElementById('animeSeriesBooks');
-  box.innerHTML = '';
-  box.style.display = 'none';
-
-  google.script.run
-    .withSuccessHandler(function(titles){
-      // 取得中に別のシリーズを表示した場合は捨てる
-      if(getAutocompleteValue('animeSeriesSelectInput') !== seriesId) return;
-      box.innerHTML = '';
-
-      const heading = document.createElement('div');
-      heading.className = 'anime-books-title';
-      heading.textContent = '書籍（所持巻）';
-      box.appendChild(heading);
-
-      if(!titles || titles.length === 0){
-        appendOwnershipLine(box, '-', 'このシリーズの書籍は登録されていません');
-      } else {
-        titles.forEach(title => {
-          // 作品名から書籍の作品別検索へ（書籍モードに切り替わる）
-          appendOwnershipLine(box, title.name, formatOwnershipText(summarizeOwnedVolumes(title.volumes), title.completed), () => openTitleDetail(title.id));
-        });
-      }
-      box.style.display = 'block';
-    })
-    .withFailureHandler(function(error){
-      showError(error && error.message ? error.message : '書籍の読み込みに失敗しました');
-    })
-    .getSeriesDetail(seriesId);
-}
-
-// onLabelClick: 指定するとラベルをリンクにする
-function appendOwnershipLine(box, label, value, onLabelClick){
-  const line = document.createElement('div');
-  line.className = 'ownership-line';
-  const strong = document.createElement('strong');
-  if(onLabelClick){
-    strong.appendChild(createCellLink(label, onLabelClick));
-  } else {
-    strong.textContent = label;
-  }
-  const span = document.createElement('span');
-  span.textContent = value;
-  line.appendChild(strong);
-  line.appendChild(span);
-  box.appendChild(line);
-}
-
-function renderAnimeSeriesSummary(seasons){
-  const box = document.getElementById('animeSeriesSummary');
-  box.innerHTML = '';
-
-  const countBy = (key, values) => values
-    .map(value => [value, seasons.filter(s => s[key] === value).length])
-    .filter(([, count]) => count > 0)
-    .map(([value, count]) => `${value} ${count}`)
-    .join(' / ');
-
-  const totalEpisodes = seasons.reduce((sum, s) => sum + (Number(s.episodes) || 0), 0);
-  const lines = seasons.length === 0
-    ? [['期', 'このシリーズのアニメはまだ登録されていません']]
-    : [
-        ['期', `${seasons.length}件（${countBy('type', ['TV', 'OVA', '劇場版', 'その他']) || '種別未設定'}）`],
-        ['状況', countBy('status', ['視聴中', '視聴済', '視聴中断', '視聴予定']) || '未設定'],
-        ['視聴話数', `合計 ${totalEpisodes}話`]
-      ];
-
-  lines.forEach(([label, value]) => appendOwnershipLine(box, label, value));
-
-  box.style.display = 'block';
-}
-
-//////////////////////////////
 // アニメ一覧（絞り込み・並べ替えは createListFilter。編集・削除もこの画面で行う）
 // 期ごと（期の編集・削除）と作品ごと（作品名・シリーズの編集）を切り替える
 //////////////////////////////
@@ -314,7 +207,8 @@ function loadAnimeListView(){
       pageSize: 30,
       columns: [
         { key: 'name', edit: true },
-        { key: 'seriesName', edit: true },
+        // シリーズ名からシリーズの詳細（書籍・アニメ共通）へ
+        { key: 'seriesName', edit: true, link: row => openSeriesDetail(row.seriesId) },
         { key: 'seasonCount' },
         { key: 'episodeTotal' }
       ],
@@ -344,6 +238,7 @@ function loadAnimeListView(){
       return {
         id: anime.id,
         name: anime.name,
+        seriesId: anime.seriesId,
         seriesName: anime.seriesName,
         seasonCount: seasons.length,
         episodeTotal: seasons.reduce((sum, s) => sum + (Number(s.episodes) || 0), 0)
@@ -458,8 +353,6 @@ function renderAnimeRecent(){
 }
 
 window.loadAnimeWatchingView = loadAnimeWatchingView;
-window.loadAnimeSeriesView = loadAnimeSeriesView;
-window.showAnimeSeries = showAnimeSeries;
 window.loadAnimeEntryView = loadAnimeEntryView;
 window.addAnimeSeasonFromForm = addAnimeSeasonFromForm;
 window.setAnimeListMode = setAnimeListMode;
