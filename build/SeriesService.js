@@ -19,6 +19,54 @@ function getSeriesMaster(){
 
 
 // ----------------------
+// シリーズ一覧用（書籍の作品数・アニメの期数付き）
+// 戻り値: [{ id, name, titleCount, seasonCount }]
+// ----------------------
+function getSeriesListWithCounts(){
+  const titleCounts = new Map();
+  getData(SHEETS.TITLE).forEach(row => {
+    const key = String(row[2] ?? '').trim();
+    titleCounts.set(key, (titleCounts.get(key) || 0) + 1);
+  });
+
+  const seasonCounts = new Map();
+  getAnimeData().seasons.forEach(season => {
+    seasonCounts.set(season.seriesId, (seasonCounts.get(season.seriesId) || 0) + 1);
+  });
+
+  return getSeriesMaster().map(series => {
+    const key = String(series.id).trim();
+    return {
+      id: series.id,
+      name: series.name,
+      titleCount: titleCounts.get(key) || 0,
+      seasonCount: seasonCounts.get(key) || 0
+    };
+  });
+}
+
+
+// ----------------------
+// シリーズの詳細（書籍・アニメ共通）
+// 戻り値: { titles: getSeriesDetail() の配列, seasons: getAnimeData() の期の配列（作品の登録順→期の登録順） }
+// ----------------------
+function getSeriesOverview(seriesId){
+  const id = String(seriesId ?? '').trim();
+  const anime = getAnimeData();
+  const animeOrder = new Map(anime.anime.map((a, index) => [a.id, index]));
+  const seasons = anime.seasons
+    .filter(season => season.seriesId === id)
+    .sort((a, b) => ((animeOrder.get(a.animeId) ?? 0) - (animeOrder.get(b.animeId) ?? 0))
+      || a.id.localeCompare(b.id, 'ja', { numeric: true }));
+
+  return {
+    titles: getSeriesDetail(id),
+    seasons
+  };
+}
+
+
+// ----------------------
 // 選択肢用取得
 // ----------------------
 function getSeries(){

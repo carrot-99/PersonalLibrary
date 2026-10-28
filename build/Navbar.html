@@ -16,7 +16,6 @@
 <div class="tab-group list-group book-only">
   <div class="tab-title">一覧・管理</div>
   <div class="tabs list-tabs">
-    <button data-tab="SeriesListView" onclick="showTab('SeriesListView'); closeSidebar();">シリーズ一覧</button>
     <button data-tab="TitleListView" onclick="showTab('TitleListView'); closeSidebar();">作品一覧</button>
     <button data-tab="BoxListView" onclick="showTab('BoxListView'); closeSidebar();">箱一覧</button>
     <button data-tab="LibraryListView" onclick="showTab('LibraryListView'); closeSidebar();">書籍一覧</button>
@@ -32,9 +31,16 @@
 </div>
 
 <div class="tab-group anime-group anime-only">
-  <div class="tab-title">検索・一覧・管理</div>
+  <div class="tab-title">一覧・管理</div>
   <div class="tabs anime-tabs">
-    <button data-tab="AnimeSeriesView" onclick="showTab('AnimeSeriesView'); closeSidebar();">シリーズ別検索</button>
     <button data-tab="AnimeListView" onclick="showTab('AnimeListView'); closeSidebar();">アニメ一覧</button>
+  </div>
+</div>
+
+<!-- 書籍・アニメ共通（どちらのモードでも表示。開いてもモードは切り替えない） -->
+<div class="tab-group common-group">
+  <div class="tab-title">シリーズ（書籍・アニメ共通）</div>
+  <div class="tabs common-tabs">
+    <button data-tab="SeriesListView" onclick="showTab('SeriesListView'); closeSidebar();">シリーズ一覧</button>
   </div>
 </div>

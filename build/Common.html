@@ -16,7 +16,12 @@ function init(){
   closeSidebar();
 }
 
+// 書籍・アニメ共通の画面（開いてもモードを切り替えない）
+const COMMON_VIEW_IDS = ['SeriesListView', 'SeriesView'];
+
+// 戻り値: 'anime' / 'book'、共通の画面は null
 function getModeOfView(viewId){
+  if(COMMON_VIEW_IDS.includes(viewId)) return null;
   return String(viewId || '').startsWith('Anime') ? 'anime' : 'book';
 }
 
@@ -30,7 +35,7 @@ function loadSavedAppMode(){
 
 // メニュー・上部バー・サマリーの表示をモードに合わせる（画面は切り替えない）
 function applyAppMode(mode){
-  if(appMode === mode) return;
+  if(!mode || appMode === mode) return;
   appMode = mode;
   document.body.dataset.mode = mode;
   document.querySelectorAll('.mode-switch button').forEach(b => {
@@ -120,7 +125,6 @@ function showTab(tabId){
     BoxListView: function(){ showInlineLoading('BoxListView', '読み込み中...'); loadBoxList(1); },
     LibraryListView: function(){ showInlineLoading('LibraryListView', '読み込み中...'); loadLibraryList(1); loadLibraryAddForm(); },
     AnimeWatchingView: loadAnimeWatchingView,
-    AnimeSeriesView: loadAnimeSeriesView,
     AnimeListView: loadAnimeListView,
     AnimeEntryView: loadAnimeEntryView
   };
@@ -140,7 +144,7 @@ function showTab(tabId){
 // 一覧や詳細の中のリンクから ID を指定して開く。開く前の画面を navHistory に積み、[← 戻る] で開き直す
 //////////////////////////////
 const NAV_HISTORY_LIMIT = 20;
-const navHistory = [];
+const navHistory = [];      // { reopen: 開き直す関数, mode: そのときのモード }
 let navEntry = null;     // 今の画面を開き直す関数
 let navigating = false;  // 詳細への移動・戻るの最中（showTab で履歴を消さない）
 
@@ -153,7 +157,8 @@ function openDetail(viewId, show){
     updateDetailBackButtons();
   };
   if(navEntry){
-    navHistory.push(navEntry);
+    // 共通の画面（シリーズ）はモードを切り替えないため、戻るときのモードも覚えておく
+    navHistory.push({ reopen: navEntry, mode: appMode });
     if(navHistory.length > NAV_HISTORY_LIMIT) navHistory.shift();
   }
   closeSidebar();
@@ -163,8 +168,9 @@ function openDetail(viewId, show){
 function backFromDetail(){
   const previous = navHistory.pop();
   if(!previous) return;
+  applyAppMode(previous.mode);
   navigating = true;
-  try { previous(); } finally { navigating = false; }
+  try { previous.reopen(); } finally { navigating = false; }
   updateDetailBackButtons();
 }
 
@@ -597,7 +603,7 @@ function toggleSearchForm(id){
 
 // 画面（View）を開き直したときの状態リセット
 // フォームを閉じ、検索画面の結果をクリアする
-const SEARCH_VIEW_IDS = ['SeriesView', 'TitleView', 'BoxView', 'AnimeSeriesView'];
+const SEARCH_VIEW_IDS = ['SeriesView', 'TitleView', 'BoxView'];
 
 function resetViewState(view){
   if(!view) return;
@@ -615,6 +621,9 @@ function resetViewState(view){
       table.style.display = 'none';
       const tbody = table.querySelector('tbody');
       if(tbody) tbody.innerHTML = '';
+    });
+    view.querySelectorAll('.detail-section').forEach(section => {
+      section.style.display = 'none';
     });
     view.querySelectorAll('.ownership-summary').forEach(box => {
       box.innerHTML = '';

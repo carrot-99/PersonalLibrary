@@ -1,4 +1,5 @@
 <!-- SeriesView.html -->
+<!-- シリーズの詳細（書籍・アニメ共通。開いてもモードは切り替えない） -->
 <div id="SeriesView" class="view">
   <button type="button" class="detail-back" style="display:none;" onclick="backFromDetail()">← 戻る</button>
   <h3>シリーズ表示</h3>
@@ -8,8 +9,25 @@
     <select id="seriesSelect" style="display:none;"></select>
   </label>
   <button onclick="showSeries()">表示</button>
-  <table id="seriesTable" style="display:none;">
-    <thead><tr><th>作品名</th><th>種別</th><th>所持巻数</th><th>所持巻</th></tr></thead>
-    <tbody></tbody>
-  </table>
+
+  <!-- アニメモードではアニメの欄を先に表示（CSS の order） -->
+  <div class="series-sections">
+    <section id="seriesBookSection" class="detail-section" style="display:none;">
+      <h4 class="detail-section-title">📚 書籍</h4>
+      <div class="detail-empty" id="seriesBookEmpty" style="display:none;">このシリーズの書籍は登録されていません</div>
+      <table id="seriesTable" style="display:none;">
+        <thead><tr><th>作品名</th><th>種別</th><th>所持巻数</th><th>所持巻</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="seriesAnimeSection" class="detail-section" style="display:none;">
+      <h4 class="detail-section-title">📺 アニメ</h4>
+      <div id="seriesAnimeSummary" class="ownership-summary" style="display:none;"></div>
+      <table id="seriesAnimeTable" style="display:none;">
+        <thead><tr><th>作品</th><th>期</th><th>種別</th><th>視聴済話数</th><th>状況</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
 </div>

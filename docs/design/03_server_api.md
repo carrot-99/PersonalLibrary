@@ -154,7 +154,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 戻り値 `[{ volume, box }]`。`box` は **BoxID**（保管場所名ではない）。行順（画面側で巻数順に並べ替え）。
 
-### `getSeriesDetail(seriesId)` — シリーズ別検索
+### `getSeriesDetail(seriesId)` — シリーズの書籍
 
 戻り値 `[{ id, name, type, count, completed, volumes }]`。シリーズに属する作品ごとの TitleID・作品名・種別・`M_Library` 上の所持冊数（0 件の作品も含む）・完結状態・所持巻の配列。画面は `volumes` から所持巻と抜けを表示します。
 
@@ -231,6 +231,8 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 関数 | 仕様 |
 |---|---|
 | `getSeriesMaster()` | `[{ id, name }]` |
+| `getSeriesListWithCounts()` | シリーズ一覧用。`[{ id, name, titleCount, seasonCount }]`。`titleCount` はシリーズに属する作品数（`M_Title`）、`seasonCount` はアニメの期数（`getAnimeData` の期を集計） |
+| `getSeriesOverview(seriesId)` | シリーズの詳細（書籍・アニメ共通）。`{ titles, seasons }`。`titles` は `getSeriesDetail(seriesId)`、`seasons` は `getAnimeData()` の期のうちそのシリーズのもの（作品の登録順→期の ID 順） |
 | `getSeries()` | `getSeriesMaster()` の別名。写真から登録画面のシリーズ候補に使用 |
 | `addSeriesMasterWeb(name)` | `name` 必須。同じ名前のシリーズがあればエラー。`S` で採番し追加（ロック内、`addSeriesMasterCore`）。`success('<name> を追加しました（<ID>）')` |
 | `updateSeriesMaster(id, values)` | `values[0]` で 2 列目（シリーズ名）を更新。自分以外に同じ名前があればエラー（ロック内） |
@@ -426,13 +428,15 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `getWishList` / `addWishes` / `deleteWish` | `loadWishListView`・`reloadWishList` / `addWishFromForm`・`addPhotoRowToWishList` / `deleteWishItem` |
 | `getWishKeys` | `appendTitleWishLine`（作品表示） |
 | `getTitleDetail` | `showTitle`, `onWishTitleInput`（欲しい巻リストの「次の巻」） |
-| `getSeriesMaster` | `refreshMasterData`, `loadSeriesList` |
+| `getSeriesMaster` | `refreshMasterData` |
+| `getSeriesListWithCounts` / `getSeriesOverview` | `loadSeriesList` / `showSeries` |
 | `getBoxMaster` | `refreshMasterData`, `loadBoxList`, `loadLibraryAddForm` |
 | `getLibrarySummary` | `loadLibrarySummary`（初期化時・タブ切替毎・書籍追加後） |
 | `getRecentLibrary` | `loadRecentLibrary`（初期化時・タブ切替毎・書籍追加後） |
 | `getLibraryListAll` | `loadLibraryList` |
 | `getLibraryPage` | なし（未使用。U-7） |
-| `getSeriesDetail` / `getTitleDetail` / `getBoxDetail` | `showSeries` / `showTitle` / `showBox`（一覧・詳細のリンクからは `openSeriesDetail` / `openTitleDetail` / `openBoxDetail` 経由。`getSeriesDetail` はアニメのシリーズ別検索 `loadAnimeSeriesBooks` からも） |
+| `getTitleDetail` / `getBoxDetail` | `showTitle` / `showBox`（一覧・詳細のリンクからは `openTitleDetail` / `openBoxDetail` 経由。シリーズは `openSeriesDetail` → `showSeries` → `getSeriesOverview`） |
+| `getSeriesDetail` | サーバー内部から使用（`getSeriesOverview`） |
 | `addNewVolumeWeb` | `addLibraryMaster`, `addVolume`（※ `addVolume` の画面は未表示） |
 | `addTitleMasterWeb` / `addSeriesMasterWeb` / `addBoxMasterWeb` | `addTitleMaster` / `addSeriesMaster` / `addBoxMaster` |
 | `update*Master` | `saveEdit`（一覧の `createListFilter` の `edit.update` で指定） |
@@ -442,7 +446,7 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | 作品追加パネルの「追加して選択」 / `registerPhotoImport` |
 | `getTitles`, `addBulkVolumesWeb`, `getOwnedVolumesByTitle` | サーバー内部から使用（`analyzeBookSpines`, `bulkAddLibraryFromPhoto`） |
 | `testAnthropicConnection` | Apps Script エディタから手動実行 |
-| `getAnimeData` | `loadAnimeData`（視聴中の一覧・シリーズ別検索・アニメ一覧・アニメ登録） |
+| `getAnimeData` | `loadAnimeData`（視聴中の一覧・アニメ一覧・アニメ登録）。サーバー内部から `getSeriesListWithCounts` / `getSeriesOverview` |
 | `addAnimeSeasonWeb` / `updateAnimeWatch` / `deleteAnimeSeason` | `addAnimeSeasonFromForm` / `updateAnimeWatchFromCard` / `deleteListRow`（アニメ一覧・期ごとの [削除]） |
 | `updateAnimeMaster` / `updateAnimeSeasonMaster` | `saveEdit`（アニメ一覧の `animeWorkListTable` / `animeListTable`） |
 | `importLegacyAnime` | Apps Script エディタから手動実行 |

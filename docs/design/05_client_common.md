@@ -38,11 +38,11 @@ callGAS(funcName, successHandler, ...args)
 
 0. 詳細への移動・戻る（`navigating`）でなければ戻る履歴 `navHistory` を消す。`navEntry`（今の画面を開き直す関数）を設定
 1. `tabId` の要素がなければ最初の `.view` を対象にする
-2. View の ID からモードを決めて反映（`applyAppMode`。`Anime` で始まればアニメ、他は書籍）。`body[data-mode]` を切り替え、CSS で `.book-only` / `.anime-only` の部品（メニューのグループ、上部バーの検索、サマリー、最近追加）を出し分ける。モードは `localStorage`（`personalLibrary.appMode`）に保存し、次回の初期表示に使う
+2. View の ID からモードを決めて反映（`getModeOfView` → `applyAppMode`。`Anime` で始まればアニメ、他は書籍。共通の画面 `COMMON_VIEW_IDS`（`SeriesListView` / `SeriesView`）は `null` でモードを変えない）。`body[data-mode]` を切り替え、CSS で `.book-only` / `.anime-only` の部品（メニューのグループ、上部バーの検索、サマリー、最近追加）を出し分ける。モードは `localStorage`（`personalLibrary.appMode`）に保存し、次回の初期表示に使う
 3. 全メニューボタンから `active` を外し、`data-tab` が一致するボタンに付与
 4. 全 `.view` を非表示 → 対象 View の状態をリセット（`resetViewState`）して表示
    - フォーム（`.master-form`）と一覧テーブルを閉じ、検索キーワード（`*SearchKeyword`）をクリア
-   - 検索系 View（`SeriesView` / `TitleView` / `BoxView` / `AnimeSeriesView`）は入力欄と結果テーブルもクリア
+   - 詳細画面（`SEARCH_VIEW_IDS` = `SeriesView` / `TitleView` / `BoxView`）は入力欄・結果テーブル・欄（`.detail-section`）もクリア
 5. 通知をクリア
 6. 書籍モードのときだけサマリー・最近追加を再取得
 7. View ごとのローダーを実行
@@ -53,8 +53,8 @@ callGAS(funcName, successHandler, ...args)
 | 関数 | 仕様 |
 |---|---|
 | `openTitleDetail(titleId)` / `openSeriesDetail(seriesId)` / `openBoxDetail(boxId)` | 詳細画面を開き、入力欄に名前（`masterCache.titleOptions` / `seriesOptions` / `boxOptions` から）を入れて `showTitle(id)` / `showSeries(id)` / `showBox(id)` を呼ぶ |
-| `openDetail(viewId, show)` | 上記の共通部分。今の画面の `navEntry` を `navHistory` に積み（最大 20 件）、`showTab` → `show()`。開き直す関数を `navEntry` にする |
-| `backFromDetail()` | `navHistory` から 1 つ取り出して開き直す（[← 戻る]、クラス `detail-back`） |
+| `openDetail(viewId, show)` | 上記の共通部分。今の画面の `navEntry` とモードを `navHistory` に `{ reopen, mode }` で積み（最大 20 件）、`showTab` → `show()`。開き直す関数を `navEntry` にする |
+| `backFromDetail()` | `navHistory` から 1 つ取り出し、そのときのモードに戻してから開き直す（[← 戻る]、クラス `detail-back`） |
 | `createCellLink(text, onClick)` | 表のセルや所持状況に置くリンク（クラス `table-link`） |
 
 メニュー先頭の切り替えボタンは `setAppMode(mode)` を呼び、そのモードの最初の画面（`APP_MODE_HOME`）を `showTab` で開きます。
@@ -65,7 +65,7 @@ callGAS(funcName, successHandler, ...args)
 | `WishListView` | `loadWishListView()`（作品候補の設定と欲しい巻一覧の取得） |
 | `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | ローディング表示 → `load*List(1)`（書籍一覧は追加フォームの候補 `loadLibraryAddForm()` も） |
 | 検索系 View | なし（候補は初期化時に構築済み） |
-| `AnimeWatchingView` / `AnimeSeriesView` / `AnimeEntryView` | `loadAnimeWatchingView()` / `loadAnimeSeriesView()` / `loadAnimeEntryView()`（いずれも `getAnimeData` で全件取得して描画） |
+| `AnimeWatchingView` / `AnimeEntryView` | `loadAnimeWatchingView()` / `loadAnimeEntryView()`（いずれも `getAnimeData` で全件取得して描画） |
 | `AnimeListView` | `loadAnimeListView()`（`getAnimeData` で全件取得し、期ごと・作品ごとの 2 つの `createListFilter` に渡す） |
 
 ## 5.4 テーブル描画
@@ -119,7 +119,7 @@ callGAS(funcName, successHandler, ...args)
 
 | 関数 | 適用する入力欄 |
 |---|---|
-| `populateSeries` | `seriesSelectInput`（シリーズ別検索）, `newTitleSeriesInput`（作品追加） |
+| `populateSeries` | `seriesSelectInput`（シリーズの詳細）, `newTitleSeriesInput`（作品追加） |
 | `populateTitle` | `titleSelectInput`（未使用画面）, `titleViewSelectInput`（作品別検索） |
 | `populateBoxes` | `boxSelectInput`（未使用画面）, `boxViewSelectInput`（箱別検索） |
 

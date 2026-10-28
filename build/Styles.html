@@ -117,9 +117,11 @@
     #titleListTable th:nth-child(5), #titleListTable td:nth-child(5) { width: 10% !important; max-width: none !important; }
     #titleListTable th:nth-child(6), #titleListTable td:nth-child(6) { width: 19% !important; max-width: none !important; }
     #titleListTable th:nth-child(7), #titleListTable td:nth-child(7) { width: 16% !important; max-width: none !important; }
-    #seriesListTable th:nth-child(1), #seriesListTable td:nth-child(1) { width: 15% !important; max-width: none !important; }
-    #seriesListTable th:nth-child(2), #seriesListTable td:nth-child(2) { width: 60% !important; max-width: none !important; }
-    #seriesListTable th:nth-child(3), #seriesListTable td:nth-child(3) { width: 25% !important; max-width: none !important; }
+    #seriesListTable th:nth-child(1), #seriesListTable td:nth-child(1) { width: 11% !important; max-width: none !important; }
+    #seriesListTable th:nth-child(2), #seriesListTable td:nth-child(2) { width: 41% !important; max-width: none !important; }
+    #seriesListTable th:nth-child(3), #seriesListTable td:nth-child(3) { width: 13% !important; max-width: none !important; }
+    #seriesListTable th:nth-child(4), #seriesListTable td:nth-child(4) { width: 13% !important; max-width: none !important; }
+    #seriesListTable th:nth-child(5), #seriesListTable td:nth-child(5) { width: 22% !important; max-width: none !important; }
     #boxListTable th:nth-child(1), #boxListTable td:nth-child(1) { width: 15% !important; max-width: none !important; }
     #boxListTable th:nth-child(2), #boxListTable td:nth-child(2) { width: 60% !important; max-width: none !important; }
     #boxListTable th:nth-child(3), #boxListTable td:nth-child(3) { width: 25% !important; max-width: none !important; }
@@ -247,6 +249,7 @@
   .list-group { background: rgba(22,163,74,0.12); border-color: rgba(74,222,128,0.45); }
   .entry-group { background: rgba(124,58,237,0.12); border-color: rgba(167,139,250,0.45); }
   .anime-group { background: rgba(219,39,119,0.12); border-color: rgba(244,114,182,0.45); }
+  .common-group { background: rgba(30,64,175,0.15); border-color: rgba(96,165,250,0.5); }
 
   /* 書籍／アニメの切り替え（body[data-mode] で表示する部品を切り替える） */
   body[data-mode="anime"] .book-only,
@@ -1042,8 +1045,11 @@
   /* シリーズ別検索（アニメ）の書籍欄。作品名が長いので見出し幅を広げる */
   .series-merge-help { margin-bottom: 8px; font-size: 0.9rem; color: #cbd5e1; }
   #seriesMergeButton.is-confirm { background: #dc2626; }
-  .anime-books-title { margin-bottom: 4px; font-weight: 700; color: #67e8f9; }
-  #animeSeriesBooks .ownership-line strong { flex: 0 0 40%; overflow-wrap: anywhere; }
+  /* シリーズの詳細（書籍・アニメの欄）。アニメモードではアニメの欄を先に表示 */
+  .series-sections { display: flex; flex-direction: column; gap: 16px; margin-top: 12px; }
+  body[data-mode="anime"] #seriesAnimeSection { order: -1; }
+  .detail-section-title { margin: 0 0 8px; font-size: 1.05rem; font-weight: 700; color: #67e8f9; }
+  .detail-empty { color: #9ca3af; }
   .anime-cards { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
   .anime-card {
     padding: 10px 12px;
