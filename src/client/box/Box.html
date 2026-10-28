@@ -21,6 +21,9 @@ function showBox() {
     .getBoxDetail(id);
 }
 
+//////////////////////////////
+// 箱一覧（追加・編集もこの画面で行う）
+//////////////////////////////
 let boxListFilter = null;
 
 function loadBoxList(){
@@ -28,9 +31,13 @@ function loadBoxList(){
     boxListFilter = createListFilter({
       tableId: 'boxListTable',
       pageSize: 20,
-      columns: [{ key: 'id' }, { key: 'place' }],
+      columns: [{ key: 'id' }, { key: 'place', edit: true }],
       keywordKeys: ['id', 'place'],
-      defaultSort: { key: 'id', dir: 'asc' }
+      defaultSort: { key: 'id', dir: 'asc' },
+      edit: {
+        update: 'updateBoxMaster',
+        onSaved: function(){ loadBoxList(); refreshMasterData(); }
+      }
     });
   }
 
@@ -44,20 +51,6 @@ function loadBoxList(){
       showError(error && error.message ? error.message : '箱一覧の読み込みに失敗しました');
     })
     .getBoxMaster();
-}
-
-//////////////////////////////
-// Master表示
-//////////////////////////////
-function loadBoxMaster(){
-  document.getElementById('boxMasterTable').style.display = 'none';
-  callGAS('getBoxMaster', function(data){
-    masterCache.box = data;
-    const keyword = document.getElementById('boxSearchKeyword').value.trim();
-    if(keyword){
-      filterBox();
-    }
-  });
 }
 
 //////////////////////////////
@@ -76,7 +69,7 @@ function addBoxMaster(){
       showSuccess(res.message);
       document.getElementById('newBoxId').value = '';
       document.getElementById('newBoxPlace').value = '';
-      loadBoxMaster();
+      loadBoxList();
       refreshMasterData();
     }else{
       showError(res.message);
@@ -84,18 +77,8 @@ function addBoxMaster(){
   }, id, place);
 }
 
-//////////////////////////////
-// 検索
-//////////////////////////////
-function filterBox(){
-  const data = masterCache.box || [];
-  renderFilteredTable('boxMasterTable', data, ['id','place'], 'boxSearchKeyword');
-}
-
 window.showBox = showBox;
 window.loadBoxList = loadBoxList;
-window.loadBoxMaster = loadBoxMaster;
 window.addBoxMaster = addBoxMaster;
-window.filterBox = filterBox;
 
 </script>

@@ -16,6 +16,8 @@
 | R-11 | 低 | `ANTHROPIC_API_KEY` はスクリプトプロパティに平文で保存される。スクリプトの編集権限を持つユーザーは閲覧可能 | 編集者を本人に限定する運用を維持。キー漏えい時は Anthropic Console で失効・再発行 |
 | R-12 | 低 | 写真の解析（`UrlFetchApp`）は Apps Script の外部通信の時間制限を受ける。写真 5 枚・解析の深さ `medium` で時間切れになる可能性がある（未発生） | 時間切れが出たら写真を分けて解析する、`ANTHROPIC_EFFORT` を `low` にする、または写真ごとに順番に解析する方式に変更 |
 | R-13 | 低 | 書籍一覧は絞り込みのため全件を読み込む（`getLibraryListAll`）。数千冊程度までは問題ないが、それ以上で表示が遅くなる | 件数が増えたらサーバー側で絞り込み・ページングする方式に変更 |
+| R-14 | 中 | 一覧画面（シリーズ・作品・箱・書籍・アニメ）の表示が遅い。画面を開くたび・編集の保存のたびにスプレッドシートから全件を取り直している | 取得結果のキャッシュ（クライアント側の保持や `CacheService`）、保存時は該当行だけ差し替える、表示を先に出して裏で再取得する、などを検討 |
+| R-15 | 低 | 一覧の列幅が内容によって変わり、ページ移動や編集で表がずれる。現在は PC・タブレット幅でだけ表ごとに % で指定 | 各列を適切な幅で固定する（`table-layout: fixed` と列ごとの幅指定、スマホ幅での扱いも含めて見直す） |
 
 ## 6.3 未使用コード・資産（U）
 
@@ -25,9 +27,8 @@
 | U-2 | `client/Scripts.html` | 空の HTML テンプレート |
 | U-3 | `client/library/LibraryEntryView.html` と `addVolume` / `loadLibraryEntry`、`#LibraryEntryView{display:block}`（Styles） | `Index.html` に未組み込みの旧「ライブラリ登録」画面一式（`parseVolumeInput` は写真から登録でも使うため残す） |
 | U-4 | `server/LibraryService.js` `getLibraryMaster` | 呼び出しなし |
-| U-5 | `client/Common.html` `renderTable` / `renderTableRows` / `filterMaster` / `formatDate` | 呼び出しなし |
-| U-6 | `client/library/Library.html` `PAGE_SIZE` / `currentLibraryPage` | 実質未使用 |
-| U-7 | `server/LibraryService.js` `getLibraryPage` | 呼び出しなし（書籍一覧は `getLibraryListAll`、書籍マスタ管理は `searchLibraryMaster` に移行） |
+| U-5 | `client/Common.html` `formatDate` | 呼び出しなし |
+| U-7 | `server/LibraryService.js` `getLibraryPage` | 呼び出しなし（書籍一覧は `getLibraryListAll` に移行） |
 
 ## 6.4 構成管理（C）
 

@@ -256,7 +256,7 @@ function updateAnimeMaster(id, values){
       let seriesId = '';
       if(seriesInput){
         seriesId = resolveMasterId(getData(SHEETS.SERIES), seriesInput, current[2]);
-        if(!seriesId) return failure(`シリーズ「${seriesInput}」が見つかりません（シリーズマスタ管理で先に追加してください）`);
+        if(!seriesId) return failure(`シリーズ「${seriesInput}」が見つかりません（シリーズ一覧で先に追加してください）`);
       }
 
       updateRowById(SHEETS.ANIME, id, { 2: name, 3: seriesId });

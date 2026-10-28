@@ -266,9 +266,12 @@ function renderAnimeSeriesSummary(seasons){
 }
 
 //////////////////////////////
-// アニメ一覧（絞り込み・並べ替えは createListFilter）
+// アニメ一覧（絞り込み・並べ替えは createListFilter。編集・削除もこの画面で行う）
+// 期ごと（期の編集・削除）と作品ごと（作品名・シリーズの編集）を切り替える
 //////////////////////////////
 let animeListFilter = null;
+let animeWorkListFilter = null;
+let animeListMode = 'season';
 
 function loadAnimeListView(){
   if(!animeListFilter){
@@ -276,11 +279,12 @@ function loadAnimeListView(){
       tableId: 'animeListTable',
       pageSize: 30,
       columns: [
-        { key: 'animeName' },
-        { key: 'name' },
-        { key: 'type' },
-        { key: 'episodes', compare: (a, b) => (Number(a.episodeCount) || 0) - (Number(b.episodeCount) || 0) },
-        { key: 'status' },
+        { key: 'animeName', edit: true },
+        { key: 'name', edit: true },
+        { key: 'type', edit: true, editOptions: ANIME_TYPE_OPTIONS },
+        // 表示は「12話」、編集は数値のまま
+        { key: 'episodes', edit: row => row.episodeCount, compare: (a, b) => (Number(a.episodeCount) || 0) - (Number(b.episodeCount) || 0) },
+        { key: 'status', edit: true, editOptions: ANIME_STATUS_OPTIONS },
         { key: 'updated', compare: (a, b) => a.updatedValue - b.updatedValue }
       ],
       keywordKeys: ['animeName', 'name', 'seriesName'],
@@ -289,9 +293,38 @@ function loadAnimeListView(){
         { key: 'type', label: '種別', options: ANIME_TYPE_OPTIONS },
         { key: 'seriesName', label: 'シリーズ' }
       ],
-      defaultSort: { key: 'animeName', dir: 'asc' }
+      defaultSort: { key: 'animeName', dir: 'asc' },
+      edit: {
+        update: 'updateAnimeSeasonMaster',
+        remove: 'deleteAnimeSeason',
+        onSaved: loadAnimeListView
+      }
     });
   }
+
+  if(!animeWorkListFilter){
+    animeWorkListFilter = createListFilter({
+      tableId: 'animeWorkListTable',
+      pageSize: 30,
+      columns: [
+        { key: 'name', edit: true },
+        { key: 'seriesName', edit: true },
+        { key: 'seasonCount' },
+        { key: 'episodeTotal' }
+      ],
+      keywordKeys: ['name', 'seriesName'],
+      filters: [
+        { key: 'seriesName', label: 'シリーズ' }
+      ],
+      defaultSort: { key: 'name', dir: 'asc' },
+      edit: {
+        update: 'updateAnimeMaster',
+        onSaved: loadAnimeListView
+      }
+    });
+  }
+
+  setAnimeListMode(animeListMode);
 
   loadAnimeData('AnimeListView', function(){
     animeListFilter.setRows(animeState.seasons.map(season => Object.assign(toAnimeSeasonRow(season), {
@@ -299,6 +332,26 @@ function loadAnimeListView(){
       episodeCount: season.episodes,
       updatedValue: season.updatedValue || 0
     })));
+
+    animeWorkListFilter.setRows(animeState.anime.map(anime => {
+      const seasons = animeState.seasons.filter(s => s.animeId === anime.id);
+      return {
+        id: anime.id,
+        name: anime.name,
+        seriesName: anime.seriesName,
+        seasonCount: seasons.length,
+        episodeTotal: seasons.reduce((sum, s) => sum + (Number(s.episodes) || 0), 0)
+      };
+    }));
+  });
+}
+
+function setAnimeListMode(mode){
+  animeListMode = mode === 'work' ? 'work' : 'season';
+  document.getElementById('animeSeasonListPane').style.display = animeListMode === 'season' ? '' : 'none';
+  document.getElementById('animeWorkListPane').style.display = animeListMode === 'work' ? '' : 'none';
+  document.querySelectorAll('#AnimeListView .list-mode-switch button').forEach(b => {
+    b.classList.toggle('active', b.dataset.listMode === animeListMode);
   });
 }
 
@@ -398,77 +451,10 @@ function renderAnimeRecent(){
   renderTableReadOnly('animeRecentTable', rows, ['name', 'type', 'episodes', 'status', 'updated']);
 }
 
-//////////////////////////////
-// マスタ管理（作品・期）
-// 編集は共通の startEdit / saveEdit（tableId で更新関数を切り替え）
-//////////////////////////////
-function loadAnimeMaster(){
-  document.getElementById('animeMasterTable').style.display = 'none';
-  callGAS('getAnimeData', function(data){
-    masterCache.anime = (data && data.anime) || [];
-    renderAnimeGlobalSummary(data);
-    if(document.getElementById('animeSearchKeyword').value.trim()){
-      filterAnimeMaster();
-    }
-  });
-}
-
-function filterAnimeMaster(){
-  const rows = (masterCache.anime || []).map(a => ({ id: a.id, name: a.name, seriesName: a.seriesName }));
-  renderFilteredTable('animeMasterTable', rows, ['id', 'name', 'seriesName'], 'animeSearchKeyword');
-}
-
-function loadAnimeSeasonMaster(){
-  document.getElementById('animeSeasonMasterTable').style.display = 'none';
-  callGAS('getAnimeData', function(data){
-    masterCache.animeSeasons = (data && data.seasons) || [];
-    renderAnimeGlobalSummary(data);
-    if(document.getElementById('animeSeasonSearchKeyword').value.trim()){
-      filterAnimeSeasonMaster();
-    }
-  });
-}
-
-function filterAnimeSeasonMaster(){
-  // 話数は編集でそのまま保存できるよう数値のまま表示。seriesName はキーワード検索用（列には出さない）
-  const rows = (masterCache.animeSeasons || []).map(s => ({
-    id: s.id,
-    animeName: s.animeName,
-    name: s.name,
-    type: s.type,
-    episodes: s.episodes,
-    status: s.status,
-    seriesName: s.seriesName
-  }));
-  renderFilteredTable('animeSeasonMasterTable', rows, ['id', 'animeName', 'name', 'type', 'episodes', 'status'], 'animeSeasonSearchKeyword');
-}
-
-function deleteAnimeSeasonRow(btn){
-  const id = btn.closest('tr').cells[0].textContent.trim();
-  btn.disabled = true;
-  btn.textContent = '削除中...';
-
-  callGAS('deleteAnimeSeason', function(res){
-    if(res && res.success){
-      showSuccess(res.message);
-      loadAnimeSeasonMaster();
-    } else {
-      btn.disabled = false;
-      btn.classList.remove('is-confirm');
-      btn.textContent = '削除';
-      showError(res && res.message ? res.message : '削除に失敗しました');
-    }
-  }, id);
-}
-
 window.loadAnimeWatchingView = loadAnimeWatchingView;
 window.loadAnimeSeriesView = loadAnimeSeriesView;
 window.showAnimeSeries = showAnimeSeries;
 window.loadAnimeEntryView = loadAnimeEntryView;
 window.addAnimeSeasonFromForm = addAnimeSeasonFromForm;
-window.loadAnimeMaster = loadAnimeMaster;
-window.filterAnimeMaster = filterAnimeMaster;
-window.loadAnimeSeasonMaster = loadAnimeSeasonMaster;
-window.filterAnimeSeasonMaster = filterAnimeSeasonMaster;
-window.deleteAnimeSeasonRow = deleteAnimeSeasonRow;
+window.setAnimeListMode = setAnimeListMode;
 </script>

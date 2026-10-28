@@ -1,13 +1,35 @@
 <!-- SeriesListView.html -->
 <div id="SeriesListView" class="view" style="display:none;">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3>シリーズ一覧</h3>
+  <h3>シリーズ一覧</h3>
+
+  <!-- ツールバー -->
+  <div class="master-toolbar">
+    <button onclick="toggleAddForm('seriesAddForm')">追加</button>
+    <button onclick="toggleSeriesMergeForm()">統合</button>
   </div>
+
+  <!-- 追加フォーム（初期非表示） -->
+  <div id="seriesAddForm" class="master-form" style="display:none;">
+    <input type="text" id="newSeriesName" placeholder="シリーズ名">
+    <button onclick="addSeriesMaster()">保存</button>
+  </div>
+
+  <!-- 統合フォーム（初期非表示）。左のシリーズを右のシリーズにまとめ、左は削除する -->
+  <div id="seriesMergeForm" class="master-form" style="display:none;">
+    <div class="series-merge-help">同じシリーズが別名で登録されているときに 1 つにまとめます。「まとめるシリーズ」の作品・アニメ作品を「残すシリーズ」に付け替え、「まとめるシリーズ」は削除します。</div>
+    <input id="seriesMergeFromInput" list="seriesMergeFromList" placeholder="まとめるシリーズ（削除される）" autocomplete="off">
+    <datalist id="seriesMergeFromList"></datalist>
+    <input id="seriesMergeToInput" list="seriesMergeToList" placeholder="残すシリーズ" autocomplete="off">
+    <datalist id="seriesMergeToList"></datalist>
+    <button type="button" id="seriesMergeButton" onclick="mergeSeriesFromForm()">統合する</button>
+  </div>
+
   <table class="table table-striped" id="seriesListTable">
     <thead>
       <tr>
         <th>SeriesID</th>
         <th>シリーズ名</th>
+        <th>操作</th>
       </tr>
     </thead>
     <tbody></tbody>

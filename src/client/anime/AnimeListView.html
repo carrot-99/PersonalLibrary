@@ -2,17 +2,42 @@
 <div id="AnimeListView" class="view" style="display:none;">
   <h3>アニメ一覧</h3>
 
-  <table class="table table-striped" id="animeListTable">
-    <thead>
-      <tr>
-        <th>作品</th>
-        <th>期</th>
-        <th>種別</th>
-        <th>話数</th>
-        <th>状況</th>
-        <th>更新日</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <!-- 期ごと／作品ごとの切り替え。追加は「アニメ登録」から -->
+  <div class="list-mode-switch" role="group" aria-label="一覧の単位">
+    <button type="button" data-list-mode="season" onclick="setAnimeListMode('season')">期ごと</button>
+    <button type="button" data-list-mode="work" onclick="setAnimeListMode('work')">作品ごと</button>
+  </div>
+  <p class="photo-import-note anime-list-note">作品名・シリーズ名を変えるときは「作品ごと」で編集します。期の「作品」を変えると、その期を別の作品に付け替えます。</p>
+
+  <div id="animeSeasonListPane">
+    <table class="table table-striped" id="animeListTable">
+      <thead>
+        <tr>
+          <th>作品</th>
+          <th>期</th>
+          <th>種別</th>
+          <th>話数</th>
+          <th>状況</th>
+          <th>更新日</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="animeWorkListPane" style="display:none;">
+    <table class="table table-striped" id="animeWorkListTable">
+      <thead>
+        <tr>
+          <th>作品名</th>
+          <th>シリーズ</th>
+          <th>期</th>
+          <th>視聴話数</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </div>

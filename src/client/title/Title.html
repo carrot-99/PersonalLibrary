@@ -96,7 +96,7 @@ function appendTitleWishLine(titleId){
 }
 
 //////////////////////////////
-// 作品一覧（絞り込み・並べ替えは createListFilter）
+// 作品一覧（絞り込み・並べ替えは createListFilter。追加・編集もこの画面で行う）
 //////////////////////////////
 let titleListFilter = null;
 
@@ -107,10 +107,10 @@ function loadTitleList(){
       pageSize: 20,
       columns: [
         { key: 'id' },
-        { key: 'name' },
-        { key: 'seriesName' },
-        { key: 'type' },
-        { key: 'completed' },
+        { key: 'name', edit: true },
+        { key: 'seriesName', edit: true },
+        { key: 'type', edit: true, editOptions: ['漫画', 'ラノベ'] },
+        { key: 'completed', edit: true, editOptions: ['連載中', '完結済', '未完結'] },
         // 所持巻は抜けの多い順・所持冊数で並べる
         { key: 'owned', compare: (a, b) => (a.missingCount - b.missingCount) || (a.ownedCount - b.ownedCount) }
       ],
@@ -121,7 +121,11 @@ function loadTitleList(){
         { key: 'ownStatus', label: '所持', options: ['抜けあり', '抜けなし', '未所持'] },
         { key: 'seriesName', label: 'シリーズ' }
       ],
-      defaultSort: { key: 'name', dir: 'asc' }
+      defaultSort: { key: 'name', dir: 'asc' },
+      edit: {
+        update: 'updateTitleMaster',
+        onSaved: function(){ loadTitleList(); refreshMasterData(); }
+      }
     });
   }
 
@@ -153,20 +157,6 @@ function loadTitleList(){
 }
 
 //////////////////////////////
-// Master表示
-//////////////////////////////
-function loadTitleMaster(){
-  document.getElementById('titleMasterTable').style.display = 'none';
-  callGAS('getTitleMaster', function(data){
-    masterCache.title = data;
-    const keyword = document.getElementById('titleSearchKeyword').value.trim();
-    if(keyword){
-      filterTitle();
-    }
-  });
-}
-
-//////////////////////////////
 // 追加
 //////////////////////////////
 function addTitleMaster(){
@@ -185,7 +175,7 @@ function addTitleMaster(){
       document.getElementById('newTitleName').value = '';
       document.getElementById('newTitleType').value = '';
       document.getElementById('newTitleCompleted').value = '連載中';
-      loadTitleMaster();
+      loadTitleList();
       refreshMasterData();
     }else{
       showError(res.message);
@@ -193,24 +183,8 @@ function addTitleMaster(){
   }, name, seriesId, type, completed);
 }
 
-//////////////////////////////
-// 検索
-//////////////////////////////
-function filterTitle(){
-  const data = masterCache.title || [];
-  renderFilteredTable('titleMasterTable', data, [
-    'id',
-    'name',
-    'seriesName',
-    'type',
-    'completed'
-  ], 'titleSearchKeyword');
-}
-
 window.showTitle = showTitle;
 window.loadTitleList = loadTitleList;
-window.loadTitleMaster = loadTitleMaster;
 window.addTitleMaster = addTitleMaster;
-window.filterTitle = filterTitle;
 
 </script>
