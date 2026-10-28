@@ -446,7 +446,7 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | 作品追加パネルの「追加して選択」 / `registerPhotoImport` |
 | `getTitles`, `addBulkVolumesWeb`, `getOwnedVolumesByTitle` | サーバー内部から使用（`analyzeBookSpines`, `bulkAddLibraryFromPhoto`） |
 | `testAnthropicConnection` | Apps Script エディタから手動実行 |
-| `getAnimeData` | `loadAnimeData`（視聴中の一覧・アニメ一覧・アニメ登録）。サーバー内部から `getSeriesListWithCounts` / `getSeriesOverview` |
+| `getAnimeData` | `loadAnimeData`（視聴中の一覧・アニメ一覧）。サーバー内部から `getSeriesListWithCounts` / `getSeriesOverview` |
 | `addAnimeSeasonWeb` / `updateAnimeWatch` / `deleteAnimeSeason` | `addAnimeSeasonFromForm` / `updateAnimeWatchFromCard` / `deleteListRow`（アニメ一覧・期ごとの [削除]） |
 | `updateAnimeMaster` / `updateAnimeSeasonMaster` | `saveEdit`（アニメ一覧の `animeWorkListTable` / `animeListTable`） |
 | `importLegacyAnime` | Apps Script エディタから手動実行 |
