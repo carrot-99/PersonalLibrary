@@ -242,6 +242,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | `getSeries()` | `getSeriesMaster()` の別名。写真から登録画面のシリーズ候補に使用 |
 | `addSeriesMasterWeb(name)` | `name` 必須。同じ名前のシリーズがあればエラー。`S` で採番し追加（ロック内、`addSeriesMasterCore`）。`success('<name> を追加しました（<ID>）')` |
 | `updateSeriesMaster(id, values)` | `values[0]` で 2 列目（シリーズ名）を更新。自分以外に同じ名前があればエラー（ロック内） |
+| `mergeSeries(fromId, toId)` | シリーズの統合（ロック内、`mergeSeriesCore`）。`M_Title`・`M_Anime` の 3 列目（SeriesID）が `fromId` の行を `toId` に置き換え（`replaceSeriesIdInSheet`）、`M_Series` の `fromId` の行を削除。同じ ID・存在しない ID はエラー。`success("「<from>」を「<to>」に統合しました（作品 N 件、アニメ作品 M 件を付け替え）")` |
 
 ---
 
@@ -440,7 +441,7 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `getLibraryListAll` | `loadLibraryList` |
 | `getLibraryPage` | なし（未使用。U-7） |
 | `searchLibraryMaster` | `filterLibrary`（書籍マスタ管理の [検索実行]） |
-| `getSeriesDetail` / `getTitleDetail` / `getBoxDetail` | `showSeries` / `showTitle` / `showBox` |
+| `getSeriesDetail` / `getTitleDetail` / `getBoxDetail` | `showSeries` / `showTitle` / `showBox`（`getSeriesDetail` はアニメのシリーズ別検索 `loadAnimeSeriesBooks` からも） |
 | `addNewVolumeWeb` | `addLibraryMaster`, `addVolume`（※ `addVolume` の画面は未表示） |
 | `addTitleMasterWeb` / `addSeriesMasterWeb` / `addBoxMasterWeb` | `addTitleMaster` / `addSeriesMaster` / `addBoxMaster` |
 | `update*Master` | `saveEdit`（テーブル ID により振り分け） |
@@ -450,7 +451,7 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | 作品追加パネルの「追加して選択」 / `registerPhotoImport` |
 | `getTitles`, `addBulkVolumesWeb`, `getOwnedVolumesByTitle` | サーバー内部から使用（`analyzeBookSpines`, `bulkAddLibraryFromPhoto`） |
 | `testAnthropicConnection` | Apps Script エディタから手動実行 |
-| `getAnimeData` | `loadAnimeData`（視聴中の一覧・シリーズ別検索・アニメ登録）, `loadAnimeMaster`, `loadAnimeSeasonMaster` |
+| `getAnimeData` | `loadAnimeData`（視聴中の一覧・シリーズ別検索・アニメ一覧・アニメ登録）, `loadAnimeMaster`, `loadAnimeSeasonMaster` |
 | `addAnimeSeasonWeb` / `updateAnimeWatch` / `deleteAnimeSeason` | `addAnimeSeasonFromForm` / `updateAnimeWatchFromCard` / `deleteAnimeSeasonRow` |
 | `updateAnimeMaster` / `updateAnimeSeasonMaster` | `saveEdit`（`animeMasterTable` / `animeSeasonMasterTable`） |
 | `importLegacyAnime` | Apps Script エディタから手動実行 |

@@ -72,13 +72,15 @@
 | | | 書籍マスタ管理 | `LibraryMasterView` | |
 | アニメ | 視聴・登録 | 視聴中の一覧 | `AnimeWatchingView` | ピンク |
 | | | アニメ登録 | `AnimeEntryView` | |
-| | 検索 | シリーズ別検索 | `AnimeSeriesView` | |
+| | 検索・一覧 | シリーズ別検索 | `AnimeSeriesView` | |
+| | | アニメ一覧 | `AnimeListView` | |
 | | マスタ管理 | アニメ作品マスタ管理 | `AnimeMasterView` | |
 | | | アニメ期マスタ管理 | `AnimeSeasonMasterView` | |
 
 - ボタン押下で `showTab('<View>')` → `closeSidebar()`。
-- モードを切り替えると、そのモードの最初の画面を開く（書籍: `PhotoImportView`、アニメ: `AnimeWatchingView`）。
-- 書籍モードだけの表示: 上部バーの作品名検索、所蔵サマリー、最近追加した漫画。アニメモードでは非表示。
+- モードを切り替えると、そのモードの最初の画面を開く（書籍: `PhotoImportView`、アニメ: `AnimeWatchingView`）。続けてメニューを選べるよう、切り替えではサイドメニューを閉じない。
+- 書籍モードだけの表示: 上部バーの作品名検索、所蔵サマリー、最近追加した漫画。
+- アニメモードだけの表示: アニメのサマリー（視聴済・視聴中・視聴中断・視聴予定の期数、登録作品数、視聴話数の合計）。アニメ画面で `getAnimeData` を取得するたびに更新（`renderAnimeGlobalSummary`）。
 - **初期表示は前回のモードの最初の画面**（初回・保存できない環境では書籍の `PhotoImportView`）。モードはブラウザの `localStorage` に保存。
 
 ## 4.3 画面遷移
@@ -165,7 +167,8 @@
 |---|---|---|
 | 追加 | シリーズ名 `#newSeriesName` | 必須。ID は自動採番 |
 | 一覧 | SeriesID, シリーズ名 | `#seriesMasterTable` |
-| API | `getSeriesMaster` / `addSeriesMasterWeb` / `updateSeriesMaster` | |
+| 統合 | まとめるシリーズ `#seriesMergeFromInput` → 残すシリーズ `#seriesMergeToInput` | ツールバーの [統合]。同じシリーズが別名で登録されているときに使う。[統合する] は 2 回押しで確定（4 秒で戻る）。まとめるシリーズの作品・アニメ作品を残すシリーズに付け替え、まとめるシリーズは削除 |
+| API | `getSeriesMaster` / `addSeriesMasterWeb` / `updateSeriesMaster` / `mergeSeries` | |
 
 ### 4.6.2 作品マスタ管理（`TitleMasterView`）
 
@@ -342,7 +345,11 @@
 
 ### シリーズ別検索（`AnimeSeriesView`）
 
-アニメが登録されているシリーズだけを候補に出します（`#animeSeriesSelectInput`）。[表示] で、まとめ（期の件数と種別内訳・状況内訳・視聴話数の合計）と、期の表（作品 / 期 / 種別 / 視聴済話数 / 状況。作品の登録順→期の登録順）を表示。画面を開き直すと入力・結果をクリア（`SEARCH_VIEW_IDS`）。
+アニメが登録されているシリーズだけを候補に出します（`#animeSeriesSelectInput`）。[表示] で、まとめ（期の件数と種別内訳・状況内訳・視聴話数の合計）と、期の表（作品 / 期 / 種別 / 視聴済話数 / 状況。作品の登録順→期の登録順）を表示。続けて同じシリーズの書籍を「書籍（所持巻）」欄に表示（`getSeriesDetail` で作品ごとの所持巻を取得し、書籍のシリーズ別検索と同じ `formatOwnershipText` で「1〜5巻（抜け: 3巻）」の形にする）。画面を開き直すと入力・結果をクリア（`SEARCH_VIEW_IDS`）。
+
+### アニメ一覧（`AnimeListView`）
+
+すべての期を表で表示（作品 / 期 / 種別 / 話数 / 状況 / 更新日、30 件ずつ）。書籍の一覧と同じ `createListFilter` で、キーワード（作品・期・シリーズ名）と、状況・種別・シリーズの選択で絞り込み、見出しクリックで並べ替え（初期は作品名順）。視聴中断の期を探すときは状況で絞り込む。
 
 ### アニメ登録（`AnimeEntryView`）
 

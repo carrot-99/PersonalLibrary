@@ -6,6 +6,7 @@
   <div class="master-toolbar">
     <button onclick="toggleAddForm('seriesAddForm')">追加</button>
     <button onclick="toggleSearchForm('seriesSearchForm')">検索</button>
+    <button onclick="toggleSeriesMergeForm()">統合</button>
   </div>
 
   <!-- 追加フォーム（初期非表示） -->
@@ -18,6 +19,16 @@
   <div id="seriesSearchForm" class="master-form" style="display:none;">
     <input type="text" id="seriesSearchKeyword" placeholder="キーワード">
     <button onclick="filterSeries()">検索実行</button>
+  </div>
+
+  <!-- 統合フォーム（初期非表示）。左のシリーズを右のシリーズにまとめ、左は削除する -->
+  <div id="seriesMergeForm" class="master-form" style="display:none;">
+    <div class="series-merge-help">同じシリーズが別名で登録されているときに 1 つにまとめます。「まとめるシリーズ」の作品・アニメ作品を「残すシリーズ」に付け替え、「まとめるシリーズ」は削除します。</div>
+    <input id="seriesMergeFromInput" list="seriesMergeFromList" placeholder="まとめるシリーズ（削除される）" autocomplete="off">
+    <datalist id="seriesMergeFromList"></datalist>
+    <input id="seriesMergeToInput" list="seriesMergeToList" placeholder="残すシリーズ" autocomplete="off">
+    <datalist id="seriesMergeToList"></datalist>
+    <button type="button" id="seriesMergeButton" onclick="mergeSeriesFromForm()">統合する</button>
   </div>
 
   <!-- 一覧テーブル -->

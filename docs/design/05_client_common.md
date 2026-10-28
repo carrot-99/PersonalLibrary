@@ -57,6 +57,7 @@ callGAS(funcName, successHandler, ...args)
 | `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | ローディング表示 → `load*List(1)` |
 | 検索系 View | なし（候補は初期化時に構築済み） |
 | `AnimeWatchingView` / `AnimeSeriesView` / `AnimeEntryView` | `loadAnimeWatchingView()` / `loadAnimeSeriesView()` / `loadAnimeEntryView()`（いずれも `getAnimeData` で全件取得して描画） |
+| `AnimeListView` | `loadAnimeListView()`（`getAnimeData` で全件取得し `createListFilter` に渡す） |
 | `AnimeMasterView` / `AnimeSeasonMasterView` | `loadAnimeMaster()` / `loadAnimeSeasonMaster()` |
 
 ## 5.4 テーブル描画

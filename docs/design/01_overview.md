@@ -18,8 +18,9 @@
 | マスタ管理 | シリーズ／作品／Box の追加・検索・インライン編集、書籍の追加（巻数の範囲・複数指定による一括登録） |
 | 写真で確認・登録 | 本の表紙・背表紙の写真（最大 5 枚）を AI（Anthropic Messages API）で解析し、持っている巻か・買うと続きになるかを判定（書店での確認用）。持っていない本はそのまま確認のうえ一括登録 |
 | 欲しい巻リスト | 買いたい巻を記録（作品＋巻数式）。写真で確認・登録の確認結果からも追加でき、登録すると自動でリストから外れる |
-| アニメ | 視聴したアニメを作品・期（TV の各期・OVA・劇場版）単位で記録。視聴中の一覧（+1話・視聴済・中断）、シリーズ別検索（シリーズは書籍と共通）、登録、作品・期のマスタ管理。サイドメニュー先頭の切り替えで書籍とアニメのメニューを出し分ける |
+| アニメ | 視聴したアニメを作品・期（TV の各期・OVA・劇場版）単位で記録。視聴中の一覧（+1話・視聴済・中断）、シリーズ別検索（シリーズは書籍と共通。同じシリーズの書籍の所持巻も表示）、アニメ一覧（状況・種別・シリーズで絞り込み）、登録、作品・期のマスタ管理。サイドメニュー先頭の切り替えで書籍とアニメのメニューを出し分ける |
 | 常時表示（書籍モード） | 所蔵サマリー（所蔵冊数・漫画/ラノベ別冊数・作品数・Box 数・最新登録日）、最近追加した書籍（10 件） |
+| 常時表示（アニメモード） | アニメのサマリー（状況別の期数・登録作品数・視聴話数の合計） |
 
 ## 1.2 システム構成
 
@@ -84,7 +85,7 @@ PersonalLibrary/
         ├── title/    Title.html(JS)   / TitleView / TitleListView / TitleMasterView
         ├── series/   Series.html(JS)  / SeriesView / SeriesListView / SeriesMasterView
         ├── box/      Box.html(JS)     / BoxView / BoxListView / BoxMasterView
-        └── anime/    Anime.html(JS)   / AnimeWatchingView / AnimeSeriesView / AnimeEntryView / AnimeMasterView / AnimeSeasonMasterView
+        └── anime/    Anime.html(JS)   / AnimeWatchingView / AnimeSeriesView / AnimeListView / AnimeEntryView / AnimeMasterView / AnimeSeasonMasterView
 ```
 
 ### 命名規約（現行実装から抽出）

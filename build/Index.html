@@ -40,6 +40,15 @@
               <div class="summary-item compact">最新登録<strong id="libraryGlobalLastAdded">-</strong></div>
             </div>
 
+            <div class="top-summary-panel anime-only">
+              <div class="summary-item compact">視聴済<strong id="animeGlobalDone">0</strong></div>
+              <div class="summary-item compact">視聴中<strong id="animeGlobalWatching">0</strong></div>
+              <div class="summary-item compact">視聴中断<strong id="animeGlobalDropped">0</strong></div>
+              <div class="summary-item compact">視聴予定<strong id="animeGlobalPlanned">0</strong></div>
+              <div class="summary-item compact">登録作品数<strong id="animeGlobalWorks">0</strong></div>
+              <div class="summary-item compact">視聴話数<strong id="animeGlobalEpisodes">0</strong></div>
+            </div>
+
             <div class="content-area">
               <div id="tabContent">
                 <?!= include('PhotoImportView') ?>
@@ -57,6 +66,7 @@
                 <?!= include('BoxMasterView') ?>
                 <?!= include('AnimeWatchingView') ?>
                 <?!= include('AnimeSeriesView') ?>
+                <?!= include('AnimeListView') ?>
                 <?!= include('AnimeEntryView') ?>
                 <?!= include('AnimeMasterView') ?>
                 <?!= include('AnimeSeasonMasterView') ?>

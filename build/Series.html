@@ -66,6 +66,62 @@ function loadSeriesMaster(){
 }
 
 //////////////////////////////
+// 統合（同じシリーズの別名を 1 つにまとめる）
+//////////////////////////////
+let seriesMergeConfirmTimer = null;
+
+function toggleSeriesMergeForm(){
+  if(!toggleMasterForm('seriesMergeForm')) return;
+  const series = masterCache.series || [];
+  ['seriesMergeFromInput', 'seriesMergeToInput'].forEach(id => {
+    document.getElementById(id).value = '';
+    populateAutocomplete(id, series, s => s.name, 'id', id === 'seriesMergeFromInput' ? 'まとめるシリーズ（削除される）' : '残すシリーズ');
+  });
+  resetSeriesMergeButton();
+}
+
+function resetSeriesMergeButton(){
+  clearTimeout(seriesMergeConfirmTimer);
+  const btn = document.getElementById('seriesMergeButton');
+  btn.classList.remove('is-confirm');
+  btn.textContent = '統合する';
+  btn.disabled = false;
+}
+
+// 1 回目で確認表示、4 秒以内にもう一度押すと実行
+function mergeSeriesFromForm(){
+  const fromId = getAutocompleteValue('seriesMergeFromInput');
+  const toId = getAutocompleteValue('seriesMergeToInput');
+  if(!fromId || !toId) return showError('シリーズを候補から選択してください');
+  if(fromId === toId) return showError('同じシリーズは統合できません');
+
+  const btn = document.getElementById('seriesMergeButton');
+  if(!btn.classList.contains('is-confirm')){
+    const fromName = document.getElementById('seriesMergeFromInput').value.trim();
+    const toName = document.getElementById('seriesMergeToInput').value.trim();
+    btn.classList.add('is-confirm');
+    btn.textContent = `「${fromName}」を「${toName}」に統合（もう一度押す）`;
+    seriesMergeConfirmTimer = setTimeout(resetSeriesMergeButton, 4000);
+    return;
+  }
+
+  clearTimeout(seriesMergeConfirmTimer);
+  btn.disabled = true;
+  callGAS('mergeSeries', function(res){
+    resetSeriesMergeButton();
+    if(res && res.success){
+      showSuccess(res.message);
+      document.getElementById('seriesMergeFromInput').value = '';
+      document.getElementById('seriesMergeToInput').value = '';
+      loadSeriesMaster();
+      refreshMasterData();
+    } else {
+      showError(res && res.message ? res.message : '統合に失敗しました');
+    }
+  }, fromId, toId);
+}
+
+//////////////////////////////
 // 追加
 //////////////////////////////
 function addSeriesMaster(){
@@ -96,6 +152,8 @@ function filterSeries(){
 window.showSeries = showSeries;
 window.loadSeriesList = loadSeriesList;
 window.loadSeriesMaster = loadSeriesMaster;
+window.toggleSeriesMergeForm = toggleSeriesMergeForm;
+window.mergeSeriesFromForm = mergeSeriesFromForm;
 window.addSeriesMaster = addSeriesMaster;
 window.filterSeries = filterSeries;
 </script>

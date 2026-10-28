@@ -1,7 +1,7 @@
 <!-- Navbar.html -->
 <div class="mode-switch" role="group" aria-label="管理対象の切り替え">
-  <button type="button" data-mode="book" onclick="setAppMode('book'); closeSidebar();">📚 書籍</button>
-  <button type="button" data-mode="anime" onclick="setAppMode('anime'); closeSidebar();">📺 アニメ</button>
+  <button type="button" data-mode="book" onclick="setAppMode('book');">📚 書籍</button>
+  <button type="button" data-mode="anime" onclick="setAppMode('anime');">📺 アニメ</button>
 </div>
 
 <div class="tab-group entry-group book-only">
@@ -50,9 +50,10 @@
 </div>
 
 <div class="tab-group anime-group anime-only">
-  <div class="tab-title">検索</div>
+  <div class="tab-title">検索・一覧</div>
   <div class="tabs anime-tabs">
     <button data-tab="AnimeSeriesView" onclick="showTab('AnimeSeriesView'); closeSidebar();">シリーズ別検索</button>
+    <button data-tab="AnimeListView" onclick="showTab('AnimeListView'); closeSidebar();">アニメ一覧</button>
   </div>
 </div>
 
