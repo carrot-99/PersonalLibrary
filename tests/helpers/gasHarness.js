@@ -136,6 +136,8 @@ function formatDate(date, timeZone, pattern){
 // サーバーコードの読み込み
 // sheets: { シート名: [[ヘッダー...], [値...], ...] }
 // options.lockAvailable: false でロック取得失敗を再現
+// options.properties: スクリプトプロパティ、options.fetch: UrlFetchApp.fetch の差し替え、options.cache: キャッシュの初期値（[[キー, 値], ...]）
+// 戻り値の cache.store でスクリプトキャッシュの中身を確認できる
 // 戻り値: { gas: サーバーの関数群（vm のグローバル）, ss: FakeSpreadsheet, lock }
 // ----------------------
 function loadServer(sheets, options = {}){
@@ -152,6 +154,12 @@ function loadServer(sheets, options = {}){
     releaseLock(){ this.held = false; }
   };
   const logs = [];
+  // スクリプトキャッシュ（有効期限は見ない）。cache.store で中身を確認できる
+  const cache = {
+    store: new Map(options.cache || []),
+    get(key){ return this.store.has(key) ? this.store.get(key) : null; },
+    put(key, value){ this.store.set(key, value); }
+  };
 
   const context = vm.createContext({
     // Date はテスト側と共有する（instanceof Date の判定をそろえるため）
@@ -165,9 +173,11 @@ function loadServer(sheets, options = {}){
     PropertiesService: {
       getScriptProperties: () => ({ getProperty: key => (options.properties || {})[key] || null })
     },
+    // options.fetch: (url, params) => { getResponseCode, getContentText } で外部 API の応答を差し替える
     UrlFetchApp: {
-      fetch: () => { throw new Error('テストでは外部通信しません'); }
+      fetch: options.fetch || (() => { throw new Error('テストでは外部通信しません'); })
     },
+    CacheService: { getScriptCache: () => cache },
     HtmlService: {
       createHtmlOutputFromFile: () => ({ getContent: () => '' })
     }
@@ -177,7 +187,7 @@ function loadServer(sheets, options = {}){
     vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
   });
 
-  return { gas: context, ss, lock, logs };
+  return { gas: context, ss, lock, logs, cache };
 }
 
 // ----------------------

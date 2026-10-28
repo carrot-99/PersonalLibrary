@@ -1068,6 +1068,18 @@
   .anime-entry-panel > select { width: 100%; background: #111827; color: #f3f4f6; border: 1px solid #374151; }
   .anime-entry-panel #animeEntrySeriesRow > input { width: 100%; background: #111827; color: #f3f4f6; border: 1px solid #374151; }
   .anime-entry-hint { font-size: 0.85rem; color: #f9a8d4; }
+  .anime-entry-source { font-size: 0.85rem; color: #fde68a; }
+  .anime-entry-source:empty { display: none; }
+  .anime-season-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .anime-season-title { font-size: 1.1rem; min-width: 8em; text-align: center; }
+  .anime-season-button { margin: 0; padding: 6px 12px; box-shadow: none; }
+  .anime-season-refresh { margin-left: auto; background: #374151; }
+  #animeSeasonTable .anime-action { padding: 4px 12px; }
+  #AnimeSeasonView .photo-import-note a { color: #f9a8d4; }
+  /* スマホ幅では視聴者数（Annict の人気順の目安）を隠して [登録] まで収める */
+  @media (max-width: 720px) {
+    #animeSeasonTable th:nth-child(4), #animeSeasonTable td:nth-child(4) { display: none; }
+  }
 
   /* 所持状況（作品表示） */
   .ownership-summary {

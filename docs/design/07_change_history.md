@@ -30,6 +30,7 @@
 | 2026-10-29 | 1.23 | 自動テストを導入（`npm test`、Node 標準の `node:test`。`tests/helpers/gasHarness.js` で GAS サービスとスプレッドシートをフェイク化し、サーバーの各サービスとクライアントの巻数式・所持巻集計をテスト）。テストで見つかった `getIdNumber` の不具合を B-7 として追記、C-4 を更新 |
 | 2026-10-29 | 1.24 | CI を導入（GitHub Actions `.github/workflows/test.yml`。PR と main への push で `npm test` を実行し、main へのマージ条件に設定） |
 | 2026-10-29 | 1.25 | 不具合 B-7 を修正（`getIdNumber` の正規表現の `\d` 抜け。最近追加・最終追加日で、同じ日に登録した書籍が ID の大きい順に並ぶように）。06 章から削除 |
+| 2026-10-29 | 1.26 | 今期のアニメ一覧（`AnimeSeasonView`）を追加。Annict API から期の作品を取得（スクリプトプロパティ `ANNICT_ACCESS_TOKEN`、6 時間キャッシュ）して登録状況を照合し、[登録] で登録フォームを Annict の情報入りで開いて確認してから登録。前後の期への移動。API `getCurrentSeasonAnimeWeb`・接続確認 `testAnnictConnection` を追加。06 章の機能拡張候補から削除し、R-16（Annict への依存）を追記 |
 
 ## 7.2 機能の変遷（Git 履歴より）
 

@@ -17,7 +17,7 @@
 | 一覧・管理 | シリーズ一覧（書籍・アニメ共通。書籍の作品数・アニメの期数付き）、作品一覧、箱一覧、書籍一覧。絞り込み・並べ替え・ページングに加え、各一覧で追加・インライン編集（書籍は削除も）を行う。書籍の追加は巻数の範囲・複数指定による一括登録に対応。シリーズ一覧では別名のシリーズを統合 |
 | 写真で確認・登録 | 本の表紙・背表紙の写真（最大 5 枚）を AI（Anthropic Messages API）で解析し、持っている巻か・買うと続きになるかを判定（書店での確認用）。持っていない本はそのまま確認のうえ一括登録 |
 | 欲しい巻リスト | 買いたい巻を記録（作品＋巻数式）。写真で確認・登録の確認結果からも追加でき、登録すると自動でリストから外れる |
-| アニメ | 視聴したアニメを作品・期（TV の各期・OVA・劇場版）単位で記録。視聴中の一覧（+1話・視聴済・中断。アニメの登録もこの画面から）、アニメ一覧（期ごと／作品ごとに切り替え、絞り込み・インライン編集・期の削除）、登録。シリーズは書籍と共通で、シリーズ一覧・詳細は両方のモードから開く。サイドメニュー先頭の切り替えで書籍とアニメのメニューを出し分ける |
+| アニメ | 視聴したアニメを作品・期（TV の各期・OVA・劇場版）単位で記録。視聴中の一覧（+1話・視聴済・中断。アニメの登録もこの画面から）、今期のアニメ（Annict から取得した期の作品一覧。登録状況の表示と、[登録] で登録フォームを開いて確認してから登録）、アニメ一覧（期ごと／作品ごとに切り替え、絞り込み・インライン編集・期の削除）、登録。シリーズは書籍と共通で、シリーズ一覧・詳細は両方のモードから開く。サイドメニュー先頭の切り替えで書籍とアニメのメニューを出し分ける |
 | 常時表示（書籍モード） | 所蔵サマリー（所蔵冊数・漫画/ラノベ別冊数・作品数・Box 数・最新登録日）、最近追加した書籍（10 件） |
 | 常時表示（アニメモード） | アニメのサマリー（状況別の期数・登録作品数・視聴話数の合計） |
 
@@ -38,6 +38,7 @@
 │  *Service.js       各シートの取得／追加／更新 API                    │
 │  LibrarySummary.gs 所蔵サマリー集計                                 │
 │  PhotoImportService.js 写真解析・作品照合・一括登録 ──UrlFetchApp──┼──▶ Anthropic Messages API
+│  AnimeSeasonService.js 今期のアニメ一覧 ─────────────UrlFetchApp──┼──▶ Annict API
 │                     │  SpreadsheetApp                               │
 └─────────────────────┼──────────────────────────────────────────────┘
                       ▼
@@ -52,6 +53,7 @@
 - **外部依存**:
   - Bootstrap 5.3.2 の CSS（`cdn.jsdelivr.net`）。JS ライブラリは使用していません。
   - Anthropic Messages API（`https://api.anthropic.com/v1/messages`）。写真から登録機能のみで使用。サーバー（GAS）から `UrlFetchApp` で呼び出し、API キーはクライアントに渡しません。
+  - Annict API（`https://api.annict.com/v1/works`）。今期のアニメ一覧のみで使用。サーバーから `UrlFetchApp` で呼び出し、アクセストークンはクライアントに渡しません。
 
 ## 1.3 ディレクトリ構成
 
@@ -73,6 +75,7 @@ PersonalLibrary/
     │   ├── PhotoImportService.js 写真解析（AI）・作品照合・一括登録 API
     │   ├── WishService.js       M_Wish（欲しい巻リスト）関連 API
     │   ├── AnimeService.js      M_Anime / M_AnimeSeason / M_AnimeWatch（アニメ）関連 API
+    │   ├── AnimeSeasonService.js 今期のアニメ一覧（Annict API から取得・登録状況の照合）
     │   └── Code.js              旧実装（全行コメントアウト済み）
     └── client/              クライアントサイド（HTML テンプレート）
         ├── Index.html           ベースレイアウト
@@ -84,7 +87,7 @@ PersonalLibrary/
         ├── title/    Title.html(JS)   / TitleView / TitleListView
         ├── series/   Series.html(JS)  / SeriesView / SeriesListView
         ├── box/      Box.html(JS)     / BoxView / BoxListView
-        └── anime/    Anime.html(JS)   / AnimeWatchingView / AnimeListView
+        └── anime/    Anime.html(JS)   / AnimeWatchingView / AnimeSeasonView / AnimeListView
 ```
 
 ### 命名規約（現行実装から抽出）
@@ -130,15 +133,16 @@ node build.js
 
 ### スクリプトプロパティ
 
-写真から登録機能で使用します（Apps Script エディタの「プロジェクトの設定 → スクリプト プロパティ」で設定）。
+写真から登録機能と今期のアニメ一覧で使用します（Apps Script エディタの「プロジェクトの設定 → スクリプト プロパティ」で設定）。
 
 | キー | 必須 | 既定値 | 内容 |
 |---|---|---|---|
 | `ANTHROPIC_API_KEY` | ○ | — | Anthropic API キー。未設定時は解析がエラーになる |
 | `ANTHROPIC_MODEL` | — | `claude-sonnet-5-5` | 解析に使用するモデル |
 | `ANTHROPIC_EFFORT` | — | `medium` | `output_config.effort` の値 |
+| `ANNICT_ACCESS_TOKEN` | ○（今期のアニメ） | — | Annict の個人用アクセストークン（スコープは読み取りのみ）。未設定時は今期のアニメがエラーになる |
 
-初回は Apps Script エディタから `testAnthropicConnection()` を実行し、外部通信の権限承認と API キー・モデル設定の疎通確認を行います。
+初回は Apps Script エディタから `testAnthropicConnection()` を実行し、外部通信の権限承認と API キー・モデル設定の疎通確認を行います。今期のアニメは `testAnnictConnection()` でトークンの疎通確認を行います。
 
 ## 1.6 非機能面の前提
 

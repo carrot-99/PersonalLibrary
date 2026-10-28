@@ -66,6 +66,7 @@ callGAS(funcName, successHandler, ...args)
 | `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | ローディング表示 → `load*List(1)`（書籍一覧は追加フォームの候補 `loadLibraryAddForm()` も） |
 | 検索系 View | なし（候補は初期化時に構築済み） |
 | `AnimeWatchingView` | `loadAnimeWatchingView()`（`getAnimeData` で全件取得し、カードを描画して登録フォームの候補を設定 `setupAnimeEntryForm`） |
+| `AnimeSeasonView` | `loadAnimeSeasonView()`（今期に戻して `getCurrentSeasonAnimeWeb` で Annict の作品と `getAnimeData` の結果を取得し、一覧と登録フォームの候補を設定） |
 | `AnimeListView` | `loadAnimeListView()`（`getAnimeData` で全件取得し、期ごと・作品ごとの 2 つの `createListFilter` に渡す） |
 
 ## 5.4 テーブル描画
@@ -84,7 +85,7 @@ callGAS(funcName, successHandler, ...args)
 
 `options = { tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable, idKey }`
 
-- `columns` は列キーの配列、または `createListFilter` の列定義（`{ key, edit, link }`）の配列。`link: row => 処理` の列はセルをリンクにする（値が空ならリンクなし）。
+- `columns` は列キーの配列、または `createListFilter` の列定義（`{ key, edit, link, button }`）の配列。`link: row => 処理` の列はセルをリンクにする（値が空ならリンクなし）。`button: row => { label, onClick(btn), className? }` の列はセルにボタンを置く（`null` を返した行は空欄。既定のクラスは `anime-action`。見出しは並べ替えの対象外）。
 - `idKey` を指定すると各行の `tr` に `data-id` を設定（編集・削除でサーバーに渡す ID）。
 - `editable` のとき、`edit` 指定の列のセルに編集の初期値 `data-edit-value`（省略・整形前の値）を設定。
 
@@ -187,7 +188,7 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | 変数 | 定義 | 内容 |
 |---|---|---|
 | `masterCache` | `Common.html` | `series` はシリーズ一覧の取得結果（統合フォームの候補に使用）。`titleOptions` は選択肢用の作品一覧（`populateTitle` で保持。作品表示の完結状態判定に使用） |
-| `titleListFilter` / `seriesListFilter` / `boxListFilter` / `libraryListFilter` / `animeListFilter` / `animeWorkListFilter` | `Title.html` / `Series.html` / `Box.html` / `Library.html` / `Anime.html` | 各一覧の `createListFilter` インスタンス（初回表示時に作成し、絞り込み条件・並び順を保持） |
+| `titleListFilter` / `seriesListFilter` / `boxListFilter` / `libraryListFilter` / `animeListFilter` / `animeWorkListFilter` / `animeSeasonFilter` | `Title.html` / `Series.html` / `Box.html` / `Library.html` / `Anime.html` | 各一覧の `createListFilter` インスタンス（初回表示時に作成し、絞り込み条件・並び順を保持） |
 | `animeState` | `Anime.html` | `getAnimeData` の結果（`anime`, `seasons`, `series`）。アニメ画面を開くたびに再取得。`animeListMode` はアニメ一覧の表示単位（`season` / `work`） |
 | `listEditConfigs` | `Common.html` | 一覧のインライン編集の設定（テーブル ID → `{ columns, update, remove, onSaved }`） |
 | `messageTimeout` | `Common.html` | 通知自動消去タイマー |
@@ -223,7 +224,7 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | オプション | 内容 |
 |---|---|
 | `tableId` | 対象テーブル。直前に絞り込み欄（`.list-filter`）を作る |
-| `columns` | `[{ key, compare?, edit?, editOptions?, link? }]`。テーブルの列順。`link` で詳細画面へのリンク。`edit`（`true` または行から初期値を返す関数）で編集対象、`editOptions` で選択式。`compare(a, b)` を省略すると値で比較（数値なら数値、それ以外は日本語の自然順） |
+| `columns` | `[{ key, compare?, edit?, editOptions?, link?, button? }]`。テーブルの列順。`link` で詳細画面へのリンク、`button` で行ごとの操作ボタン（上記 5.4）。`edit`（`true` または行から初期値を返す関数）で編集対象、`editOptions` で選択式。`compare(a, b)` を省略すると値で比較（数値なら数値、それ以外は日本語の自然順） |
 | `keywordKeys` | キーワードの検索対象のキー |
 | `filters` | `[{ key, label, options? }]`。選択式の絞り込み。`options` 省略時は行の値から選択肢を作る（「ラベル: すべて」が先頭） |
 | `defaultSort` | 初期の並び `{ key, dir }` |

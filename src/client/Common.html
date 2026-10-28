@@ -125,6 +125,7 @@ function showTab(tabId){
     BoxListView: function(){ showInlineLoading('BoxListView', '読み込み中...'); loadBoxList(1); },
     LibraryListView: function(){ showInlineLoading('LibraryListView', '読み込み中...'); loadLibraryList(1); loadLibraryAddForm(); },
     AnimeWatchingView: loadAnimeWatchingView,
+    AnimeSeasonView: loadAnimeSeasonView,
     AnimeListView: loadAnimeListView
   };
 
@@ -412,7 +413,7 @@ function renderTableReadOnly(tableId, data, columns, links = {}) {
 function renderPagedTableDOM(options){
   // options:
   // tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable, idKey
-  // columns: 列キーの配列、または createListFilter の列定義（{ key, edit, link }）の配列
+  // columns: 列キーの配列、または createListFilter の列定義（{ key, edit, link, button }）の配列
 
   const { tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable, idKey } = options;
 
@@ -428,6 +429,21 @@ function renderPagedTableDOM(options){
       const td = document.createElement('td');
       const rawValue = row[col] ?? '';
       const text = getDisplayTableValue(rawValue, col);
+      // 列定義の button: row => { label, onClick(btn), className } または null（行ごとの操作ボタン）
+      if(column.button){
+        const action = column.button(row);
+        if(action){
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = action.className || 'anime-action';
+          btn.textContent = action.label;
+          btn.onclick = function(){ action.onClick(btn); };
+          td.appendChild(btn);
+        }
+        td.dataset.field = col;
+        tr.appendChild(td);
+        return;
+      }
       // 列定義の link: row => 処理（詳細画面へのリンク）
       if(column.link && String(rawValue) !== ''){
         td.appendChild(createCellLink(text, () => column.link(row)));
@@ -1130,7 +1146,7 @@ function createListFilter(options){
   const headers = Array.from(table.querySelectorAll('thead th'));
   headers.forEach((th, index) => {
     const column = options.columns[index];
-    if(!column) return;
+    if(!column || column.button) return;
     th.classList.add('sortable');
     th.onclick = function(){
       if(state.sort && state.sort.key === column.key){

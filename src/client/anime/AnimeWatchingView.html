@@ -8,8 +8,11 @@
   </div>
 
   <!-- 登録フォーム（初期非表示）。登録後も開いたままにして続けて登録できる -->
+  <!-- 今期のアニメの [登録] では、このフォームを今期のアニメの画面（#animeSeasonEntryHost）へ移して使う -->
+  <div id="animeEntryHost">
   <div id="animeEntryForm" class="master-form anime-entry-panel" style="display:none;">
     <p class="photo-import-note">作品（例: オーバーロード）の下に、期（TV の各期・OVA・劇場版）を 1 件ずつ登録します。新しい作品のときはシリーズも指定できます（空欄なら作品名と同じシリーズ。書籍と共通）。</p>
+    <div id="animeEntrySource" class="anime-entry-source"></div>
     <input id="animeEntryAnimeInput" list="animeEntryAnimeList" placeholder="作品名">
     <datalist id="animeEntryAnimeList"></datalist>
     <div id="animeEntryHint" class="anime-entry-hint"></div>
@@ -32,6 +35,7 @@
       <option value="視聴中断">視聴中断</option>
     </select>
     <button id="animeEntryButton" type="button" onclick="addAnimeSeasonFromForm()">登録する</button>
+  </div>
   </div>
 
   <div id="animeWatchingSummary" class="photo-import-summary"></div>

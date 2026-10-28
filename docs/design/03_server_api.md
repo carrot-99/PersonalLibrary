@@ -419,6 +419,31 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 
 ---
 
+## 3.9.2 今期のアニメ（`server/AnimeSeasonService.js`）
+
+Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を取得し、登録済みのアニメと照合します。登録そのものは画面の登録フォームから `addAnimeSeasonWeb` で行います（この API はシートに書き込まない）。
+
+| 定数 `ANNICT` | 値 | 内容 |
+|---|---|---|
+| `TOKEN_PROPERTY` | `ANNICT_ACCESS_TOKEN` | アクセストークンのスクリプトプロパティ名（`Authorization: Bearer` で送る） |
+| `FIELDS` | `id,title,media,media_text,season_name,episodes_count,watchers_count` | 取得する項目（`fields`） |
+| `PER_PAGE` / `MAX_PAGES` | 50 / 10 | 1 ページの件数と最大ページ数（1 期最大 500 作品） |
+| `CACHE_SECONDS` | 6 時間 | 取得結果をスクリプトキャッシュ（`CacheService`、キー `annictSeason:<期>`）に保存する時間 |
+
+| 関数 | 内容 |
+|---|---|
+| `getCurrentSeasonAnimeWeb(seasonKey, forceRefresh)` | 画面用。`seasonKey` は Annict の期の表記（例: `2026-autumn`、空欄なら今期）。`forceRefresh` が true ならキャッシュを使わず取得し直す。戻り値 `{ success, season, seasonText（例: 2026年秋）, isCurrent, prevSeason, nextSeason, fetchedAt, works, animeData }`。`animeData` は `getAnimeData()`（登録フォームの候補用）。`works` は `[{ annictId, title, type, mediaText, episodesCount, watchers, url, registered, seasonId, status, suggestedAnimeName, existingAnime }]`（Annict の視聴者数の多い順）。エラー: トークン未設定 / 期の表記が不正 / トークン無効（401）/ その他の HTTP エラー / 通信失敗 |
+| `testAnnictConnection()` | 接続確認（**GAS エディタから手動実行**）。外部通信の権限承認とトークンの確認用。今期の 1 ページ目の件数と先頭 5 件をログに出す |
+
+- 期: 1〜3 月が冬（`winter`）、4〜6 月が春（`spring`）、7〜9 月が夏（`summer`）、10〜12 月が秋（`autumn`）。Annict の期は「その期に始まった作品」で、前の期から続く作品は含まない。
+- 種別: Annict の `media` が `tv` → `TV`、`ova` → `OVA`、`movie` → `劇場版`、それ以外（`web` / `other`）→ `その他`。話数（`episodesCount`）は Annict の全話数（0 は空文字）。
+- 登録済みの判定（`matchSeasonWorks`）: 期名（`M_AnimeSeason` の 3 列目）とタイトルを `normalizeTitleForMatch` で比べ、一致する期があれば `registered: true` とその期の状況。登録状況はキャッシュせず毎回シートと照合する。
+- 作品名の候補（`suggestedAnimeName`）: 未登録の作品は、タイトルが登録済み作品の名前で始まればその作品（正規化して最長一致、`existingAnime: true`）、なければタイトルから「第2期」「Season 2」「2nd Season」「The Final Season」「Part 2」などを除いた名前（`guessAnimeBaseName`）。
+
+内部関数: `getAnnictSeasonKey(date)` / `parseAnnictSeasonKey(key)` / `shiftAnnictSeason(key, offset)` / `formatAnnictSeason(key)`（期の計算）、`getAnnictSeasonWorks(seasonKey, token, forceRefresh)`（キャッシュと全ページ取得）、`fetchAnnictWorksPage(seasonKey, page, token)`（1 ページ取得）、`toSeasonWork(raw)`（画面用に変換。タイトルのない作品は除く）。
+
+---
+
 ## 3.10 API 呼び出し元一覧
 
 | API | 呼び出し元（クライアント関数） |
@@ -446,7 +471,9 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | 作品追加パネルの「追加して選択」 / `registerPhotoImport` |
 | `getTitles`, `addBulkVolumesWeb`, `getOwnedVolumesByTitle` | サーバー内部から使用（`analyzeBookSpines`, `bulkAddLibraryFromPhoto`） |
 | `testAnthropicConnection` | Apps Script エディタから手動実行 |
-| `getAnimeData` | `loadAnimeData`（視聴中の一覧・アニメ一覧）。サーバー内部から `getSeriesListWithCounts` / `getSeriesOverview` |
+| `getAnimeData` | `loadAnimeData`（視聴中の一覧・アニメ一覧）。サーバー内部から `getSeriesListWithCounts` / `getSeriesOverview` / `getCurrentSeasonAnimeWeb` |
+| `getCurrentSeasonAnimeWeb` | `fetchAnimeSeason`（今期のアニメ。メニューから開いたとき・[◀ 前の期] [次の期 ▶]・[最新の情報を取得]・登録後） |
+| `testAnnictConnection` | Apps Script エディタから手動実行 |
 | `addAnimeSeasonWeb` / `updateAnimeWatch` / `deleteAnimeSeason` | `addAnimeSeasonFromForm` / `updateAnimeWatchFromCard` / `deleteListRow`（アニメ一覧・期ごとの [削除]） |
 | `updateAnimeMaster` / `updateAnimeSeasonMaster` | `saveEdit`（アニメ一覧の `animeWorkListTable` / `animeListTable`） |
 | `importLegacyAnime` | Apps Script エディタから手動実行 |

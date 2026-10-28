@@ -250,10 +250,19 @@ GAS エディタ → プロジェクトの設定 → **スクリプト プロパ
 | `ANTHROPIC_API_KEY` | ○ | 写真からの一括登録（`PhotoImportService.js`）で使う Anthropic API キー。<https://console.anthropic.com/> で発行 |
 | `ANTHROPIC_MODEL` | - | 使うモデル。省略時 `claude-sonnet-5-5` |
 | `ANTHROPIC_EFFORT` | - | 推論の effort。省略時 `medium` |
+| `ANNICT_ACCESS_TOKEN` | ○ | 今期のアニメ（`AnimeSeasonService.js`）で使う Annict の個人用アクセストークン。下記「Annict のトークン」参照 |
 
 - 予算目安: 月 100 円以内（月 5 回程度の利用で Sonnet なら約 30 円）。精度が足りなければ `ANTHROPIC_MODEL` を上位モデルに、コストを下げたいなら下位モデルに変える（コード変更不要）
 - 接続確認: GAS エディタで関数 `testAnthropicConnection` を選んで実行
 - API キーが漏れた／失効したら Anthropic Console で再発行してプロパティを差し替える
+
+#### Annict のトークン
+
+1. <https://annict.com/> にログインし、設定 → アプリ → **個人用アクセストークン** で「新しいトークンを生成」（スコープは「読み込みのみ」）
+2. 表示されたトークンをスクリプトプロパティ `ANNICT_ACCESS_TOKEN` に保存
+3. GAS エディタで関数 `testAnnictConnection` を選んで実行（初回は外部通信の権限を承認）。ログに今期の件数と作品名が出れば OK
+- 取得結果はスクリプトキャッシュに 6 時間保存する。すぐ取り直したいときは画面の [最新の情報を取得]
+- トークンが漏れたら Annict の同じ画面で削除して作り直し、プロパティを差し替える
 
 ### アニメの旧管理表を取り込む（初回 1 回だけ）
 
@@ -295,6 +304,7 @@ GAS エディタ → プロジェクトの設定 → **スクリプト プロパ
 | 写真一括登録で「ANTHROPIC_API_KEY が設定されていません」 | スクリプトプロパティを設定する（「3」参照） |
 | 写真一括登録で 401 / 403 | API キーが無効。再発行して差し替える |
 | 写真一括登録で 404 / model not found | `ANTHROPIC_MODEL` のモデル名が古い。プロパティを削除するか現行モデル名にする |
+| 今期のアニメで「ANNICT_ACCESS_TOKEN が設定されていません」／「アクセストークンが無効」 | トークンを発行・再発行してスクリプトプロパティに保存する（「3」の「Annict のトークン」参照） |
 | スプレッドシートの ID がずれた・重複した | ID 採番は「最終行の ID + 1」。**シートを並べ替えない**こと（下記「5」） |
 
 ---

@@ -18,10 +18,7 @@ function loadAnimeData(viewId, onLoaded){
   google.script.run
     .withSuccessHandler(function(data){
       hideInlineLoading(viewId);
-      animeState.anime = (data && data.anime) || [];
-      animeState.seasons = (data && data.seasons) || [];
-      animeState.series = (data && data.series) || [];
-      renderAnimeGlobalSummary(data);
+      setAnimeState(data);
       onLoaded();
     })
     .withFailureHandler(function(error){
@@ -29,6 +26,13 @@ function loadAnimeData(viewId, onLoaded){
       showError(error && error.message ? error.message : 'アニメの読み込みに失敗しました');
     })
     .getAnimeData();
+}
+
+function setAnimeState(data){
+  animeState.anime = (data && data.anime) || [];
+  animeState.seasons = (data && data.seasons) || [];
+  animeState.series = (data && data.series) || [];
+  renderAnimeGlobalSummary(data);
 }
 
 // 上部のアニメサマリー（アニメモードで常時表示。アニメ画面でデータを取得するたびに更新）
@@ -70,6 +74,7 @@ function toAnimeSeasonRow(season){
 // 視聴中の一覧（＋視聴予定）。登録フォームもこの画面に置く
 //////////////////////////////
 function loadAnimeWatchingView(){
+  placeAnimeEntryForm('animeEntryHost', loadAnimeWatchingView);
   loadAnimeData('AnimeWatchingView', function(){
     renderAnimeWatching();
     setupAnimeEntryForm();
@@ -168,6 +173,137 @@ function updateAnimeWatchFromCard(btn, season, episodes, status){
 }
 
 //////////////////////////////
+// 今期のアニメ（Annict から取得。getCurrentSeasonAnimeWeb）
+// [登録] で登録フォームをこの画面へ移して開き、内容を確認してから登録する
+//////////////////////////////
+let animeSeasonFilter = null;
+let animeSeasonKey = '';     // 表示する期（例: 2026-autumn。空欄なら今期）
+let animeSeasonInfo = null;  // getCurrentSeasonAnimeWeb の結果
+
+// メニューから開いたときは今期を表示
+function loadAnimeSeasonView(){
+  animeSeasonKey = '';
+  fetchAnimeSeason(false);
+}
+
+function fetchAnimeSeason(forceRefresh){
+  if(!animeSeasonFilter){
+    animeSeasonFilter = createListFilter({
+      tableId: 'animeSeasonTable',
+      pageSize: 50,
+      columns: [
+        { key: 'title', link: row => window.open(row.url, '_blank', 'noopener') },
+        { key: 'type' },
+        { key: 'episodes', compare: (a, b) => (Number(a.episodesCount) || 0) - (Number(b.episodesCount) || 0) },
+        { key: 'watchers' },
+        { key: 'registered' },
+        { key: 'action', button: row => row.work.registered ? null : { label: '登録', onClick: () => openAnimeEntryFromSeason(row.work) } }
+      ],
+      keywordKeys: ['title'],
+      filters: [
+        { key: 'type', label: '種別', options: ANIME_TYPE_OPTIONS },
+        { key: 'registered', label: '登録' }
+      ],
+      defaultSort: { key: 'watchers', dir: 'desc' }
+    });
+  }
+
+  const buttons = document.querySelectorAll('#AnimeSeasonView .anime-season-button');
+  buttons.forEach(b => b.disabled = true);
+  showInlineLoading('AnimeSeasonView', 'Annict から取得中...');
+
+  const done = function(){
+    hideInlineLoading('AnimeSeasonView');
+    buttons.forEach(b => b.disabled = false);
+  };
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      done();
+      if(!res || !res.success){
+        const message = res && res.message ? res.message : '今期のアニメの取得に失敗しました';
+        document.getElementById('animeSeasonSummary').textContent = message;
+        showError(message);
+        return;
+      }
+      animeSeasonInfo = res;
+      animeSeasonKey = res.season;
+      setAnimeState(res.animeData);
+      setupAnimeEntryForm();
+      renderAnimeSeason();
+    })
+    .withFailureHandler(function(error){
+      done();
+      showError(error && error.message ? error.message : '今期のアニメの取得に失敗しました');
+    })
+    .getCurrentSeasonAnimeWeb(animeSeasonKey, !!forceRefresh);
+}
+
+function renderAnimeSeason(){
+  const info = animeSeasonInfo;
+  const works = info.works || [];
+  const unregistered = works.filter(w => !w.registered).length;
+
+  document.getElementById('animeSeasonTitle').textContent = `${info.seasonText}${info.isCurrent ? '（今期）' : ''}`;
+  document.getElementById('animeSeasonSummary').textContent = works.length > 0
+    ? `${works.length}作品（未登録 ${unregistered}件）・Annict から取得: ${info.fetchedAt}`
+    : `この期の作品は Annict にありません（取得: ${info.fetchedAt}）`;
+
+  animeSeasonFilter.setRows(works.map(toAnimeSeasonWorkRow));
+}
+
+// Annict の作品（表示用の行）
+function toAnimeSeasonWorkRow(work){
+  return {
+    id: String(work.annictId),
+    title: work.title,
+    url: work.url,
+    type: work.type,
+    episodes: formatEpisodes(work.episodesCount),
+    episodesCount: work.episodesCount,
+    watchers: work.watchers,
+    registered: work.registered ? (work.status || '登録済') : '未登録',
+    work
+  };
+}
+
+function moveAnimeSeason(offset){
+  if(!animeSeasonInfo) return;
+  animeSeasonKey = offset < 0 ? animeSeasonInfo.prevSeason : animeSeasonInfo.nextSeason;
+  document.getElementById('animeEntryForm').style.display = 'none';
+  fetchAnimeSeason(false);
+}
+
+function refreshAnimeSeason(){
+  fetchAnimeSeason(true);
+}
+
+// [登録]: Annict の情報を登録フォームに入れて開く（状況は視聴予定。登録は [登録する] で確定）
+function openAnimeEntryFromSeason(work){
+  placeAnimeEntryForm('animeSeasonEntryHost', function(){
+    document.getElementById('animeEntryForm').style.display = 'none';
+    fetchAnimeSeason(false);
+  });
+
+  document.getElementById('animeEntryAnimeInput').value = work.suggestedAnimeName || work.title;
+  document.getElementById('animeEntrySeriesInput').value = '';
+  document.getElementById('animeEntrySeasonInput').value = work.title;
+  document.getElementById('animeEntryType').value = work.type;
+  document.getElementById('animeEntryEpisodesInput').value = '';
+  document.getElementById('animeEntryStatus').value = '視聴予定';
+
+  const detail = [work.mediaText, work.episodesCount ? `全${work.episodesCount}話` : ''].filter(Boolean).join('・');
+  document.getElementById('animeEntrySource').textContent =
+    `Annict の「${work.title}」${detail ? `（${detail}）` : ''}から入力しました。作品名・期名を確認して [登録する] を押してください`;
+
+  const form = document.getElementById('animeEntryForm');
+  form.style.display = 'block';
+  syncAnimeEntrySeries();
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('animeEntryAnimeInput').focus();
+}
+
+//////////////////////////////
 // アニメ一覧（絞り込み・並べ替えは createListFilter。編集・削除もこの画面で行う）
 // 期ごと（期の編集・削除）と作品ごと（作品名・シリーズの編集）を切り替える
 //////////////////////////////
@@ -260,8 +396,22 @@ function setAnimeListMode(mode){
 }
 
 //////////////////////////////
-// アニメ登録（視聴中の一覧の [＋ アニメを登録]）
+// アニメ登録（視聴中の一覧の [＋ アニメを登録]、今期のアニメの [登録]）
+// フォームは 1 つで、開く画面へ移して使う。登録後の再読み込みは animeEntryOnSaved
 //////////////////////////////
+let animeEntryOnSaved = null;
+
+function placeAnimeEntryForm(hostId, onSaved){
+  const form = document.getElementById('animeEntryForm');
+  const host = document.getElementById(hostId);
+  if(form.parentElement !== host){
+    form.style.display = 'none';
+    host.appendChild(form);
+  }
+  animeEntryOnSaved = onSaved;
+  document.getElementById('animeEntrySource').textContent = '';
+}
+
 function toggleAnimeEntryForm(){
   if(toggleAddForm('animeEntryForm')){
     document.getElementById('animeEntryAnimeInput').focus();
@@ -338,7 +488,7 @@ function addAnimeSeasonFromForm(){
         document.getElementById('animeEntrySeriesInput').value = '';
         // 新しいシリーズを作った可能性があるので書籍側の選択肢も更新
         refreshMasterData();
-        loadAnimeWatchingView();
+        (animeEntryOnSaved || loadAnimeWatchingView)();
       } else {
         showError(res && res.message ? res.message : '登録に失敗しました');
       }
@@ -351,6 +501,9 @@ function addAnimeSeasonFromForm(){
 }
 
 window.loadAnimeWatchingView = loadAnimeWatchingView;
+window.loadAnimeSeasonView = loadAnimeSeasonView;
+window.moveAnimeSeason = moveAnimeSeason;
+window.refreshAnimeSeason = refreshAnimeSeason;
 window.toggleAnimeEntryForm = toggleAnimeEntryForm;
 window.addAnimeSeasonFromForm = addAnimeSeasonFromForm;
 window.setAnimeListMode = setAnimeListMode;
