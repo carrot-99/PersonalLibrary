@@ -21,6 +21,7 @@
 - クライアント → サーバーは `google.script.run`。外部ライブラリは Bootstrap CSS のみ
 - 自動テストは `npm test`（Node 標準の `node:test`、依存パッケージなし）。`tests/helpers/gasHarness.js` が `src/server` を vm で読み込み、スプレッドシート等の GAS サービスをメモリ上のフェイクに置き換える。クライアントは DOM を使わない関数のみ対象。Lint なし
 - サーバー・クライアントのロジックを変えたら `tests/` も更新し、`clasp push` の前に `npm test` を通す
+- CI（GitHub Actions `.github/workflows/test.yml`）が PR で `npm test` を実行する。CI が失敗している PR はマージしない
 
 ## 変更時のドキュメント更新
 

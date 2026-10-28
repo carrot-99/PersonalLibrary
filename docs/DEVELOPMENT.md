@@ -128,6 +128,7 @@ npm test
 - テストは `tests/*.test.js`。`src/server` の GAS コードを Node で読み込み、スプレッドシートはメモリ上のフェイク（`tests/helpers/gasHarness.js`）に置き換えて動かす。本物のスプレッドシートには触れない
 - 画面（DOM）の動きはテストしていないので、画面の確認は「2-4」で手動で行う
 - 処理を変えたら対応するテストも直す・足す
+- GitHub に push すると CI（GitHub Actions、`.github/workflows/test.yml`）でも `npm test` が自動実行される。PR 画面の Checks が ✖ のときは main にマージできない（main のブランチ保護で必須にしてある）
 
 ```bash
 node build.js
