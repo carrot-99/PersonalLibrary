@@ -26,6 +26,9 @@ function showSeries(){
     .getSeriesDetail(id);
 }
 
+//////////////////////////////
+// シリーズ一覧（追加・編集・統合もこの画面で行う）
+//////////////////////////////
 let seriesListFilter = null;
 
 function loadSeriesList(){
@@ -33,36 +36,27 @@ function loadSeriesList(){
     seriesListFilter = createListFilter({
       tableId: 'seriesListTable',
       pageSize: 20,
-      columns: [{ key: 'id' }, { key: 'name' }],
+      columns: [{ key: 'id' }, { key: 'name', edit: true }],
       keywordKeys: ['id', 'name'],
-      defaultSort: { key: 'name', dir: 'asc' }
+      defaultSort: { key: 'name', dir: 'asc' },
+      edit: {
+        update: 'updateSeriesMaster',
+        onSaved: function(){ loadSeriesList(); refreshMasterData(); }
+      }
     });
   }
 
   google.script.run
     .withSuccessHandler(function(data){
       hideInlineLoading('SeriesListView');
-      seriesListFilter.setRows((data || []).map(item => ({ id: item.id, name: item.name })));
+      masterCache.series = data || [];
+      seriesListFilter.setRows(masterCache.series.map(item => ({ id: item.id, name: item.name })));
     })
     .withFailureHandler(function(error){
       hideInlineLoading('SeriesListView');
       showError(error && error.message ? error.message : 'シリーズ一覧の読み込みに失敗しました');
     })
     .getSeriesMaster();
-}
-
-//////////////////////////////
-// Master表示
-//////////////////////////////
-function loadSeriesMaster(){
-  document.getElementById('seriesMasterTable').style.display = 'none';
-  callGAS('getSeriesMaster', function(data){
-    masterCache.series = data;
-    const keyword = document.getElementById('seriesSearchKeyword').value.trim();
-    if(keyword){
-      filterSeries();
-    }
-  });
 }
 
 //////////////////////////////
@@ -113,7 +107,7 @@ function mergeSeriesFromForm(){
       showSuccess(res.message);
       document.getElementById('seriesMergeFromInput').value = '';
       document.getElementById('seriesMergeToInput').value = '';
-      loadSeriesMaster();
+      loadSeriesList();
       refreshMasterData();
     } else {
       showError(res && res.message ? res.message : '統合に失敗しました');
@@ -133,7 +127,7 @@ function addSeriesMaster(){
     if(res.success){
       showSuccess(res.message);
       document.getElementById('newSeriesName').value = '';
-      loadSeriesMaster();
+      loadSeriesList();
       refreshMasterData();
     }else{
       showError(res.message);
@@ -141,19 +135,9 @@ function addSeriesMaster(){
   }, name);
 }
 
-//////////////////////////////
-// 検索
-//////////////////////////////
-function filterSeries(){
-  const data = masterCache.series || [];
-  renderFilteredTable('seriesMasterTable', data, ['id','name'], 'seriesSearchKeyword');
-}
-
 window.showSeries = showSeries;
 window.loadSeriesList = loadSeriesList;
-window.loadSeriesMaster = loadSeriesMaster;
 window.toggleSeriesMergeForm = toggleSeriesMergeForm;
 window.mergeSeriesFromForm = mergeSeriesFromForm;
 window.addSeriesMaster = addSeriesMaster;
-window.filterSeries = filterSeries;
 </script>

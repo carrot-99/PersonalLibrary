@@ -385,40 +385,6 @@ function deleteLibraryMaster(id){
 }
 
 // ----------------------
-// 書籍マスタ管理の検索（サーバー側で絞り込み、最大 limit 件を返す）
-// keyword が空なら全件が対象。ID・作品名・巻数・保管場所・追加日の部分一致（大文字小文字無視）
-// 戻り値: { items: [{ id, title, volume, box, date }], total, truncated }
-// ----------------------
-const LIBRARY_SEARCH_LIMIT = 300;
-
-function searchLibraryMaster(keyword, limit){
-
-  const max = Math.min(Number(limit) || LIBRARY_SEARCH_LIMIT, LIBRARY_SEARCH_LIMIT);
-  const word = String(keyword || '').trim().toLowerCase();
-
-  const titleMap = buildTitleLabelMap(getData(SHEETS.TITLE));
-  const boxMap = new Map(getData(SHEETS.BOX).map(r => [String(r[0]).trim(), r[1]]));
-
-  const matched = getData(SHEETS.LIBRARY)
-    .map(r => ({
-      id: r[0],
-      title: titleMap.get(String(r[1]).trim()) || '',
-      volume: r[3],
-      box: boxMap.get(String(r[2]).trim()) || '',
-      date: formatDateCell(r[4])
-    }))
-    .filter(item => !word || Object.values(item).some(value =>
-      String(value ?? '').toLowerCase().includes(word)
-    ));
-
-  return {
-    items: matched.slice(0, max),
-    total: matched.length,
-    truncated: matched.length > max
-  };
-}
-
-// ----------------------
 // 書籍一覧（全件。画面側で絞り込み・並べ替え・ページングする）
 // 戻り値: [{ id, title, type, volume, box, date, month, dateValue }]
 // ----------------------

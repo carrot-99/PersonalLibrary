@@ -111,20 +111,14 @@ function showTab(tabId){
   const loaders = {
     PhotoImportView: loadPhotoImportView,
     WishListView: loadWishListView,
-    LibraryMasterView: loadLibraryMaster,
-    BoxMasterView: loadBoxMaster,
-    SeriesMasterView: loadSeriesMaster,
-    TitleMasterView: loadTitleMaster,
     SeriesListView: function(){ showInlineLoading('SeriesListView', '読み込み中...'); loadSeriesList(1); },
     TitleListView: function(){ showInlineLoading('TitleListView', '読み込み中...'); loadTitleList(1); },
     BoxListView: function(){ showInlineLoading('BoxListView', '読み込み中...'); loadBoxList(1); },
-    LibraryListView: function(){ showInlineLoading('LibraryListView', '読み込み中...'); loadLibraryList(1); },
+    LibraryListView: function(){ showInlineLoading('LibraryListView', '読み込み中...'); loadLibraryList(1); loadLibraryAddForm(); },
     AnimeWatchingView: loadAnimeWatchingView,
     AnimeSeriesView: loadAnimeSeriesView,
     AnimeListView: loadAnimeListView,
-    AnimeEntryView: loadAnimeEntryView,
-    AnimeMasterView: loadAnimeMaster,
-    AnimeSeasonMasterView: loadAnimeSeasonMaster
+    AnimeEntryView: loadAnimeEntryView
   };
 
   // サマリー・最近追加は書籍モードのときだけ表示・更新する
@@ -282,48 +276,6 @@ function createEditButton(){
 }
 
 //////////////////////////////
-// テーブル描画共通（編集あり）
-//////////////////////////////
-function renderTableRows(tbody, data, columns, editable){
-
-  tbody.innerHTML = '';
-
-  data.forEach(row => {
-
-    const tr = document.createElement('tr');
-
-    columns.forEach(col=>{
-      const td = document.createElement('td');
-      const rawValue = row[col] ?? '';
-      const displayValue = getDisplayTableValue(rawValue, col);
-      td.textContent = displayValue;
-      td.title = String(rawValue);
-      td.dataset.field = col;
-      tr.appendChild(td);
-    });
-
-    if(editable){
-      const actionTd = document.createElement('td');
-      actionTd.appendChild(createEditButton());
-      tr.appendChild(actionTd);
-    }
-
-    tbody.appendChild(tr);
-  });
-
-  const table = tbody.closest('table');
-  if(table) applyColumnWidthHints(table);
-}
-
-function renderTable(tableId, data, columns){
-  const tbody = document
-    .getElementById(tableId)
-    .querySelector('tbody');
-
-  renderTableRows(tbody, data, columns, true);
-}
-
-//////////////////////////////
 // テーブル描画（編集なし・検索用）
 //////////////////////////////
 function renderTableReadOnly(tableId, data, columns) {
@@ -361,28 +313,35 @@ function renderTableReadOnly(tableId, data, columns) {
 //////////////////////////////
 function renderPagedTableDOM(options){
   // options:
-  // tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable
+  // tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable, idKey
+  // columns: 列キーの配列、または createListFilter の列定義（{ key, edit }）の配列
 
-  const { tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable } = options;
+  const { tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable, idKey } = options;
 
   const tbody = document.getElementById(tableId).querySelector('tbody');
   tbody.innerHTML = ''; // tbody は clear してもOK
 
   data.forEach(row => {
     const tr = document.createElement('tr');
+    if(idKey) tr.dataset.id = String(row[idKey] ?? '');
 
-    columns.forEach(col => {
+    columns.forEach(column => {
+      const col = typeof column === 'string' ? column : column.key;
       const td = document.createElement('td');
       const rawValue = row[col] ?? '';
       td.textContent = getDisplayTableValue(rawValue, col);
       td.title = String(rawValue);
       td.dataset.field = col;
+      // 編集時の初期値（表示は省略・整形されるため元の値を持たせる）
+      if(editable && column.edit){
+        td.dataset.editValue = String((typeof column.edit === 'function' ? column.edit(row) : rawValue) ?? '');
+      }
       tr.appendChild(td);
     });
 
     if(editable){
       const actionTd = document.createElement('td');
-      actionTd.appendChild(createEditButton());
+      appendRowActions(actionTd, tableId);
       tr.appendChild(actionTd);
     }
 
@@ -506,18 +465,15 @@ function formatDate(date){
 //////////////////////////////
 // トグル切り替え
 //////////////////////////////
-// 同一 View 内のフォームを閉じ、検索結果の一覧も隠す
+// 同一 View 内のフォームを閉じる
 function closeMasterForms(view){
   if(!view) return;
 
   view.querySelectorAll('.master-form')
     .forEach(f => f.style.display = 'none');
-
-  view.querySelectorAll('table[id$="MasterTable"], [id$="SearchNote"]')
-    .forEach(t => t.style.display = 'none');
 }
 
-// 指定フォームの表示をトグル（他のフォームと一覧は閉じる）
+// 指定フォームの表示をトグル（他のフォームは閉じる）
 // 戻り値: フォームを開いたら true
 function toggleMasterForm(id){
   const form = document.getElementById(id);
@@ -541,16 +497,13 @@ function toggleSearchForm(id){
 }
 
 // 画面（View）を開き直したときの状態リセット
-// フォーム・一覧を閉じ、検索キーワードと検索画面の結果をクリアする
+// フォームを閉じ、検索画面の結果をクリアする
 const SEARCH_VIEW_IDS = ['SeriesView', 'TitleView', 'BoxView', 'AnimeSeriesView'];
 
 function resetViewState(view){
   if(!view) return;
 
   closeMasterForms(view);
-
-  view.querySelectorAll('input[id$="SearchKeyword"]')
-    .forEach(input => input.value = '');
 
   if(SEARCH_VIEW_IDS.includes(view.id)){
     view.querySelectorAll('input[list]').forEach(input => {
@@ -803,94 +756,60 @@ function populateBoxes(boxes){
 }
 
 ///////////////////////////////
-// CRUD共通
+// 一覧のインライン編集・削除
+// createListFilter の edit オプションで有効にする。設定は tableId ごとに保持
+//   edit: {
+//     update: 'updateXxx',   … 保存時に呼ぶサーバー関数（id, values）。values は edit 指定の列の順
+//     remove: 'deleteXxx',   … 指定すると [削除] を表示（2 回押しで確定）
+//     onSaved()              … 保存・削除の成功後の処理（一覧の再読込など）
+//   }
+// 列定義の edit: true（列の値をそのまま編集）／関数（行から編集の初期値を返す）
+// editOptions: [...] を指定した列は選択式で編集する
 ///////////////////////////////
-// 検索
-function filterMaster(tbodyId, keywordInputId){
+const listEditConfigs = {};
 
-  const keywordInput = document.getElementById(keywordInputId);
-  const table = document.getElementById(tbodyId)?.closest('table');
-  if(!keywordInput || !table) return;
-
-  const keyword = keywordInput.value.trim().toLowerCase();
-  const rows = document.getElementById(tbodyId).getElementsByTagName('tr');
-  let visibleRows = 0;
-
-  Array.from(rows).forEach(row => {
-    const match = Array.from(row.cells).some(cell =>
-      cell.textContent.toLowerCase().includes(keyword)
-    );
-
-    row.style.display = match ? '' : 'none';
-    if(match) visibleRows++;
-  });
-
-  table.style.display = visibleRows > 0 ? 'table' : 'none';
+function getListEditConfig(el){
+  const table = el.closest('table');
+  return table ? listEditConfigs[table.id] : null;
 }
 
-function renderFilteredTable(tableId, rows, columns, keywordInputId, editable = true){
-  const table = document.getElementById(tableId);
-  if(!table) return;
-
-  const keyword = document.getElementById(keywordInputId).value.trim().toLowerCase();
-  const filtered = !keyword
-    ? rows
-    : rows.filter(row =>
-        Object.values(row).some(value =>
-          String(value ?? '').toLowerCase().includes(keyword)
-        )
-      );
-
-  const tbody = table.querySelector('tbody');
-  tbody.innerHTML = '';
-
-  if(filtered.length === 0){
-    table.style.display = 'none';
-    return;
+// 行の操作ボタン（[編集]、削除できる一覧は [削除] も）
+function appendRowActions(actionTd, tableId){
+  const config = listEditConfigs[tableId];
+  actionTd.appendChild(createEditButton());
+  if(config && config.remove){
+    actionTd.appendChild(createDeleteButton(deleteListRow));
   }
-
-  filtered.forEach(row => {
-    const tr = document.createElement('tr');
-
-    columns.forEach(col => {
-      const td = document.createElement('td');
-      td.textContent = row[col] ?? '';
-      td.dataset.field = col;
-      tr.appendChild(td);
-    });
-
-    if(editable){
-      const actionTd = document.createElement('td');
-      appendRowActions(actionTd, tableId);
-      tr.appendChild(actionTd);
-    }
-
-    tbody.appendChild(tr);
-  });
-
-  applyColumnWidthHints(table);
-  table.style.display = 'table';
 }
 
-// 更新
 function startEdit(btn){
-
   const tr = btn.closest('tr');
+  const config = getListEditConfig(tr);
+  if(!config) return;
+
   tr.classList.add('editing');
   const headers = tr.closest('table').querySelectorAll('thead th');
 
-  Array.from(tr.cells).forEach((td, index)=>{
+  Array.from(tr.cells).forEach((td, index) => {
+    const column = config.columns[index];
+    if(!column || !column.edit) return;
 
-    // 1列目（ID）と最後の列（操作列）は編集させない
-    if(index === 0 || index === tr.cells.length - 1) return;
+    const value = td.dataset.editValue ?? td.textContent;
+    td.dataset.display = td.textContent;
 
-    const value = td.textContent;
-    td.dataset.original = value;
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = value;
-    input.placeholder = headers[index] ? headers[index].textContent : '';
+    let input;
+    if(column.editOptions){
+      // 選択肢にない値（未設定など）も元の値として残す
+      input = document.createElement('select');
+      const values = column.editOptions.includes(value) ? column.editOptions : [value].concat(column.editOptions);
+      values.forEach(v => input.add(new Option(v || '（未設定）', v)));
+      input.value = value;
+    } else {
+      input = document.createElement('input');
+      input.type = 'text';
+      input.value = value;
+      input.placeholder = headers[index] ? headers[index].textContent : '';
+    }
 
     td.textContent = '';
     td.appendChild(input);
@@ -919,21 +838,55 @@ function startEdit(btn){
   actionTd.appendChild(cancelBtn);
 }
 
-// 行の操作ボタン（[編集]、書籍マスタ・アニメ期マスタのみ [削除] も）
-// 削除は書籍とアニメの期のみ（作品・シリーズ・Box は参照されているため対象外）
-function appendRowActions(actionTd, tableId){
-  actionTd.appendChild(createEditButton());
-  if(tableId === 'libraryMasterTable'){
-    actionTd.appendChild(createDeleteButton());
-  }
-  if(tableId === 'animeSeasonMasterTable'){
-    actionTd.appendChild(createDeleteButton(deleteAnimeSeasonRow));
-  }
+function cancelEdit(btn){
+  const tr = btn.closest('tr');
+  const config = getListEditConfig(tr);
+  tr.classList.remove('editing');
+
+  Array.from(tr.cells).forEach((td, index) => {
+    const column = config && config.columns[index];
+    if(!column || !column.edit) return;
+    td.textContent = td.dataset.display || '';
+  });
+
+  // 操作列を戻す
+  const actionTd = tr.cells[tr.cells.length - 1];
+  actionTd.textContent = '';
+  appendRowActions(actionTd, tr.closest('table').id);
+}
+
+function saveEdit(btn){
+  const tr = btn.closest('tr');
+  const config = getListEditConfig(tr);
+  if(!config) return;
+
+  const values = Array.from(tr.cells)
+    .filter((td, index) => config.columns[index] && config.columns[index].edit)
+    .map(td => {
+      const input = td.querySelector('input, select');
+      return input ? input.value : td.dataset.editValue;
+    });
+
+  btn.disabled = true;
+  google.script.run
+    .withSuccessHandler(function(res){
+      if(res && res.success){
+        showSuccess(res.message);
+        if(config.onSaved) config.onSaved();
+      } else {
+        btn.disabled = false;
+        showError(res?.message || '更新に失敗しました');
+      }
+    })
+    .withFailureHandler(function(error){
+      btn.disabled = false;
+      showError(error && error.message ? error.message : '更新に失敗しました');
+    })[config.update](tr.dataset.id, values);
 }
 
 // 削除ボタン（誤操作防止のため 2 回押しで確定。4 秒で元に戻る）
-// onConfirm(btn): 確定時の処理（省略時は書籍マスタの行削除）
-function createDeleteButton(onConfirm = deleteRow){
+// onConfirm(btn): 確定時の処理
+function createDeleteButton(onConfirm){
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'delete-action';
@@ -958,122 +911,33 @@ function createDeleteButton(onConfirm = deleteRow){
   return btn;
 }
 
-function deleteRow(btn){
+function deleteListRow(btn){
   const tr = btn.closest('tr');
-  const id = tr.cells[0].textContent.trim();
+  const config = getListEditConfig(tr);
+  if(!config || !config.remove) return;
 
   btn.disabled = true;
   btn.textContent = '削除中...';
+
+  const restore = function(message){
+    btn.disabled = false;
+    btn.classList.remove('is-confirm');
+    btn.textContent = '削除';
+    showError(message);
+  };
 
   google.script.run
     .withSuccessHandler(function(res){
       if(res && res.success){
         showSuccess(res.message);
-        loadLibraryMaster();
-        loadRecentLibrary('globalRecentLibraryTable');
-        loadLibrarySummary('libraryGlobal');
+        if(config.onSaved) config.onSaved();
       } else {
-        btn.disabled = false;
-        btn.classList.remove('is-confirm');
-        btn.textContent = '削除';
-        showError(res?.message || '削除に失敗しました');
+        restore(res?.message || '削除に失敗しました');
       }
     })
     .withFailureHandler(function(error){
-      btn.disabled = false;
-      btn.classList.remove('is-confirm');
-      btn.textContent = '削除';
-      showError(error && error.message ? error.message : '削除に失敗しました');
-    })
-    .deleteLibraryMaster(id);
-}
-
-function cancelEdit(btn){
-
-  const tr = btn.closest('tr');
-  tr.classList.remove('editing');
-
-  Array.from(tr.cells).forEach((td, index)=>{
-
-    if(index === 0 || index === tr.cells.length - 1) return;
-
-    td.textContent = td.dataset.original || '';
-  });
-
-  // 操作列を戻す
-  const actionTd = tr.cells[tr.cells.length - 1];
-  actionTd.textContent = '';
-  appendRowActions(actionTd, tr.closest('table').id);
-}
-
-function saveEdit(btn){
-
-  const tr = btn.closest('tr');
-  const tableId = tr.closest('table').id;
-
-  const cells = Array.from(tr.cells);
-
-  // IDは1列目（編集不可）
-  const id = cells[0].textContent.trim();
-
-  const values = cells.slice(1, cells.length - 1)
-    .map(td => {
-      const input = td.querySelector('input');
-      return input ? input.value : td.textContent;
-    });
-
-  let gasFunction = null;
-  let reloadFunction = null;
-
-  if(tableId === 'boxMasterTable'){
-    gasFunction = 'updateBoxMaster';
-    reloadFunction = loadBoxMaster;
-  }
-
-  if(tableId === 'seriesMasterTable'){
-    gasFunction = 'updateSeriesMaster';
-    reloadFunction = loadSeriesMaster;
-  }
-
-  if(tableId === 'titleMasterTable'){
-    gasFunction = 'updateTitleMaster';
-    reloadFunction = loadTitleMaster;
-  }
-
-  if(tableId === 'libraryMasterTable'){
-    gasFunction = 'updateLibraryMaster';
-    reloadFunction = loadLibraryMaster;
-  }
-
-  if(tableId === 'animeMasterTable'){
-    gasFunction = 'updateAnimeMaster';
-    reloadFunction = loadAnimeMaster;
-  }
-
-  if(tableId === 'animeSeasonMasterTable'){
-    gasFunction = 'updateAnimeSeasonMaster';
-    reloadFunction = loadAnimeSeasonMaster;
-  }
-
-  if(!gasFunction) return;
-
-  callGAS(gasFunction, function(res){
-
-    if(res && res.success){
-      showSuccess(res.message);
-      reloadFunction();
-      if(tableId === 'titleMasterTable' || tableId === 'seriesMasterTable' || tableId === 'boxMasterTable'){
-        refreshMasterData();
-      }
-      if(tableId === 'libraryMasterTable'){
-        loadRecentLibrary('globalRecentLibraryTable');
-        loadLibrarySummary('libraryGlobal');
-      }
-    } else {
-      showError(res?.message || '更新に失敗しました');
-    }
-
-  }, id, values);
+      restore(error && error.message ? error.message : '削除に失敗しました');
+    })[config.remove](tr.dataset.id);
 }
 
 //////////////////////////////
@@ -1085,11 +949,17 @@ function saveEdit(btn){
 //   keywordKeys: ['name', ...]                      … キーワードの検索対象
 //   filters: [{ key, label, options?: [...] }]      … 選択式フィルタ。options 省略時は行の値から作る
 //   defaultSort: { key, dir: 'asc' | 'desc' }
+//   idKey: 'id'                                    … 行の ID（編集・削除でサーバーに渡す）
+//   edit: { update, remove?, onSaved }               … 行の [編集]・[削除]（listEditConfigs 参照）。
+//                                                     列定義に edit / editOptions を指定し、表の最後に操作列の見出しを置く
 // }
 // 戻り値: { setRows(rows) } … 行を入れ替えて再描画（絞り込み条件は保持）
 //////////////////////////////
 function createListFilter(options){
   const table = document.getElementById(options.tableId);
+  if(options.edit){
+    listEditConfigs[options.tableId] = Object.assign({ columns: options.columns }, options.edit);
+  }
   const state = {
     rows: [],
     keyword: '',
@@ -1233,11 +1103,12 @@ function createListFilter(options){
     renderPagedTableDOM({
       tableId: options.tableId,
       data: filtered.slice(start, start + pageSize),
-      columns: options.columns.map(c => c.key),
+      columns: options.columns,
       currentPage: state.page,
       pageSize,
       totalRows: filtered.length,
-      editable: false,
+      editable: !!options.edit,
+      idKey: options.idKey || 'id',
       onPageChange: page => { state.page = page; render(); }
     });
 

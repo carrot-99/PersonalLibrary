@@ -1,7 +1,33 @@
 <!-- TitleListView.html -->
 <div id="TitleListView" class="view" style="display:none;">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3>作品一覧</h3>
+  <h3>作品一覧</h3>
+
+  <!-- ツールバー -->
+  <div class="master-toolbar">
+    <button onclick="toggleAddForm('titleAddForm')">追加</button>
+  </div>
+
+  <!-- 追加フォーム（初期非表示） -->
+  <div id="titleAddForm" class="master-form" style="display:none;">
+
+    <input type="text" id="newTitleName" placeholder="作品名">
+
+    <input id="newTitleSeriesInput" list="newTitleSeriesList" placeholder="シリーズを入力">
+    <datalist id="newTitleSeriesList"></datalist>
+    <select id="newTitleSeries" style="display:none;"></select>
+
+    <select id="newTitleType">
+      <option value="漫画">漫画</option>
+      <option value="ラノベ">ラノベ</option>
+    </select>
+
+    <select id="newTitleCompleted">
+      <option value="連載中">連載中</option>
+      <option value="完結済">完結済</option>
+      <option value="未完結">未完結</option>
+    </select>
+
+    <button onclick="addTitleMaster()">保存</button>
   </div>
 
   <table class="table table-striped" id="titleListTable">
@@ -13,6 +39,7 @@
         <th>種別</th>
         <th>完結</th>
         <th>所持巻</th>
+        <th>操作</th>
       </tr>
     </thead>
     <tbody></tbody>

@@ -96,17 +96,9 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 処理 | `sortLibraryRowsByNewest` で追加日の降順（日単位、同日は ID の降順）に並べた先頭 10 件に、作品名・Box 保管場所を結合。`date` は `yyyy/MM/dd` |
 | 備考 | シートの行順に依存しない |
 
-### `searchLibraryMaster(keyword, limit)` — 書籍マスタ管理の検索
-
-| 項目 | 内容 |
-|---|---|
-| 戻り値 | `{ items: [{ id, title, volume, box, date }], total, truncated }` |
-| 処理 | ID・作品名・巻数・保管場所・追加日の部分一致（大文字小文字無視）で絞り込み、先頭 `limit` 件（上限 300 件、`LIBRARY_SEARCH_LIMIT`）を返す。`keyword` が空なら全件が対象 |
-| 備考 | 全件を画面に送らないための検索 API（書籍マスタ管理を開いたときは一覧を取得しない） |
-
 ### `getLibraryListAll()` — 書籍一覧（全件）
 
-戻り値 `[{ id, title, type, volume, box, date, month, dateValue }]`。`title` は作品の表示ラベル、`type` は作品の種別、`month` は追加月（`yyyy/MM`）、`dateValue` は並べ替え用の数値（日単位）。書籍一覧の絞り込み・並べ替え・ページングは画面側で行います。
+戻り値 `[{ id, title, type, volume, box, date, month, dateValue }]`。`title` は作品の表示ラベル、`type` は作品の種別、`month` は追加月（`yyyy/MM`）、`dateValue` は並べ替え用の数値（日単位）。書籍一覧の絞り込み・並べ替え・ページングは画面側で行います（編集・削除も書籍一覧から行う）。
 
 ### `getLibraryPage(page, pageSize)` — 書籍のページ取得
 
@@ -123,7 +115,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 ### `getLibraryMaster()` — 書籍全件取得
 
-戻り値は `getLibraryPage` の `items` と同形式の全件配列。**現在クライアントからの呼び出しなし**（書籍マスタ管理は `searchLibraryMaster` を使用）。
+戻り値は `getLibraryPage` の `items` と同形式の全件配列。**現在クライアントからの呼び出しなし**（書籍一覧は `getLibraryListAll` を使用）。
 
 ### `updateLibraryMaster(id, values)` — 書籍更新
 
@@ -429,30 +421,29 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 
 | API | 呼び出し元（クライアント関数） |
 |---|---|
-| `getTitleMaster` | `refreshMasterData`, `loadTitleMaster`, `loadLibraryMaster`, `loadPhotoImportView` |
+| `getTitleMaster` | `refreshMasterData`, `loadLibraryAddForm`, `loadPhotoImportView` |
 | `getTitleListWithOwnership` | `loadTitleList` |
 | `getWishList` / `addWishes` / `deleteWish` | `loadWishListView`・`reloadWishList` / `addWishFromForm`・`addPhotoRowToWishList` / `deleteWishItem` |
 | `getWishKeys` | `appendTitleWishLine`（作品表示） |
 | `getTitleDetail` | `showTitle`, `onWishTitleInput`（欲しい巻リストの「次の巻」） |
-| `getSeriesMaster` | `refreshMasterData`, `loadSeriesMaster`, `loadSeriesList` |
-| `getBoxMaster` | `refreshMasterData`, `loadBoxMaster`, `loadBoxList`, `loadLibraryMaster` |
+| `getSeriesMaster` | `refreshMasterData`, `loadSeriesList` |
+| `getBoxMaster` | `refreshMasterData`, `loadBoxList`, `loadLibraryAddForm` |
 | `getLibrarySummary` | `loadLibrarySummary`（初期化時・タブ切替毎・書籍追加後） |
 | `getRecentLibrary` | `loadRecentLibrary`（初期化時・タブ切替毎・書籍追加後） |
 | `getLibraryListAll` | `loadLibraryList` |
 | `getLibraryPage` | なし（未使用。U-7） |
-| `searchLibraryMaster` | `filterLibrary`（書籍マスタ管理の [検索実行]） |
 | `getSeriesDetail` / `getTitleDetail` / `getBoxDetail` | `showSeries` / `showTitle` / `showBox`（`getSeriesDetail` はアニメのシリーズ別検索 `loadAnimeSeriesBooks` からも） |
 | `addNewVolumeWeb` | `addLibraryMaster`, `addVolume`（※ `addVolume` の画面は未表示） |
 | `addTitleMasterWeb` / `addSeriesMasterWeb` / `addBoxMasterWeb` | `addTitleMaster` / `addSeriesMaster` / `addBoxMaster` |
-| `update*Master` | `saveEdit`（テーブル ID により振り分け） |
-| `deleteLibraryMaster` | `deleteRow`（書籍マスタ管理のインライン編集中の [削除]） |
+| `update*Master` | `saveEdit`（一覧の `createListFilter` の `edit.update` で指定） |
+| `deleteLibraryMaster` | `deleteListRow`（書籍一覧の [削除]） |
 | `getSeries` / `getBoxes` | `loadPhotoImportView` |
 | `analyzeBookSpines` | `analyzePhotoImport`（写真で確認・登録の [チェック]） |
 | `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | 作品追加パネルの「追加して選択」 / `registerPhotoImport` |
 | `getTitles`, `addBulkVolumesWeb`, `getOwnedVolumesByTitle` | サーバー内部から使用（`analyzeBookSpines`, `bulkAddLibraryFromPhoto`） |
 | `testAnthropicConnection` | Apps Script エディタから手動実行 |
-| `getAnimeData` | `loadAnimeData`（視聴中の一覧・シリーズ別検索・アニメ一覧・アニメ登録）, `loadAnimeMaster`, `loadAnimeSeasonMaster` |
-| `addAnimeSeasonWeb` / `updateAnimeWatch` / `deleteAnimeSeason` | `addAnimeSeasonFromForm` / `updateAnimeWatchFromCard` / `deleteAnimeSeasonRow` |
-| `updateAnimeMaster` / `updateAnimeSeasonMaster` | `saveEdit`（`animeMasterTable` / `animeSeasonMasterTable`） |
+| `getAnimeData` | `loadAnimeData`（視聴中の一覧・シリーズ別検索・アニメ一覧・アニメ登録） |
+| `addAnimeSeasonWeb` / `updateAnimeWatch` / `deleteAnimeSeason` | `addAnimeSeasonFromForm` / `updateAnimeWatchFromCard` / `deleteListRow`（アニメ一覧・期ごとの [削除]） |
+| `updateAnimeMaster` / `updateAnimeSeasonMaster` | `saveEdit`（アニメ一覧の `animeWorkListTable` / `animeListTable`） |
 | `importLegacyAnime` | Apps Script エディタから手動実行 |
 | `getLibraryMaster` | なし（未使用） |

@@ -14,11 +14,10 @@
 | 分類 | 機能 |
 |---|---|
 | 検索 | シリーズ別検索（作品ごとの所持巻数）、作品別検索（所持巻と保管 Box）、箱別検索（箱内の作品と巻） |
-| 一覧 | シリーズ一覧、作品一覧（種別で絞り込み）、箱一覧、書籍一覧（ページング） |
-| マスタ管理 | シリーズ／作品／Box の追加・検索・インライン編集、書籍の追加（巻数の範囲・複数指定による一括登録） |
+| 一覧・管理 | シリーズ一覧、作品一覧、箱一覧、書籍一覧。絞り込み・並べ替え・ページングに加え、各一覧で追加・インライン編集（書籍は削除も）を行う。書籍の追加は巻数の範囲・複数指定による一括登録に対応。シリーズ一覧では別名のシリーズを統合 |
 | 写真で確認・登録 | 本の表紙・背表紙の写真（最大 5 枚）を AI（Anthropic Messages API）で解析し、持っている巻か・買うと続きになるかを判定（書店での確認用）。持っていない本はそのまま確認のうえ一括登録 |
 | 欲しい巻リスト | 買いたい巻を記録（作品＋巻数式）。写真で確認・登録の確認結果からも追加でき、登録すると自動でリストから外れる |
-| アニメ | 視聴したアニメを作品・期（TV の各期・OVA・劇場版）単位で記録。視聴中の一覧（+1話・視聴済・中断）、シリーズ別検索（シリーズは書籍と共通。同じシリーズの書籍の所持巻も表示）、アニメ一覧（状況・種別・シリーズで絞り込み）、登録、作品・期のマスタ管理。サイドメニュー先頭の切り替えで書籍とアニメのメニューを出し分ける |
+| アニメ | 視聴したアニメを作品・期（TV の各期・OVA・劇場版）単位で記録。視聴中の一覧（+1話・視聴済・中断）、シリーズ別検索（シリーズは書籍と共通。同じシリーズの書籍の所持巻も表示）、アニメ一覧（期ごと／作品ごとに切り替え、絞り込み・インライン編集・期の削除）、登録。サイドメニュー先頭の切り替えで書籍とアニメのメニューを出し分ける |
 | 常時表示（書籍モード） | 所蔵サマリー（所蔵冊数・漫画/ラノベ別冊数・作品数・Box 数・最新登録日）、最近追加した書籍（10 件） |
 | 常時表示（アニメモード） | アニメのサマリー（状況別の期数・登録作品数・視聴話数の合計） |
 
@@ -81,20 +80,20 @@ PersonalLibrary/
         ├── Styles.html          CSS
         ├── Common.html          共通 JS
         ├── Scripts.html         空テンプレート（未使用）
-        ├── library/  Library.html(JS) / PhotoImport.html(JS) / Wish.html(JS) / PhotoImportView / WishListView / LibraryMasterView / LibraryListView / LibraryEntryView
-        ├── title/    Title.html(JS)   / TitleView / TitleListView / TitleMasterView
-        ├── series/   Series.html(JS)  / SeriesView / SeriesListView / SeriesMasterView
-        ├── box/      Box.html(JS)     / BoxView / BoxListView / BoxMasterView
-        └── anime/    Anime.html(JS)   / AnimeWatchingView / AnimeSeriesView / AnimeListView / AnimeEntryView / AnimeMasterView / AnimeSeasonMasterView
+        ├── library/  Library.html(JS) / PhotoImport.html(JS) / Wish.html(JS) / PhotoImportView / WishListView / LibraryListView / LibraryEntryView
+        ├── title/    Title.html(JS)   / TitleView / TitleListView
+        ├── series/   Series.html(JS)  / SeriesView / SeriesListView
+        ├── box/      Box.html(JS)     / BoxView / BoxListView
+        └── anime/    Anime.html(JS)   / AnimeWatchingView / AnimeSeriesView / AnimeListView / AnimeEntryView
 ```
 
 ### 命名規約（現行実装から抽出）
 
 | 対象 | 規約 | 例 |
 |---|---|---|
-| 画面テンプレート | `<ドメイン><種類>View.html`。種類は `View`(検索) / `ListView`(一覧) / `MasterView`(マスタ管理) | `TitleMasterView.html` |
+| 画面テンプレート | `<ドメイン><種類>View.html`。種類は `View`(検索) / `ListView`(一覧・管理) | `TitleListView.html` |
 | 画面ロジック | `<ドメイン>.html`（`<script>` のみを含む） | `Title.html` |
-| View のルート要素 ID | ファイル名と同じ | `<div id="TitleMasterView" class="view">` |
+| View のルート要素 ID | ファイル名と同じ | `<div id="TitleListView" class="view">` |
 | サーバー API | 取得 `get*` / Web 画面からの追加 `add*Web` / 更新 `update*Master` | `addTitleMasterWeb` |
 | クライアント関数 | 読込 `load*` / 検索表示 `show*` / 絞込 `filter*` / 追加 `add*` | `loadTitleList` |
 

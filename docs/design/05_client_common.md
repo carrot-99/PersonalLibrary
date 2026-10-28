@@ -52,31 +52,30 @@ callGAS(funcName, successHandler, ...args)
 |---|---|
 | `PhotoImportView` | `loadPhotoImportView()`（前回の写真・結果のクリアと、作品・シリーズ・Box の候補取得） |
 | `WishListView` | `loadWishListView()`（作品候補の設定と欲しい巻一覧の取得） |
-| `LibraryMasterView` | `loadLibraryMaster()`（作品・Box の候補を取得。書籍一覧は取得せず、キーワード入力済みなら再検索） |
-| `SeriesMasterView` / `TitleMasterView` / `BoxMasterView` | `loadSeriesMaster()` / `loadTitleMaster()` / `loadBoxMaster()` |
-| `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | ローディング表示 → `load*List(1)` |
+| `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | ローディング表示 → `load*List(1)`（書籍一覧は追加フォームの候補 `loadLibraryAddForm()` も） |
 | 検索系 View | なし（候補は初期化時に構築済み） |
 | `AnimeWatchingView` / `AnimeSeriesView` / `AnimeEntryView` | `loadAnimeWatchingView()` / `loadAnimeSeriesView()` / `loadAnimeEntryView()`（いずれも `getAnimeData` で全件取得して描画） |
-| `AnimeListView` | `loadAnimeListView()`（`getAnimeData` で全件取得し `createListFilter` に渡す） |
-| `AnimeMasterView` / `AnimeSeasonMasterView` | `loadAnimeMaster()` / `loadAnimeSeasonMaster()` |
+| `AnimeListView` | `loadAnimeListView()`（`getAnimeData` で全件取得し、期ごと・作品ごとの 2 つの `createListFilter` に渡す） |
 
 ## 5.4 テーブル描画
 
 | 関数 | 用途 | 特徴 |
 |---|---|---|
 | `renderTableReadOnly(tableId, data, columns)` | 検索結果 | 0 件ならテーブル非表示 |
-| `renderPagedTableDOM(options)` | 一覧画面 | ページネーション付き。`editable` で編集列を付加可能 |
-| `renderFilteredTable(tableId, rows, columns, keywordInputId, editable = true)` | マスタ管理 | キーワードで絞り込み、編集ボタン付き。0 件なら非表示 |
-| `renderTable` / `renderTableRows` | 編集付き汎用 | 現在呼び出しなし |
+| `renderPagedTableDOM(options)` | 一覧画面 | ページネーション付き。`editable` で操作列（[編集]・[削除]）を付加 |
 
-共通の表示ルール（`renderFilteredTable` 以外）:
+共通の表示ルール:
 
 - 名称系の列（列名に `name` / `title` / `series` を含む）は **20 文字で切り詰めて `…`** を付与し、`title` 属性に全文を設定（スマホ幅 720px 以下ではセル内で折り返すため切り詰めない）。
 - `applyColumnWidthHints()` で列名から列幅を割り当て（名称 36%、ID 10%、巻数 12%、Box/場所 14% など）。
 
 ### ページネーション（`renderPagedTableDOM`）
 
-`options = { tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable }`
+`options = { tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable, idKey }`
+
+- `columns` は列キーの配列、または `createListFilter` の列定義（`{ key, edit }`）の配列。
+- `idKey` を指定すると各行の `tr` に `data-id` を設定（編集・削除でサーバーに渡す ID）。
+- `editable` のとき、`edit` 指定の列のセルに編集の初期値 `data-edit-value`（省略・整形前の値）を設定。
 
 - テーブル直後に `<tableId>_pagination` の `div`（クラス `pagination-bar`）を生成（初回のみ）。
 - 総ページ数 1 以下では非表示。
@@ -113,7 +112,7 @@ callGAS(funcName, successHandler, ...args)
 | `populateTitle` | `titleSelectInput`（未使用画面）, `titleViewSelectInput`（作品別検索） |
 | `populateBoxes` | `boxSelectInput`（未使用画面）, `boxViewSelectInput`（箱別検索） |
 
-書籍マスタ管理の入力欄（`libraryAddTitleInput` / `libraryAddBoxInput`）は `loadLibraryMaster()` 内で個別に datalist を構築します（照合は同じく `findDatalistOption`）。
+書籍一覧の追加フォームの入力欄（`libraryAddTitleInput` / `libraryAddBoxInput`）は `loadLibraryAddForm()` 内で個別に datalist を構築します（照合は同じく `findDatalistOption`）。
 
 ## 5.6 通知・ローディング
 
@@ -129,54 +128,58 @@ callGAS(funcName, successHandler, ...args)
 
 ## 5.7 インライン編集
 
+一覧（`createListFilter`）の `edit` オプションで有効にします。設定はテーブル ID ごとに `listEditConfigs` に保持します。
+
 ```
+操作列 appendRowActions(actionTd, tableId): [編集]（createEditButton）。edit.remove を指定した一覧は横に [削除]（createDeleteButton）
 [編集] → startEdit(btn)
-   各セル（ID 列・操作列以外）を <input type="text"> に置換、元の値を data-original に退避
-   行に editing クラスを付与（スマホで入力欄の幅を確保）、入力欄のプレースホルダーに列名
+   列定義に edit がある列だけを入力欄に置換（初期値は data-edit-value。editOptions がある列は <select>）
+   表示値は data-display に退避。行に editing クラスを付与、入力欄のプレースホルダーに列名
    操作列を [保存] [取消] に置換
-[取消] → cancelEdit(btn)   元の値に戻し操作ボタンを再表示（appendRowActions）
-操作ボタン appendRowActions(actionTd, tableId): [編集]（createEditButton）。書籍マスタ管理・アニメ期マスタ管理のみ横に [削除]（createDeleteButton。アニメは deleteAnimeSeasonRow）
-   createDeleteButton(onConfirm) は確定時の処理を受け取れる（省略時は deleteRow。欲しい巻リストでも使用）
-[削除] → 1 回目: 「本当に削除」に変更（4 秒で元に戻る）／2 回目: deleteRow(btn)
-   deleteLibraryMaster(1 列目の ID) → 成功時は書籍マスタ・最近追加・サマリーを再読込
+[取消] → cancelEdit(btn)   表示値に戻し操作ボタンを再表示
 [保存] → saveEdit(btn)
-   id     = 1 列目の値（編集不可）
-   values = 2 列目〜最終列の 1 つ前までの値（画面上の表示値）
-   テーブル ID で API を振り分け → 成功時はマスタ再読込（＋選択肢再構築）
+   id     = 行の data-id（idKey の値）
+   values = edit がある列の入力値（列の順）
+   edit.update のサーバー関数を呼ぶ → 成功時は edit.onSaved()（一覧の再読込など）
+[削除] → 1 回目: 「本当に削除」に変更（4 秒で元に戻る）／2 回目: deleteListRow(btn)
+   edit.remove のサーバー関数に data-id を渡す → 成功時は edit.onSaved()
+createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい巻リストでも使用）
 ```
 
-| テーブル ID | 更新 API | 再読込 | 選択肢再構築 |
-|---|---|---|---|
-| `seriesMasterTable` | `updateSeriesMaster` | `loadSeriesMaster` | ○ |
-| `titleMasterTable` | `updateTitleMaster` | `loadTitleMaster` | ○ |
-| `boxMasterTable` | `updateBoxMaster` | `loadBoxMaster` | ○ |
-| `libraryMasterTable` | `updateLibraryMaster` | `loadLibraryMaster`（キーワードで再検索＋最近追加・サマリー） | — |
-| `animeMasterTable` | `updateAnimeMaster` | `loadAnimeMaster` | — |
-| `animeSeasonMasterTable` | `updateAnimeSeasonMaster` | `loadAnimeSeasonMaster` | — |
+| テーブル ID（画面） | 編集する列（values の順） | 更新 API | 削除 API | 保存後 |
+|---|---|---|---|---|
+| `seriesListTable`（シリーズ一覧） | シリーズ名 | `updateSeriesMaster` | — | 一覧再読込＋選択肢再構築 |
+| `titleListTable`（作品一覧） | 作品名, シリーズ, 種別（選択）, 完結（選択） | `updateTitleMaster` | — | 一覧再読込＋選択肢再構築 |
+| `boxListTable`（箱一覧） | 保管場所 | `updateBoxMaster` | — | 一覧再読込＋選択肢再構築 |
+| `libraryListTable`（書籍一覧） | 作品名, 巻数, Box | `updateLibraryMaster` | `deleteLibraryMaster` | 一覧・最近追加・サマリーを再読込 |
+| `animeListTable`（アニメ一覧・期ごと） | 作品, 期名, 種別（選択）, 話数, 状況（選択） | `updateAnimeSeasonMaster` | `deleteAnimeSeason` | アニメ一覧を再読込 |
+| `animeWorkListTable`（アニメ一覧・作品ごと） | 作品名, シリーズ | `updateAnimeMaster` | — | アニメ一覧を再読込 |
 
 注意:
 
-- ID 列は編集できません。
-- 送信値は画面の**表示値**です（作品のシリーズ列は SeriesID ではなくシリーズ名、書籍の作品・Box 列は作品名・保管場所）。名称 → ID 変換は `updateTitleMaster` / `updateLibraryMaster` がサーバー側で行います（共通関数 `resolveMasterId`）。
+- ID 列・集計列（所持巻・追加日・更新日・期の数など）は編集できません。
+- 送信値は名称です（作品のシリーズ列はシリーズ名、書籍の作品・Box 列は作品名・保管場所）。名称 → ID 変換はサーバー側で行います（共通関数 `resolveMasterId`）。
+- アニメの話数は表示が「12話」、編集の初期値は数値です（列定義の `edit` に関数を指定）。
+- 編集中にページ移動・並べ替えをすると、編集は取り消されます（再描画のため）。
 
-## 5.8 マスタ管理のフォーム制御
+## 5.8 追加フォームの制御
 
 | 関数 | 仕様 |
 |---|---|
-| `closeMasterForms(view)` | 同一 View 内の `.master-form` をすべて閉じ、一覧テーブル（`*MasterTable`）も非表示にする |
+| `closeMasterForms(view)` | 同一 View 内の `.master-form` をすべて閉じる |
 | `toggleMasterForm(id)` | `closeMasterForms` の後、指定フォームの表示をトグル。開いたら `true` を返す |
-| `toggleAddForm(id)` / `toggleSearchForm(id)` | `toggleMasterForm` を呼ぶ（[追加] [検索] とも同じトグル動作） |
+| `toggleAddForm(id)` / `toggleSearchForm(id)` | `toggleMasterForm` を呼ぶ |
 | `syncMasterToolbarLayout(view)` | 1100px 以下でツールバーのボタンを折り返し可能な横並びに調整 |
 
 ## 5.9 クライアント状態
 
 | 変数 | 定義 | 内容 |
 |---|---|---|
-| `masterCache` | `Common.html` | `{ series, title, box, library }` マスタ管理画面の取得結果。`titleOptions` は選択肢用の作品一覧（`populateTitle` で保持。作品表示の完結状態判定に使用） |
-| `titleListFilter` / `seriesListFilter` / `boxListFilter` / `libraryListFilter` | `Title.html` / `Series.html` / `Box.html` / `Library.html` | 各一覧の `createListFilter` インスタンス（初回表示時に作成し、絞り込み条件・並び順を保持） |
-| `animeState` | `Anime.html` | `getAnimeData` の結果（`anime`, `seasons`, `series`）。アニメ画面を開くたびに再取得。マスタ管理は `masterCache.anime` / `masterCache.animeSeasons` |
+| `masterCache` | `Common.html` | `series` はシリーズ一覧の取得結果（統合フォームの候補に使用）。`titleOptions` は選択肢用の作品一覧（`populateTitle` で保持。作品表示の完結状態判定に使用） |
+| `titleListFilter` / `seriesListFilter` / `boxListFilter` / `libraryListFilter` / `animeListFilter` / `animeWorkListFilter` | `Title.html` / `Series.html` / `Box.html` / `Library.html` / `Anime.html` | 各一覧の `createListFilter` インスタンス（初回表示時に作成し、絞り込み条件・並び順を保持） |
+| `animeState` | `Anime.html` | `getAnimeData` の結果（`anime`, `seasons`, `series`）。アニメ画面を開くたびに再取得。`animeListMode` はアニメ一覧の表示単位（`season` / `work`） |
+| `listEditConfigs` | `Common.html` | 一覧のインライン編集の設定（テーブル ID → `{ columns, update, remove, onSaved }`） |
 | `messageTimeout` | `Common.html` | 通知自動消去タイマー |
-| `PAGE_SIZE`, `currentLibraryPage` | `Library.html` | 旧ページング用。現在は実質未使用 |
 | `photoImportState` | `PhotoImport.html` | 写真で確認・登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `wishKeys`, `mode`（`check` / `register`）, `busy`） |
 | `wishState` | `Wish.html` | 欲しい巻リストの状態（`list`, `selectedTitleId`, `nextVolume`） |
 | `photoImportImagesPromise` | `PhotoImport.html` | 選択写真の縮小処理（長辺 1568px・JPEG 品質 0.9）の Promise。解析時に完了を待つ |
@@ -209,10 +212,12 @@ callGAS(funcName, successHandler, ...args)
 | オプション | 内容 |
 |---|---|
 | `tableId` | 対象テーブル。直前に絞り込み欄（`.list-filter`）を作る |
-| `columns` | `[{ key, compare? }]`。テーブルの列順。`compare(a, b)` を省略すると値で比較（数値なら数値、それ以外は日本語の自然順） |
+| `columns` | `[{ key, compare?, edit?, editOptions? }]`。テーブルの列順。`edit`（`true` または行から初期値を返す関数）で編集対象、`editOptions` で選択式。`compare(a, b)` を省略すると値で比較（数値なら数値、それ以外は日本語の自然順） |
 | `keywordKeys` | キーワードの検索対象のキー |
 | `filters` | `[{ key, label, options? }]`。選択式の絞り込み。`options` 省略時は行の値から選択肢を作る（「ラベル: すべて」が先頭） |
 | `defaultSort` | 初期の並び `{ key, dir }` |
 | `pageSize` | 1 ページの件数（既定 20） |
+| `idKey` | 行の ID のキー（既定 `id`）。編集・削除でサーバーに渡す |
+| `edit` | `{ update, remove?, onSaved }`。指定すると各行に操作列を付ける（表の最後に操作列の見出しを置く。[5.7](#57-インライン編集)） |
 
 戻り値 `{ setRows(rows) }`。行を入れ替えて再描画します（条件・並び順は保持）。描画は `renderPagedTableDOM`、見出しにはクラス `sortable` / `sort-asc` / `sort-desc` を付けます。

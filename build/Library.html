@@ -1,8 +1,5 @@
 <!-- Library.html -->
 <script>
-const PAGE_SIZE = 100;
-let currentLibraryPage = 1;
-
 //////////////////////////////
 // 新刊追加処理
 //////////////////////////////
@@ -81,7 +78,7 @@ function addVolume() {
       loadRecentLibrary('globalRecentLibraryTable');
       loadLibrarySummary('libraryEntry');
       loadLibrarySummary('libraryGlobal');
-      loadLibraryMaster(currentLibraryPage);
+      loadLibraryList();
     } else {
       showError(res.message);
     }
@@ -166,20 +163,9 @@ function renderRecentLibrary(data, tableId = 'recentLibraryTable') {
 }
 
 //////////////////////////////
-// 初期表示時に呼ぶ
+// 書籍一覧の追加フォーム（作品・Box の候補）。画面を開いたときに呼ぶ
 //////////////////////////////
-function loadLibraryMaster(){
-  const table = document.getElementById('libraryMasterTable');
-  if(table) table.style.display = 'none';
-  setLibrarySearchNote('');
-
-  // 一覧は検索実行時にサーバーで絞り込んで取得する（全件は読み込まない）。
-  // 更新・削除後の再読込では、入力済みのキーワードで検索し直す
-  const keyword = document.getElementById('librarySearchKeyword');
-  if(keyword && keyword.value.trim()){
-    filterLibrary();
-  }
-
+function loadLibraryAddForm(){
   callGAS('getTitleMaster', function(titles){
     const input = document.getElementById('libraryAddTitleInput');
     const list = document.getElementById('libraryAddTitleList');
@@ -238,7 +224,7 @@ function addLibraryMaster(){
       document.getElementById('libraryAddBoxInput').dataset.selectedId = '';
       loadRecentLibrary('globalRecentLibraryTable');
       loadLibrarySummary('libraryGlobal');
-      loadLibraryMaster();
+      loadLibraryList();
       refreshMasterData();
     } else {
       showError(res.message);
@@ -246,36 +232,9 @@ function addLibraryMaster(){
   }, titleId, volume, boxId);
 }
 
-function filterLibrary(){
-  const keyword = document.getElementById('librarySearchKeyword').value.trim();
-  showInlineLoading('librarySearchForm', '検索中...');
-
-  google.script.run
-    .withSuccessHandler(function(res){
-      hideInlineLoading('librarySearchForm');
-      renderFilteredTable('libraryMasterTable', res.items || [], ['id', 'title', 'volume', 'box'], 'librarySearchKeyword');
-      if(!res.total){
-        setLibrarySearchNote('該当する書籍はありません');
-      } else if(res.truncated){
-        setLibrarySearchNote(`${res.items.length}件まで表示しています（該当 ${res.total}件）。キーワードを絞り込んでください`);
-      } else {
-        setLibrarySearchNote(`${res.total}件`);
-      }
-    })
-    .withFailureHandler(function(error){
-      hideInlineLoading('librarySearchForm');
-      showError(error && error.message ? error.message : '検索に失敗しました');
-    })
-    .searchLibraryMaster(keyword);
-}
-
-function setLibrarySearchNote(text){
-  const note = document.getElementById('librarySearchNote');
-  if(!note) return;
-  note.textContent = text;
-  note.style.display = text ? 'block' : 'none';
-}
-
+//////////////////////////////
+// 書籍一覧（追加・編集・削除もこの画面で行う）
+//////////////////////////////
 let libraryListFilter = null;
 
 function loadLibraryList(){
@@ -286,9 +245,9 @@ function loadLibraryList(){
       columns: [
         { key: 'id' },
         // 作品名は作品名→巻数の順で並べる
-        { key: 'title', compare: (a, b) => a.title.localeCompare(b.title, 'ja') || compareVolumes(a.volume, b.volume) },
-        { key: 'volume', compare: (a, b) => compareVolumes(a.volume, b.volume) },
-        { key: 'box' },
+        { key: 'title', edit: true, compare: (a, b) => a.title.localeCompare(b.title, 'ja') || compareVolumes(a.volume, b.volume) },
+        { key: 'volume', edit: true, compare: (a, b) => compareVolumes(a.volume, b.volume) },
+        { key: 'box', edit: true },
         { key: 'date', compare: (a, b) => (a.dateValue - b.dateValue) || a.id.localeCompare(b.id) }
       ],
       keywordKeys: ['id', 'title', 'volume', 'box', 'date'],
@@ -297,7 +256,16 @@ function loadLibraryList(){
         { key: 'box', label: 'Box' },
         { key: 'month', label: '追加月' }
       ],
-      defaultSort: { key: 'date', dir: 'desc' }
+      defaultSort: { key: 'date', dir: 'desc' },
+      edit: {
+        update: 'updateLibraryMaster',
+        remove: 'deleteLibraryMaster',
+        onSaved: function(){
+          loadLibraryList();
+          loadRecentLibrary('globalRecentLibraryTable');
+          loadLibrarySummary('libraryGlobal');
+        }
+      }
     });
   }
 
@@ -315,12 +283,11 @@ function loadLibraryList(){
 
 window.addVolume = addVolume;
 window.addLibraryMaster = addLibraryMaster;
-window.filterLibrary = filterLibrary;
 window.loadRecentLibrary = loadRecentLibrary;
 window.loadLibrarySummary = loadLibrarySummary;
 window.updateLibrarySummary = updateLibrarySummary;
 window.loadLibraryEntry = loadLibraryEntry;
-window.loadLibraryMaster = loadLibraryMaster;
+window.loadLibraryAddForm = loadLibraryAddForm;
 window.loadLibraryList = loadLibraryList;
 
 </script>
