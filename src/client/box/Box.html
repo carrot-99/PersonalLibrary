@@ -3,8 +3,9 @@
 //////////////////////////////
 // 箱一覧
 //////////////////////////////
-function showBox() {
-  const id = getAutocompleteValue('boxViewSelectInput') || document.getElementById('boxViewSelect').value;
+// boxId: 一覧などのリンクから開くときに指定
+function showBox(boxId) {
+  const id = boxId || getAutocompleteValue('boxViewSelectInput') || document.getElementById('boxViewSelect').value;
   if(!id) return showError('Boxを選択してください');
 
   showInlineLoading('BoxView', '検索中...');
@@ -12,7 +13,9 @@ function showBox() {
   google.script.run
     .withSuccessHandler(function(data){
       hideInlineLoading('BoxView');
-      renderTableReadOnly('boxTable', data, ['name','volume']);
+      renderTableReadOnly('boxTable', data, ['name','volume'], {
+        name: row => openTitleDetail(row.titleId)
+      });
     })
     .withFailureHandler(function(error){
       hideInlineLoading('BoxView');
@@ -31,7 +34,10 @@ function loadBoxList(){
     boxListFilter = createListFilter({
       tableId: 'boxListTable',
       pageSize: 20,
-      columns: [{ key: 'id' }, { key: 'place', edit: true }],
+      columns: [
+        { key: 'id', link: row => openBoxDetail(row.id) },
+        { key: 'place', edit: true, link: row => openBoxDetail(row.id) }
+      ],
       keywordKeys: ['id', 'place'],
       defaultSort: { key: 'id', dir: 'asc' },
       edit: {

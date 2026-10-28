@@ -98,7 +98,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 ### `getLibraryListAll()` — 書籍一覧（全件）
 
-戻り値 `[{ id, title, type, volume, box, date, month, dateValue }]`。`title` は作品の表示ラベル、`type` は作品の種別、`month` は追加月（`yyyy/MM`）、`dateValue` は並べ替え用の数値（日単位）。書籍一覧の絞り込み・並べ替え・ページングは画面側で行います（編集・削除も書籍一覧から行う）。
+戻り値 `[{ id, title, type, volume, box, date, month, dateValue }]`。`titleId` / `boxId` は詳細画面へのリンク用、`title` は作品の表示ラベル、`type` は作品の種別、`month` は追加月（`yyyy/MM`）、`dateValue` は並べ替え用の数値（日単位）。書籍一覧の絞り込み・並べ替え・ページングは画面側で行います（編集・削除も書籍一覧から行う）。
 
 ### `getLibraryPage(page, pageSize)` — 書籍のページ取得
 
@@ -156,7 +156,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 ### `getSeriesDetail(seriesId)` — シリーズ別検索
 
-戻り値 `[{ name, count, completed, volumes }]`。シリーズに属する作品ごとの作品名・`M_Library` 上の所持冊数（0 件の作品も含む）・完結状態・所持巻の配列。画面は `volumes` から所持巻と抜けを表示します。
+戻り値 `[{ id, name, type, count, completed, volumes }]`。シリーズに属する作品ごとの TitleID・作品名・種別・`M_Library` 上の所持冊数（0 件の作品も含む）・完結状態・所持巻の配列。画面は `volumes` から所持巻と抜けを表示します。
 
 ### `getOwnedVolumesByTitle()` — 作品ごとの所持巻
 
@@ -164,7 +164,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 ### `getBoxDetail(boxId)` — 箱別検索
 
-戻り値 `[{ name, volume }]`。指定 Box に保管されている書籍の作品名と巻数。行順。
+戻り値 `[{ titleId, name, volume }]`。指定 Box に保管されている書籍の TitleID・作品名と巻数。行順。
 
 ---
 
@@ -187,7 +187,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 ### `getTitleMaster()`
 
-戻り値 `[{ id, name, label, seriesName, type, completed }]`。`label` は選択肢の表示名（同名の作品が複数あれば「作品名（種別）」、それ以外は作品名）。`seriesName` は `M_Series` から結合（なければ空文字）。
+戻り値 `[{ id, name, label, seriesId, seriesName, type, completed }]`。`label` は選択肢の表示名（同名の作品が複数あれば「作品名（種別）」、それ以外は作品名）。`seriesName` は `M_Series` から結合（なければ空文字）。
 
 ### `findDuplicateName(rows, name, excludeId)` / `findDuplicateTitle(rows, name, type, excludeId)`
 
@@ -432,7 +432,7 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `getRecentLibrary` | `loadRecentLibrary`（初期化時・タブ切替毎・書籍追加後） |
 | `getLibraryListAll` | `loadLibraryList` |
 | `getLibraryPage` | なし（未使用。U-7） |
-| `getSeriesDetail` / `getTitleDetail` / `getBoxDetail` | `showSeries` / `showTitle` / `showBox`（`getSeriesDetail` はアニメのシリーズ別検索 `loadAnimeSeriesBooks` からも） |
+| `getSeriesDetail` / `getTitleDetail` / `getBoxDetail` | `showSeries` / `showTitle` / `showBox`（一覧・詳細のリンクからは `openSeriesDetail` / `openTitleDetail` / `openBoxDetail` 経由。`getSeriesDetail` はアニメのシリーズ別検索 `loadAnimeSeriesBooks` からも） |
 | `addNewVolumeWeb` | `addLibraryMaster`, `addVolume`（※ `addVolume` の画面は未表示） |
 | `addTitleMasterWeb` / `addSeriesMasterWeb` / `addBoxMasterWeb` | `addTitleMaster` / `addSeriesMaster` / `addBoxMaster` |
 | `update*Master` | `saveEdit`（一覧の `createListFilter` の `edit.update` で指定） |

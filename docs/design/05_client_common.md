@@ -36,6 +36,7 @@ callGAS(funcName, successHandler, ...args)
 
 ## 5.3 タブ（画面）切替 — `showTab(tabId)`
 
+0. 詳細への移動・戻る（`navigating`）でなければ戻る履歴 `navHistory` を消す。`navEntry`（今の画面を開き直す関数）を設定
 1. `tabId` の要素がなければ最初の `.view` を対象にする
 2. View の ID からモードを決めて反映（`applyAppMode`。`Anime` で始まればアニメ、他は書籍）。`body[data-mode]` を切り替え、CSS で `.book-only` / `.anime-only` の部品（メニューのグループ、上部バーの検索、サマリー、最近追加）を出し分ける。モードは `localStorage`（`personalLibrary.appMode`）に保存し、次回の初期表示に使う
 3. 全メニューボタンから `active` を外し、`data-tab` が一致するボタンに付与
@@ -45,6 +46,16 @@ callGAS(funcName, successHandler, ...args)
 5. 通知をクリア
 6. 書籍モードのときだけサマリー・最近追加を再取得
 7. View ごとのローダーを実行
+8. 詳細画面の [← 戻る] の表示を更新（`updateDetailBackButtons`）
+
+### 詳細画面への移動と「戻る」
+
+| 関数 | 仕様 |
+|---|---|
+| `openTitleDetail(titleId)` / `openSeriesDetail(seriesId)` / `openBoxDetail(boxId)` | 詳細画面を開き、入力欄に名前（`masterCache.titleOptions` / `seriesOptions` / `boxOptions` から）を入れて `showTitle(id)` / `showSeries(id)` / `showBox(id)` を呼ぶ |
+| `openDetail(viewId, show)` | 上記の共通部分。今の画面の `navEntry` を `navHistory` に積み（最大 20 件）、`showTab` → `show()`。開き直す関数を `navEntry` にする |
+| `backFromDetail()` | `navHistory` から 1 つ取り出して開き直す（[← 戻る]、クラス `detail-back`） |
+| `createCellLink(text, onClick)` | 表のセルや所持状況に置くリンク（クラス `table-link`） |
 
 メニュー先頭の切り替えボタンは `setAppMode(mode)` を呼び、そのモードの最初の画面（`APP_MODE_HOME`）を `showTab` で開きます。
 
@@ -61,7 +72,7 @@ callGAS(funcName, successHandler, ...args)
 
 | 関数 | 用途 | 特徴 |
 |---|---|---|
-| `renderTableReadOnly(tableId, data, columns)` | 検索結果 | 0 件ならテーブル非表示 |
+| `renderTableReadOnly(tableId, data, columns, links)` | 詳細画面の結果 | 0 件ならテーブル非表示。`links: { 列キー: row => 処理 }` の列はリンク |
 | `renderPagedTableDOM(options)` | 一覧画面 | ページネーション付き。`editable` で操作列（[編集]・[削除]）を付加 |
 
 共通の表示ルール:
@@ -73,7 +84,7 @@ callGAS(funcName, successHandler, ...args)
 
 `options = { tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable, idKey }`
 
-- `columns` は列キーの配列、または `createListFilter` の列定義（`{ key, edit }`）の配列。
+- `columns` は列キーの配列、または `createListFilter` の列定義（`{ key, edit, link }`）の配列。`link: row => 処理` の列はセルをリンクにする（値が空ならリンクなし）。
 - `idKey` を指定すると各行の `tr` に `data-id` を設定（編集・削除でサーバーに渡す ID）。
 - `editable` のとき、`edit` 指定の列のセルに編集の初期値 `data-edit-value`（省略・整形前の値）を設定。
 
@@ -134,7 +145,7 @@ callGAS(funcName, successHandler, ...args)
 操作列 appendRowActions(actionTd, tableId): [編集]（createEditButton）。edit.remove を指定した一覧は横に [削除]（createDeleteButton）
 [編集] → startEdit(btn)
    列定義に edit がある列だけを入力欄に置換（初期値は data-edit-value。editOptions がある列は <select>）
-   表示値は data-display に退避。行に editing クラスを付与、入力欄のプレースホルダーに列名
+   表示中の要素（リンクを含む）は td.originalNodes に退避。行に editing クラスを付与、入力欄のプレースホルダーに列名
    操作列を [保存] [取消] に置換
 [取消] → cancelEdit(btn)   表示値に戻し操作ボタンを再表示
 [保存] → saveEdit(btn)
@@ -201,7 +212,7 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 
 1. 入力が空なら何もしない（Enter の後の `change` で二重実行しないよう、成功時は入力をクリア）
 2. `masterCache.titleOptions` から作品名の完全一致（大文字小文字無視）を探し、なければ部分一致が 1 件のときだけ採用。2 件以上・0 件はエラー通知
-3. `showTab('TitleView')` → 作品名入力欄に作品名を設定 → `showTitle(titleId)`（ID を直接渡し、入力欄の部分一致による取り違えを避ける）
+3. `openTitleDetail(titleId)`（作品の詳細を開き、作品名を入力欄に設定して `showTitle(titleId)`。ID を直接渡し、入力欄の部分一致による取り違えを避ける。開く前の画面へ [← 戻る] で戻れる）
 
 候補の datalist（`#globalSearchList`）は `populateTitle` で作品選択肢と一緒に構築します。
 
@@ -212,7 +223,7 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | オプション | 内容 |
 |---|---|
 | `tableId` | 対象テーブル。直前に絞り込み欄（`.list-filter`）を作る |
-| `columns` | `[{ key, compare?, edit?, editOptions? }]`。テーブルの列順。`edit`（`true` または行から初期値を返す関数）で編集対象、`editOptions` で選択式。`compare(a, b)` を省略すると値で比較（数値なら数値、それ以外は日本語の自然順） |
+| `columns` | `[{ key, compare?, edit?, editOptions?, link? }]`。テーブルの列順。`link` で詳細画面へのリンク。`edit`（`true` または行から初期値を返す関数）で編集対象、`editOptions` で選択式。`compare(a, b)` を省略すると値で比較（数値なら数値、それ以外は日本語の自然順） |
 | `keywordKeys` | キーワードの検索対象のキー |
 | `filters` | `[{ key, label, options? }]`。選択式の絞り込み。`options` 省略時は行の値から選択肢を作る（「ラベル: すべて」が先頭） |
 | `defaultSort` | 初期の並び `{ key, dir }` |

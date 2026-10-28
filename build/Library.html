@@ -245,9 +245,9 @@ function loadLibraryList(){
       columns: [
         { key: 'id' },
         // 作品名は作品名→巻数の順で並べる
-        { key: 'title', edit: true, compare: (a, b) => a.title.localeCompare(b.title, 'ja') || compareVolumes(a.volume, b.volume) },
+        { key: 'title', edit: true, link: row => openTitleDetail(row.titleId), compare: (a, b) => a.title.localeCompare(b.title, 'ja') || compareVolumes(a.volume, b.volume) },
         { key: 'volume', edit: true, compare: (a, b) => compareVolumes(a.volume, b.volume) },
-        { key: 'box', edit: true },
+        { key: 'box', edit: true, link: row => openBoxDetail(row.boxId) },
         { key: 'date', compare: (a, b) => (a.dateValue - b.dateValue) || a.id.localeCompare(b.id) }
       ],
       keywordKeys: ['id', 'title', 'volume', 'box', 'date'],
