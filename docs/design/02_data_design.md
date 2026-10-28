@@ -2,7 +2,7 @@
 
 ## 2.1 データストア
 
-スクリプトにバインドされた Google スプレッドシートの 4 シートを使用します。
+スクリプトにバインドされた Google スプレッドシートの以下のシートを使用します。
 シート名はコード上で定数 `SHEETS`（`server/Commons.js`）として定義されています。
 
 | 定数 | シート名 | 内容 |
@@ -12,12 +12,15 @@
 | `SHEETS.SERIES` | `M_Series` | シリーズマスタ |
 | `SHEETS.BOX` | `M_Box` | 保管 Box マスタ |
 | `SHEETS.WISH` | `M_Wish` | 欲しい巻リスト（**初回利用時に自動作成**） |
+| `SHEETS.ANIME` | `M_Anime` | アニメ作品（**初回登録時に自動作成**） |
+| `SHEETS.ANIME_SEASON` | `M_AnimeSeason` | アニメの期（TV の各期・OVA・劇場版。**初回登録時に自動作成**） |
+| `SHEETS.ANIME_WATCH` | `M_AnimeWatch` | アニメの視聴状況（期と 1 対 1。**初回登録時に自動作成**） |
 
 共通ルール:
 
 - **1 行目はヘッダー行**、データは 2 行目以降（`getData(sheetName, startRow = 2)`）。
 - **1 列目が主キー（ID）**。行の特定は 1 列目の文字列一致で行う（`updateRowById`）。
-- 削除機能は**書籍（`M_Library`）のみ**（行の物理削除。`deleteLibraryMaster`）。作品・シリーズ・Box は他シートから参照されるため削除機能はなく、必要ならスプレッドシートを直接操作します。
+- 削除機能は**書籍（`M_Library`）とアニメの期（`M_AnimeSeason`・`M_AnimeWatch`）のみ**（行の物理削除。`deleteLibraryMaster` / `deleteAnimeSeason`）。作品・シリーズ・Box は他シートから参照されるため削除機能はなく、必要ならスプレッドシートを直接操作します。
 - 書籍の最終行を削除すると、ID 採番（最終行 + 1）により次の登録で同じ LibraryID が再利用されます（LibraryID は他シートから参照されないため影響なし）。
 
 ## 2.2 ER 図
@@ -25,6 +28,13 @@
 ```
 M_Series 1 ──── 0..* M_Title 1 ──── 0..* M_Library *..1 ──── 1 M_Box
  (SeriesID)          (SeriesID)  (TitleID)      (TitleID / BoxID)    (BoxID)
+```
+
+アニメ（シリーズは書籍と共通の `M_Series`）:
+
+```
+M_Series 1 ──── 0..* M_Anime 1 ──── 0..* M_AnimeSeason 1 ──── 0..1 M_AnimeWatch
+ (SeriesID)          (SeriesID)  (AnimeID)      (AnimeID)  (SeasonID)      (SeasonID)
 ```
 
 - 作品はシリーズに所属します（シリーズ未設定も許容：サーバー側では空文字可）。
@@ -84,9 +94,41 @@ M_Series 1 ──── 0..* M_Title 1 ──── 0..* M_Library *..1 ──�
 
 一意制約（アプリ側でチェック）: (TitleID, 巻数) の重複なし。`M_Library` に登録済みの巻は追加しません。書籍を登録すると（`addNewVolumeWeb` / `bulkAddLibraryFromPhoto`）同じ (TitleID, 巻数) の行は自動で削除されます。
 
+### 2.3.6 M_Anime（アニメ作品）
+
+アニメの 3 シートは `getAnimeSheet()` / `ensureAnimeSheets()`（`server/AnimeService.js`）が、なければヘッダー行（固定表示）付きで作成します。
+
+| 列 | 項目 | 型 | 必須 | 説明 |
+|---|---|---|---|---|
+| A (1) | AnimeID | 文字列 | ○ | `A` + 6 桁連番 |
+| B (2) | 作品名 | 文字列 | ○ | 重複不可（`findDuplicateName` で正規化して比較） |
+| C (3) | SeriesID | 文字列 | — | `M_Series.SeriesID`（**書籍と共通**） |
+
+### 2.3.7 M_AnimeSeason（アニメの期）
+
+| 列 | 項目 | 型 | 必須 | 説明 |
+|---|---|---|---|---|
+| A (1) | SeasonID | 文字列 | ○ | `AS` + 6 桁連番 |
+| B (2) | AnimeID | 文字列 | ○ | `M_Anime.AnimeID` |
+| C (3) | 期名 | 文字列 | ○ | 例 `オーバーロード Ⅱ`、`劇場版〇〇`。同じ作品内で重複不可（正規化して比較） |
+| D (4) | 種別 | 文字列 | — | `TV` / `OVA` / `劇場版` / `その他` |
+
+### 2.3.8 M_AnimeWatch（アニメの視聴状況）
+
+期 1 件につき最大 1 行（1 列目の SeasonID で更新、なければ追加。`writeAnimeWatch`）。
+
+| 列 | 項目 | 型 | 必須 | 説明 |
+|---|---|---|---|---|
+| A (1) | SeasonID | 文字列 | ○ | `M_AnimeSeason.SeasonID` |
+| B (2) | 視聴済話数 | 数値 | — | 0 以上の整数。空欄可 |
+| C (3) | 状況 | 文字列 | — | `視聴予定` / `視聴中` / `視聴済` / `視聴中断` |
+| D (4) | 更新日 | 日付 | ○ | 最後に話数・状況を書き込んだ日（`getToday()`） |
+
+期を削除すると（`deleteAnimeSeason`）視聴状況の行も削除します。作品・シリーズは残ります。
+
 ## 2.4 ID 採番
 
-`M_Library` / `M_Title` / `M_Series` / `M_Wish` は `generateNextId(prefix, lastId)`（`server/Commons.js`）で採番します。
+`M_Library` / `M_Title` / `M_Series` / `M_Wish` / `M_Anime` / `M_AnimeSeason` は `generateNextId(prefix, lastId)`（`server/Commons.js`）で採番します。
 
 1. `getMaxId(sheetName)` で**1 列目のうち末尾の数字が最大の ID** を取得（データなしの場合 `null`）。シートを並べ替えても重複しません
 2. その値から `prefix` を除去して整数化し、+1
@@ -98,6 +140,8 @@ M_Series 1 ──── 0..* M_Title 1 ──── 0..* M_Library *..1 ──�
 | M_Title | `T` | `T000001` |
 | M_Series | `S` | `S000001` |
 | M_Wish | `W` | `W000001` |
+| M_Anime | `A` | `A000001` |
+| M_AnimeSeason | `AS` | `AS000001` |
 
 前提・制約:
 
@@ -116,3 +160,5 @@ M_Series 1 ──── 0..* M_Title 1 ──── 0..* M_Library *..1 ──�
 | シリーズ（作品一覧など） | `M_Title.SeriesID` → `M_Series.シリーズ名` |
 | 所持巻数（シリーズ別検索） | `M_Library` を TitleID ごとに件数集計 |
 | 漫画/ラノベ所蔵冊数 | `M_Library` × `M_Title.種別` で件数集計 |
+| アニメの作品名・シリーズ（期の一覧） | `M_AnimeSeason.AnimeID` → `M_Anime.作品名` → `M_Anime.SeriesID` → `M_Series.シリーズ名` |
+| アニメの話数・状況 | `M_AnimeSeason.SeasonID` → `M_AnimeWatch` |

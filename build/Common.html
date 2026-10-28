@@ -5,12 +5,44 @@
 //////////////////////////////
 const masterCache = {};
 
+// 書籍／アニメの切り替え。モードごとに最初に開く画面
+const APP_MODE_HOME = { book: 'PhotoImportView', anime: 'AnimeWatchingView' };
+const APP_MODE_STORAGE_KEY = 'personalLibrary.appMode';
+let appMode = null;
+
 function init(){
   refreshMasterData();
-  loadLibrarySummary('libraryGlobal');
-  loadRecentLibrary('globalRecentLibraryTable');
-  showTab('PhotoImportView');
+  showTab(APP_MODE_HOME[loadSavedAppMode()]);
   closeSidebar();
+}
+
+function getModeOfView(viewId){
+  return String(viewId || '').startsWith('Anime') ? 'anime' : 'book';
+}
+
+function loadSavedAppMode(){
+  try {
+    const saved = localStorage.getItem(APP_MODE_STORAGE_KEY);
+    if(APP_MODE_HOME[saved]) return saved;
+  } catch(e) {}
+  return 'book';
+}
+
+// メニュー・上部バー・サマリーの表示をモードに合わせる（画面は切り替えない）
+function applyAppMode(mode){
+  if(appMode === mode) return;
+  appMode = mode;
+  document.body.dataset.mode = mode;
+  document.querySelectorAll('.mode-switch button').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  try { localStorage.setItem(APP_MODE_STORAGE_KEY, mode); } catch(e) {}
+}
+
+// モード切替ボタン: 切り替えたらそのモードの最初の画面を開く
+function setAppMode(mode){
+  if(!APP_MODE_HOME[mode] || appMode === mode) return;
+  showTab(APP_MODE_HOME[mode]);
 }
 
 function toggleSidebar(){
@@ -69,6 +101,8 @@ function showTab(tabId){
   document.querySelectorAll('.view')
     .forEach(v => v.style.display = 'none');
 
+  applyAppMode(getModeOfView(targetView.id));
+
   resetViewState(targetView);
   targetView.style.display = 'block';
 
@@ -84,11 +118,20 @@ function showTab(tabId){
     SeriesListView: function(){ showInlineLoading('SeriesListView', '読み込み中...'); loadSeriesList(1); },
     TitleListView: function(){ showInlineLoading('TitleListView', '読み込み中...'); loadTitleList(1); },
     BoxListView: function(){ showInlineLoading('BoxListView', '読み込み中...'); loadBoxList(1); },
-    LibraryListView: function(){ showInlineLoading('LibraryListView', '読み込み中...'); loadLibraryList(1); }
+    LibraryListView: function(){ showInlineLoading('LibraryListView', '読み込み中...'); loadLibraryList(1); },
+    AnimeWatchingView: loadAnimeWatchingView,
+    AnimeSeriesView: loadAnimeSeriesView,
+    AnimeListView: loadAnimeListView,
+    AnimeEntryView: loadAnimeEntryView,
+    AnimeMasterView: loadAnimeMaster,
+    AnimeSeasonMasterView: loadAnimeSeasonMaster
   };
 
-  loadLibrarySummary('libraryGlobal');
-  loadRecentLibrary('globalRecentLibraryTable');
+  // サマリー・最近追加は書籍モードのときだけ表示・更新する
+  if(appMode === 'book'){
+    loadLibrarySummary('libraryGlobal');
+    loadRecentLibrary('globalRecentLibraryTable');
+  }
 
   if(loaders[tabId]) loaders[tabId]();
 }
@@ -499,7 +542,7 @@ function toggleSearchForm(id){
 
 // 画面（View）を開き直したときの状態リセット
 // フォーム・一覧を閉じ、検索キーワードと検索画面の結果をクリアする
-const SEARCH_VIEW_IDS = ['SeriesView', 'TitleView', 'BoxView'];
+const SEARCH_VIEW_IDS = ['SeriesView', 'TitleView', 'BoxView', 'AnimeSeriesView'];
 
 function resetViewState(view){
   if(!view) return;
@@ -876,12 +919,15 @@ function startEdit(btn){
   actionTd.appendChild(cancelBtn);
 }
 
-// 行の操作ボタン（[編集]、書籍マスタのみ [削除] も）
-// 削除は書籍のみ（作品・シリーズ・Box は参照されているため対象外）
+// 行の操作ボタン（[編集]、書籍マスタ・アニメ期マスタのみ [削除] も）
+// 削除は書籍とアニメの期のみ（作品・シリーズ・Box は参照されているため対象外）
 function appendRowActions(actionTd, tableId){
   actionTd.appendChild(createEditButton());
   if(tableId === 'libraryMasterTable'){
     actionTd.appendChild(createDeleteButton());
+  }
+  if(tableId === 'animeSeasonMasterTable'){
+    actionTd.appendChild(createDeleteButton(deleteAnimeSeasonRow));
   }
 }
 
@@ -997,6 +1043,16 @@ function saveEdit(btn){
   if(tableId === 'libraryMasterTable'){
     gasFunction = 'updateLibraryMaster';
     reloadFunction = loadLibraryMaster;
+  }
+
+  if(tableId === 'animeMasterTable'){
+    gasFunction = 'updateAnimeMaster';
+    reloadFunction = loadAnimeMaster;
+  }
+
+  if(tableId === 'animeSeasonMasterTable'){
+    gasFunction = 'updateAnimeSeasonMaster';
+    reloadFunction = loadAnimeSeasonMaster;
   }
 
   if(!gasFunction) return;
@@ -1334,6 +1390,7 @@ window.closeSidebar = closeSidebar;
 window.refreshMasterData = refreshMasterData;
 window.callGAS = callGAS;
 window.showTab = showTab;
+window.setAppMode = setAppMode;
 window.clearGlobalMessage = clearGlobalMessage;
 window.showSuccess = showSuccess;
 window.showError = showError;

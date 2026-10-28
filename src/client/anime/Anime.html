@@ -1,0 +1,474 @@
+<!-- Anime.html -->
+<script>
+//////////////////////////////
+// アニメ共通データ（getAnimeData の結果）
+//////////////////////////////
+const animeState = {
+  anime: [],
+  seasons: [],
+  series: []
+};
+
+// サーバーの ANIME_STATUSES / ANIME_TYPES と同じ並び（一覧の絞り込み用）
+const ANIME_STATUS_OPTIONS = ['視聴中', '視聴予定', '視聴済', '視聴中断'];
+const ANIME_TYPE_OPTIONS = ['TV', 'OVA', '劇場版', 'その他'];
+
+function loadAnimeData(viewId, onLoaded){
+  showInlineLoading(viewId, '読み込み中...');
+  google.script.run
+    .withSuccessHandler(function(data){
+      hideInlineLoading(viewId);
+      animeState.anime = (data && data.anime) || [];
+      animeState.seasons = (data && data.seasons) || [];
+      animeState.series = (data && data.series) || [];
+      renderAnimeGlobalSummary(data);
+      onLoaded();
+    })
+    .withFailureHandler(function(error){
+      hideInlineLoading(viewId);
+      showError(error && error.message ? error.message : 'アニメの読み込みに失敗しました');
+    })
+    .getAnimeData();
+}
+
+// 上部のアニメサマリー（アニメモードで常時表示。アニメ画面でデータを取得するたびに更新）
+function renderAnimeGlobalSummary(data){
+  const seasons = (data && data.seasons) || [];
+  const count = status => seasons.filter(s => s.status === status).length;
+  const values = {
+    animeGlobalDone: count('視聴済'),
+    animeGlobalWatching: count('視聴中'),
+    animeGlobalDropped: count('視聴中断'),
+    animeGlobalPlanned: count('視聴予定'),
+    animeGlobalWorks: ((data && data.anime) || []).length,
+    animeGlobalEpisodes: seasons.reduce((sum, s) => sum + (Number(s.episodes) || 0), 0)
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = value.toLocaleString();
+  });
+}
+
+function formatEpisodes(episodes){
+  return episodes === '' || episodes == null ? '-' : `${episodes}話`;
+}
+
+// 期の行（表示用）
+function toAnimeSeasonRow(season){
+  return {
+    id: season.id,
+    animeName: season.animeName,
+    name: season.name,
+    type: season.type,
+    episodes: formatEpisodes(season.episodes),
+    status: season.status,
+    updated: season.updated
+  };
+}
+
+//////////////////////////////
+// 視聴中の一覧（＋視聴予定）
+//////////////////////////////
+function loadAnimeWatchingView(){
+  loadAnimeData('AnimeWatchingView', renderAnimeWatching);
+}
+
+function renderAnimeWatching(){
+  // 視聴中は最近更新した順、視聴予定は登録順
+  const watching = animeState.seasons
+    .filter(s => s.status === '視聴中')
+    .sort((a, b) => (b.updatedValue - a.updatedValue) || b.id.localeCompare(a.id));
+  const planned = animeState.seasons.filter(s => s.status === '視聴予定');
+
+  document.getElementById('animeWatchingSummary').textContent = watching.length > 0
+    ? `視聴中 ${watching.length}件`
+    : '視聴中のアニメはありません（アニメ登録で状況を「視聴中」にすると表示されます）';
+
+  renderAnimeCards('animeWatchingCards', watching, season => [
+    { label: '+1話', onClick: btn => updateAnimeWatchFromCard(btn, season, (Number(season.episodes) || 0) + 1, '視聴中') },
+    { label: '視聴済にする', className: 'anime-done', onClick: btn => updateAnimeWatchFromCard(btn, season, season.episodes, '視聴済') },
+    { label: '中断', className: 'anime-drop', onClick: btn => updateAnimeWatchFromCard(btn, season, season.episodes, '視聴中断') }
+  ]);
+
+  renderAnimeCards('animePlannedCards', planned, season => [
+    { label: '視聴開始', onClick: btn => updateAnimeWatchFromCard(btn, season, season.episodes, '視聴中') }
+  ], '視聴予定のアニメはありません');
+}
+
+function renderAnimeCards(containerId, seasons, actionsFn, emptyText){
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+
+  if(seasons.length === 0 && emptyText){
+    const empty = document.createElement('div');
+    empty.className = 'anime-empty';
+    empty.textContent = emptyText;
+    container.appendChild(empty);
+    return;
+  }
+
+  seasons.forEach(season => {
+    const card = document.createElement('div');
+    card.className = 'anime-card';
+
+    const head = document.createElement('div');
+    head.className = 'anime-card-head';
+    const name = document.createElement('strong');
+    name.textContent = season.name;
+    const meta = document.createElement('span');
+    meta.className = 'anime-card-meta';
+    meta.textContent = [season.animeName !== season.name ? season.animeName : '', season.type].filter(Boolean).join('・');
+    head.appendChild(name);
+    head.appendChild(meta);
+    card.appendChild(head);
+
+    const line = document.createElement('div');
+    line.className = 'anime-card-line';
+    const episodes = document.createElement('span');
+    episodes.className = 'anime-card-episodes';
+    episodes.textContent = season.episodes === '' ? '未視聴' : `${season.episodes}話まで視聴`;
+    line.appendChild(episodes);
+
+    actionsFn(season).forEach(action => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `anime-action ${action.className || ''}`.trim();
+      btn.textContent = action.label;
+      btn.onclick = function(){ action.onClick(btn); };
+      line.appendChild(btn);
+    });
+
+    card.appendChild(line);
+    container.appendChild(card);
+  });
+}
+
+function updateAnimeWatchFromCard(btn, season, episodes, status){
+  const buttons = btn.closest('.anime-card').querySelectorAll('button');
+  buttons.forEach(b => b.disabled = true);
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      if(res && res.success){
+        showSuccess(res.message);
+        loadAnimeWatchingView();
+      } else {
+        buttons.forEach(b => b.disabled = false);
+        showError(res && res.message ? res.message : '更新に失敗しました');
+      }
+    })
+    .withFailureHandler(function(error){
+      buttons.forEach(b => b.disabled = false);
+      showError(error && error.message ? error.message : '更新に失敗しました');
+    })
+    .updateAnimeWatch(season.id, episodes, status);
+}
+
+//////////////////////////////
+// シリーズ別検索
+//////////////////////////////
+function loadAnimeSeriesView(){
+  loadAnimeData('AnimeSeriesView', function(){
+    // アニメが登録されているシリーズだけを候補にする
+    const seen = new Set();
+    const options = [];
+    animeState.anime.forEach(a => {
+      if(!a.seriesId || seen.has(a.seriesId)) return;
+      seen.add(a.seriesId);
+      options.push({ id: a.seriesId, name: a.seriesName || a.seriesId });
+    });
+    options.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    populateAutocomplete('animeSeriesSelectInput', options, s => s.name, 'id', 'シリーズ名を入力');
+  });
+}
+
+function showAnimeSeries(){
+  const id = getAutocompleteValue('animeSeriesSelectInput');
+  if(!id) return showError('シリーズを候補から選択してください');
+
+  // 作品ごと（作品の登録順）→ 期の登録順
+  const animeOrder = new Map(animeState.anime.map((a, index) => [a.id, index]));
+  const seasons = animeState.seasons
+    .filter(s => s.seriesId === id)
+    .sort((a, b) => ((animeOrder.get(a.animeId) ?? 0) - (animeOrder.get(b.animeId) ?? 0)) || a.id.localeCompare(b.id));
+
+  renderAnimeSeriesSummary(seasons);
+  renderTableReadOnly('animeSeriesTable', seasons.map(toAnimeSeasonRow), ['animeName', 'name', 'type', 'episodes', 'status']);
+  loadAnimeSeriesBooks(id);
+}
+
+// 同じシリーズの書籍（作品ごとの所持巻）を表示する
+function loadAnimeSeriesBooks(seriesId){
+  const box = document.getElementById('animeSeriesBooks');
+  box.innerHTML = '';
+  box.style.display = 'none';
+
+  google.script.run
+    .withSuccessHandler(function(titles){
+      // 取得中に別のシリーズを表示した場合は捨てる
+      if(getAutocompleteValue('animeSeriesSelectInput') !== seriesId) return;
+      box.innerHTML = '';
+
+      const heading = document.createElement('div');
+      heading.className = 'anime-books-title';
+      heading.textContent = '書籍（所持巻）';
+      box.appendChild(heading);
+
+      if(!titles || titles.length === 0){
+        appendOwnershipLine(box, '-', 'このシリーズの書籍は登録されていません');
+      } else {
+        titles.forEach(title => {
+          appendOwnershipLine(box, title.name, formatOwnershipText(summarizeOwnedVolumes(title.volumes), title.completed));
+        });
+      }
+      box.style.display = 'block';
+    })
+    .withFailureHandler(function(error){
+      showError(error && error.message ? error.message : '書籍の読み込みに失敗しました');
+    })
+    .getSeriesDetail(seriesId);
+}
+
+function appendOwnershipLine(box, label, value){
+  const line = document.createElement('div');
+  line.className = 'ownership-line';
+  const strong = document.createElement('strong');
+  strong.textContent = label;
+  const span = document.createElement('span');
+  span.textContent = value;
+  line.appendChild(strong);
+  line.appendChild(span);
+  box.appendChild(line);
+}
+
+function renderAnimeSeriesSummary(seasons){
+  const box = document.getElementById('animeSeriesSummary');
+  box.innerHTML = '';
+
+  const countBy = (key, values) => values
+    .map(value => [value, seasons.filter(s => s[key] === value).length])
+    .filter(([, count]) => count > 0)
+    .map(([value, count]) => `${value} ${count}`)
+    .join(' / ');
+
+  const totalEpisodes = seasons.reduce((sum, s) => sum + (Number(s.episodes) || 0), 0);
+  const lines = seasons.length === 0
+    ? [['期', 'このシリーズのアニメはまだ登録されていません']]
+    : [
+        ['期', `${seasons.length}件（${countBy('type', ['TV', 'OVA', '劇場版', 'その他']) || '種別未設定'}）`],
+        ['状況', countBy('status', ['視聴中', '視聴済', '視聴中断', '視聴予定']) || '未設定'],
+        ['視聴話数', `合計 ${totalEpisodes}話`]
+      ];
+
+  lines.forEach(([label, value]) => appendOwnershipLine(box, label, value));
+
+  box.style.display = 'block';
+}
+
+//////////////////////////////
+// アニメ一覧（絞り込み・並べ替えは createListFilter）
+//////////////////////////////
+let animeListFilter = null;
+
+function loadAnimeListView(){
+  if(!animeListFilter){
+    animeListFilter = createListFilter({
+      tableId: 'animeListTable',
+      pageSize: 30,
+      columns: [
+        { key: 'animeName' },
+        { key: 'name' },
+        { key: 'type' },
+        { key: 'episodes', compare: (a, b) => (Number(a.episodeCount) || 0) - (Number(b.episodeCount) || 0) },
+        { key: 'status' },
+        { key: 'updated', compare: (a, b) => a.updatedValue - b.updatedValue }
+      ],
+      keywordKeys: ['animeName', 'name', 'seriesName'],
+      filters: [
+        { key: 'status', label: '状況', options: ANIME_STATUS_OPTIONS },
+        { key: 'type', label: '種別', options: ANIME_TYPE_OPTIONS },
+        { key: 'seriesName', label: 'シリーズ' }
+      ],
+      defaultSort: { key: 'animeName', dir: 'asc' }
+    });
+  }
+
+  loadAnimeData('AnimeListView', function(){
+    animeListFilter.setRows(animeState.seasons.map(season => Object.assign(toAnimeSeasonRow(season), {
+      seriesName: season.seriesName,
+      episodeCount: season.episodes,
+      updatedValue: season.updatedValue || 0
+    })));
+  });
+}
+
+//////////////////////////////
+// アニメ登録
+//////////////////////////////
+function loadAnimeEntryView(){
+  loadAnimeData('AnimeEntryView', function(){
+    populateAutocomplete('animeEntryAnimeInput', animeState.anime, a => a.name, 'id', '作品名（例: オーバーロード）');
+    populateAutocomplete('animeEntrySeriesInput', animeState.series, s => s.name, 'id', 'シリーズ（空欄なら作品名と同じ）');
+
+    // populateAutocomplete は oninput / onblur を上書きするため、作品の判定は addEventListener で 1 回だけ登録
+    const input = document.getElementById('animeEntryAnimeInput');
+    if(!input.dataset.animeEntryBound){
+      input.dataset.animeEntryBound = '1';
+      input.addEventListener('input', syncAnimeEntrySeries);
+      input.addEventListener('blur', () => setTimeout(syncAnimeEntrySeries, 200));
+    }
+    syncAnimeEntrySeries();
+    renderAnimeRecent();
+  });
+}
+
+function findAnimeByName(name){
+  const key = String(name || '').trim().toLowerCase();
+  if(!key) return null;
+  return animeState.anime.find(a => a.name.trim().toLowerCase() === key) || null;
+}
+
+// 既存の作品ならシリーズ欄を隠し、新しい作品なら表示する
+function syncAnimeEntrySeries(){
+  const name = document.getElementById('animeEntryAnimeInput').value.trim();
+  const anime = findAnimeByName(name);
+  const hint = document.getElementById('animeEntryHint');
+  const seriesRow = document.getElementById('animeEntrySeriesRow');
+
+  if(!name){
+    hint.textContent = '';
+    seriesRow.style.display = 'none';
+    return;
+  }
+
+  if(anime){
+    const count = animeState.seasons.filter(s => s.animeId === anime.id).length;
+    hint.textContent = `登録済みの作品に期を追加します（シリーズ: ${anime.seriesName || '未設定'}、登録済みの期 ${count}件）`;
+    seriesRow.style.display = 'none';
+  } else {
+    hint.textContent = '新しい作品として登録します';
+    seriesRow.style.display = '';
+  }
+}
+
+function addAnimeSeasonFromForm(){
+  const animeName = document.getElementById('animeEntryAnimeInput').value.trim();
+  if(!animeName) return showError('作品名を入力してください');
+
+  const form = {
+    animeName,
+    seriesName: findAnimeByName(animeName) ? '' : document.getElementById('animeEntrySeriesInput').value.trim(),
+    seasonName: document.getElementById('animeEntrySeasonInput').value.trim(),
+    type: document.getElementById('animeEntryType').value,
+    episodes: document.getElementById('animeEntryEpisodesInput').value.trim(),
+    status: document.getElementById('animeEntryStatus').value
+  };
+
+  const button = document.getElementById('animeEntryButton');
+  button.disabled = true;
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      button.disabled = false;
+      if(res && res.success){
+        showSuccess(res.message);
+        document.getElementById('animeEntrySeasonInput').value = '';
+        document.getElementById('animeEntryEpisodesInput').value = '';
+        document.getElementById('animeEntrySeriesInput').value = '';
+        // 新しいシリーズを作った可能性があるので書籍側の選択肢も更新
+        refreshMasterData();
+        loadAnimeEntryView();
+      } else {
+        showError(res && res.message ? res.message : '登録に失敗しました');
+      }
+    })
+    .withFailureHandler(function(error){
+      button.disabled = false;
+      showError(error && error.message ? error.message : '登録に失敗しました');
+    })
+    .addAnimeSeasonWeb(form);
+}
+
+function renderAnimeRecent(){
+  const rows = animeState.seasons
+    .slice()
+    .sort((a, b) => (b.updatedValue - a.updatedValue) || b.id.localeCompare(a.id))
+    .slice(0, 10)
+    .map(toAnimeSeasonRow);
+  renderTableReadOnly('animeRecentTable', rows, ['name', 'type', 'episodes', 'status', 'updated']);
+}
+
+//////////////////////////////
+// マスタ管理（作品・期）
+// 編集は共通の startEdit / saveEdit（tableId で更新関数を切り替え）
+//////////////////////////////
+function loadAnimeMaster(){
+  document.getElementById('animeMasterTable').style.display = 'none';
+  callGAS('getAnimeData', function(data){
+    masterCache.anime = (data && data.anime) || [];
+    renderAnimeGlobalSummary(data);
+    if(document.getElementById('animeSearchKeyword').value.trim()){
+      filterAnimeMaster();
+    }
+  });
+}
+
+function filterAnimeMaster(){
+  const rows = (masterCache.anime || []).map(a => ({ id: a.id, name: a.name, seriesName: a.seriesName }));
+  renderFilteredTable('animeMasterTable', rows, ['id', 'name', 'seriesName'], 'animeSearchKeyword');
+}
+
+function loadAnimeSeasonMaster(){
+  document.getElementById('animeSeasonMasterTable').style.display = 'none';
+  callGAS('getAnimeData', function(data){
+    masterCache.animeSeasons = (data && data.seasons) || [];
+    renderAnimeGlobalSummary(data);
+    if(document.getElementById('animeSeasonSearchKeyword').value.trim()){
+      filterAnimeSeasonMaster();
+    }
+  });
+}
+
+function filterAnimeSeasonMaster(){
+  // 話数は編集でそのまま保存できるよう数値のまま表示。seriesName はキーワード検索用（列には出さない）
+  const rows = (masterCache.animeSeasons || []).map(s => ({
+    id: s.id,
+    animeName: s.animeName,
+    name: s.name,
+    type: s.type,
+    episodes: s.episodes,
+    status: s.status,
+    seriesName: s.seriesName
+  }));
+  renderFilteredTable('animeSeasonMasterTable', rows, ['id', 'animeName', 'name', 'type', 'episodes', 'status'], 'animeSeasonSearchKeyword');
+}
+
+function deleteAnimeSeasonRow(btn){
+  const id = btn.closest('tr').cells[0].textContent.trim();
+  btn.disabled = true;
+  btn.textContent = '削除中...';
+
+  callGAS('deleteAnimeSeason', function(res){
+    if(res && res.success){
+      showSuccess(res.message);
+      loadAnimeSeasonMaster();
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('is-confirm');
+      btn.textContent = '削除';
+      showError(res && res.message ? res.message : '削除に失敗しました');
+    }
+  }, id);
+}
+
+window.loadAnimeWatchingView = loadAnimeWatchingView;
+window.loadAnimeSeriesView = loadAnimeSeriesView;
+window.showAnimeSeries = showAnimeSeries;
+window.loadAnimeEntryView = loadAnimeEntryView;
+window.addAnimeSeasonFromForm = addAnimeSeasonFromForm;
+window.loadAnimeMaster = loadAnimeMaster;
+window.filterAnimeMaster = filterAnimeMaster;
+window.loadAnimeSeasonMaster = loadAnimeSeasonMaster;
+window.filterAnimeSeasonMaster = filterAnimeSeasonMaster;
+window.deleteAnimeSeasonRow = deleteAnimeSeasonRow;
+</script>

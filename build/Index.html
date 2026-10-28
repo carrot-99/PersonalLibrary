@@ -21,7 +21,7 @@
       <main class="main-content">
         <div class="page-header">
           <h2>にんじん図書館</h2>
-          <div class="global-search">
+          <div class="global-search book-only">
             <input id="globalSearchInput" type="search" list="globalSearchList" placeholder="作品名で所持巻を検索" enterkeyhint="search" autocomplete="off"
               onchange="runGlobalSearch()" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); runGlobalSearch(); }">
             <datalist id="globalSearchList"></datalist>
@@ -31,13 +31,22 @@
 
         <div class="app-layout">
           <div class="left-panel-column">
-            <div class="top-summary-panel">
+            <div class="top-summary-panel book-only">
               <div class="summary-item compact">所蔵冊数<strong id="libraryGlobalTotal">0</strong></div>
               <div class="summary-item compact">漫画所蔵冊数<strong id="libraryGlobalMangaTotal">0</strong></div>
               <div class="summary-item compact">ラノベ所蔵冊数<strong id="libraryGlobalNovelTotal">0</strong></div>
               <div class="summary-item compact">登録作品数<strong id="libraryGlobalUnique">0</strong></div>
               <div class="summary-item compact">登録Box数<strong id="libraryGlobalBoxes">0</strong></div>
               <div class="summary-item compact">最新登録<strong id="libraryGlobalLastAdded">-</strong></div>
+            </div>
+
+            <div class="top-summary-panel anime-only">
+              <div class="summary-item compact">視聴済<strong id="animeGlobalDone">0</strong></div>
+              <div class="summary-item compact">視聴中<strong id="animeGlobalWatching">0</strong></div>
+              <div class="summary-item compact">視聴中断<strong id="animeGlobalDropped">0</strong></div>
+              <div class="summary-item compact">視聴予定<strong id="animeGlobalPlanned">0</strong></div>
+              <div class="summary-item compact">登録作品数<strong id="animeGlobalWorks">0</strong></div>
+              <div class="summary-item compact">視聴話数<strong id="animeGlobalEpisodes">0</strong></div>
             </div>
 
             <div class="content-area">
@@ -55,11 +64,17 @@
                 <?!= include('SeriesMasterView') ?>
                 <?!= include('TitleMasterView') ?>
                 <?!= include('BoxMasterView') ?>
+                <?!= include('AnimeWatchingView') ?>
+                <?!= include('AnimeSeriesView') ?>
+                <?!= include('AnimeListView') ?>
+                <?!= include('AnimeEntryView') ?>
+                <?!= include('AnimeMasterView') ?>
+                <?!= include('AnimeSeasonMasterView') ?>
               </div>
             </div>
           </div>
 
-          <aside class="recent-history-panel">
+          <aside class="recent-history-panel book-only">
             <h4>最近追加した漫画</h4>
             <table class="table table-striped" id="globalRecentLibraryTable">
               <thead>
@@ -82,5 +97,6 @@
     <?!= include('Series') ?>
     <?!= include('Title') ?>
     <?!= include('Box') ?>
+    <?!= include('Anime') ?>
   </body>
 </html>

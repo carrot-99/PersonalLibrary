@@ -112,3 +112,68 @@ function updateSeriesMasterCore(id, values){
     return failure(e.message);
   }
 }
+
+
+// ----------------------
+// 統合
+// fromId のシリーズを toId にまとめる（作品・アニメ作品の SeriesID を付け替え、fromId の行を削除）
+// ----------------------
+function mergeSeries(fromId, toId){
+  return withScriptLock(() => mergeSeriesCore(fromId, toId));
+}
+
+function mergeSeriesCore(fromId, toId){
+
+  fromId = String(fromId || '').trim();
+  toId   = String(toId || '').trim();
+
+  if(!fromId || !toId){
+    return failure('統合するシリーズと統合先を選んでください');
+  }
+  if(fromId === toId){
+    return failure('同じシリーズは統合できません');
+  }
+
+  try{
+
+    const seriesRows = getData(SHEETS.SERIES);
+    const fromIndex = seriesRows.findIndex(row => String(row[0]).trim() === fromId);
+    const toRow = seriesRows.find(row => String(row[0]).trim() === toId);
+    if(fromIndex < 0 || !toRow){
+      return failure('シリーズが見つかりません');
+    }
+    const fromName = seriesRows[fromIndex][1];
+
+    const titles = replaceSeriesIdInSheet(SHEETS.TITLE, fromId, toId);
+    const anime  = replaceSeriesIdInSheet(SHEETS.ANIME, fromId, toId);
+
+    getSheet(SHEETS.SERIES).deleteRow(fromIndex + 2);
+
+    return success(`「${fromName}」を「${toRow[1]}」に統合しました（作品 ${titles} 件、アニメ作品 ${anime} 件を付け替え）`);
+
+  } catch(e){
+
+    return failure(e.message);
+  }
+}
+
+// 3 列目（SeriesID）が fromId の行を toId に置き換え、置き換えた件数を返す
+function replaceSeriesIdInSheet(sheetName, fromId, toId){
+
+  const sheet = getSheet(sheetName);
+  if(!sheet || sheet.getLastRow() < 2) return 0;
+
+  const range = sheet.getRange(2, 3, sheet.getLastRow() - 1, 1);
+  const values = range.getValues();
+  let count = 0;
+
+  values.forEach(row => {
+    if(String(row[0]).trim() === fromId){
+      row[0] = toId;
+      count++;
+    }
+  });
+
+  if(count > 0) range.setValues(values);
+  return count;
+}

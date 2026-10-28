@@ -1,0 +1,15 @@
+<!-- AnimeSeriesView.html -->
+<div id="AnimeSeriesView" class="view">
+  <h3>シリーズ別検索（アニメ）</h3>
+  <label>シリーズ
+    <input id="animeSeriesSelectInput" list="animeSeriesSelectList" placeholder="シリーズ名を入力">
+    <datalist id="animeSeriesSelectList"></datalist>
+  </label>
+  <button onclick="showAnimeSeries()">表示</button>
+  <div id="animeSeriesSummary" class="ownership-summary" style="display:none;"></div>
+  <div id="animeSeriesBooks" class="ownership-summary" style="display:none;"></div>
+  <table id="animeSeriesTable" style="display:none;">
+    <thead><tr><th>作品</th><th>期</th><th>種別</th><th>視聴済話数</th><th>状況</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
