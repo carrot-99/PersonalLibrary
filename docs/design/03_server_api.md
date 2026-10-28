@@ -437,7 +437,7 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `getLibraryPage` | なし（未使用。U-7） |
 | `getTitleDetail` / `getBoxDetail` | `showTitle` / `showBox`（一覧・詳細のリンクからは `openTitleDetail` / `openBoxDetail` 経由。シリーズは `openSeriesDetail` → `showSeries` → `getSeriesOverview`） |
 | `getSeriesDetail` | サーバー内部から使用（`getSeriesOverview`） |
-| `addNewVolumeWeb` | `addLibraryMaster`, `addVolume`（※ `addVolume` の画面は未表示） |
+| `addNewVolumeWeb` | `addLibraryMaster`（書籍一覧の [追加]） |
 | `addTitleMasterWeb` / `addSeriesMasterWeb` / `addBoxMasterWeb` | `addTitleMaster` / `addSeriesMaster` / `addBoxMaster` |
 | `update*Master` | `saveEdit`（一覧の `createListFilter` の `edit.update` で指定） |
 | `deleteLibraryMaster` | `deleteListRow`（書籍一覧の [削除]） |

@@ -120,8 +120,8 @@ callGAS(funcName, successHandler, ...args)
 | 関数 | 適用する入力欄 |
 |---|---|
 | `populateSeries` | `seriesSelectInput`（シリーズの詳細）, `newTitleSeriesInput`（作品追加） |
-| `populateTitle` | `titleSelectInput`（未使用画面）, `titleViewSelectInput`（作品別検索） |
-| `populateBoxes` | `boxSelectInput`（未使用画面）, `boxViewSelectInput`（箱別検索） |
+| `populateTitle` | `titleViewSelectInput`（作品の詳細）, `globalSearchList`（上部の作品名検索） |
+| `populateBoxes` | `boxViewSelectInput`（箱の詳細） |
 
 書籍一覧の追加フォームの入力欄（`libraryAddTitleInput` / `libraryAddBoxInput`）は `loadLibraryAddForm()` 内で個別に datalist を構築します（照合は同じく `findDatalistOption`）。
 

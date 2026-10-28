@@ -80,7 +80,7 @@ PersonalLibrary/
         ├── Styles.html          CSS
         ├── Common.html          共通 JS
         ├── Scripts.html         空テンプレート（未使用）
-        ├── library/  Library.html(JS) / PhotoImport.html(JS) / Wish.html(JS) / PhotoImportView / WishListView / LibraryListView / LibraryEntryView
+        ├── library/  Library.html(JS) / PhotoImport.html(JS) / Wish.html(JS) / PhotoImportView / WishListView / LibraryListView
         ├── title/    Title.html(JS)   / TitleView / TitleListView
         ├── series/   Series.html(JS)  / SeriesView / SeriesListView
         ├── box/      Box.html(JS)     / BoxView / BoxListView

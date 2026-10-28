@@ -25,7 +25,6 @@
 |---|---|---|
 | U-1 | `server/Code.js` | 全行コメントアウトされた旧実装 |
 | U-2 | `client/Scripts.html` | 空の HTML テンプレート |
-| U-3 | `client/library/LibraryEntryView.html` と `addVolume` / `loadLibraryEntry`、`#LibraryEntryView{display:block}`（Styles） | `Index.html` に未組み込みの旧「ライブラリ登録」画面一式（`parseVolumeInput` は写真から登録でも使うため残す） |
 | U-4 | `server/LibraryService.js` `getLibraryMaster` | 呼び出しなし |
 | U-5 | `client/Common.html` `formatDate` | 呼び出しなし |
 | U-7 | `server/LibraryService.js` `getLibraryPage` | 呼び出しなし（書籍一覧は `getLibraryListAll` に移行） |

@@ -835,13 +835,12 @@ function populateTitle(titles){
     });
   }
   populateSelect(
-    ['titleSelect','titleViewSelect'],
+    ['titleViewSelect'],
     titles,
     getTitleLabel,
     'id',
     '作品を選択'
   );
-  populateAutocomplete('titleSelectInput', titles, getTitleLabel, 'id', '作品名を入力');
   populateAutocomplete('titleViewSelectInput', titles, getTitleLabel, 'id', '作品名を入力');
 }
 
@@ -854,13 +853,12 @@ function getTitleLabel(title){
 function populateBoxes(boxes){
   masterCache.boxOptions = boxes || [];
   populateSelect(
-    ['boxSelect','boxViewSelect'],
+    ['boxViewSelect'],
     boxes,
     b => `${b.id} : ${b.place}`,
     'id',
     'Boxを選択'
   );
-  populateAutocomplete('boxSelectInput', boxes, b => `${b.id} : ${b.place}`, 'id', 'Boxを入力');
   populateAutocomplete('boxViewSelectInput', boxes, b => `${b.id} : ${b.place}`, 'id', 'Boxを入力');
 }
 
