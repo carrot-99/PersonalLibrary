@@ -61,10 +61,12 @@ test('getDateValue: Date と日付文字列を日単位の数値にし、不明�
   assert.equal(gas.getDateValue('不明'), 0);
 });
 
-// 既知のバグ: 正規表現が /(d+)$/ になっていて数字にマッチしない（06_known_issues.md 参照）
-test('getIdNumber: ID 末尾の数字を返す', { todo: '正規表現の \\d 抜けを修正するまで失敗する' }, () => {
+test('getIdNumber: ID 末尾の数字を返し、数字がなければ 0', () => {
   const { gas } = loadServer({});
   assert.equal(gas.getIdNumber('L000012'), 12);
+  assert.equal(gas.getIdNumber('AS000003'), 3);
+  assert.equal(gas.getIdNumber('Lxyz'), 0);
+  assert.equal(gas.getIdNumber(null), 0);
 });
 
 test('sortLibraryRowsByNewest: 追加日の降順に並べ、元の配列は変えない', () => {
@@ -79,13 +81,14 @@ test('sortLibraryRowsByNewest: 追加日の降順に並べ、元の配列は変�
   assert.equal(rows[0][0], 'L000001');
 });
 
-test('sortLibraryRowsByNewest: 同じ日は ID の降順', { todo: 'getIdNumber のバグを修正するまで失敗する' }, () => {
+test('sortLibraryRowsByNewest: 同じ日は ID の降順（桁数が違っても数値で比較）', () => {
   const { gas } = loadServer({});
   const rows = [
     ['L000001', 'T1', 'B01', '1', new Date(2026, 0, 1)],
+    ['L000010', 'T1', 'B01', '3', new Date(2026, 0, 1, 18)],
     ['L000002', 'T1', 'B01', '2', new Date(2026, 0, 1)]
   ];
-  assert.deepEqual(gas.sortLibraryRowsByNewest(rows).map(r => r[0]), ['L000002', 'L000001']);
+  assert.deepEqual(gas.sortLibraryRowsByNewest(rows).map(r => r[0]), ['L000010', 'L000002', 'L000001']);
 });
 
 test('formatDateCell: Date は書式どおりに、それ以外は文字列のまま返す', () => {
