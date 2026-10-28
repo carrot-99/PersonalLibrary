@@ -6,7 +6,11 @@
 
 ## 6.1 不具合（B）
 
-現在、既知の不具合はありません（B-1〜B-6 は 2026-10-26 に修正済み）。
+B-1〜B-6 は 2026-10-26 に修正済み。
+
+| ID | 優先度 | 内容 | 対応案 |
+|---|---|---|---|
+| B-7 | 低 | `Commons.js` の `getIdNumber` の正規表現が `/(d+)$/`（`\d` の `\` 抜け）で常に 0 を返す。同じ追加日の書籍が ID 順に並ばず、シートの行順のまま（最近追加・最終追加日に影響）。自動テストの todo 2 件で検出（2026-10-29） | 正規表現を `/(\d+)$/` に直し、`tests/commons.test.js` の todo を外す |
 
 ## 6.2 仕様上の注意・リスク（R）
 
@@ -36,7 +40,7 @@
 | C-1 | ビルド成果物 `build/` がリポジトリにコミットされており、`node build.js` の実行を忘れると `src/` とずれる（commit `568cab2` 時点ではずれがあり、`689c75a` で解消） | `build/` を `.gitignore` に追加し、push 前に必ず `node build.js` を実行する。または `package.json` に `build` / `push` スクリプトを定義 |
 | C-2 | `.clasp.json` が管理外のため、デプロイ手順がリポジトリから分からない | `rootDir: "build"` 等の設定例を README に記載 |
 | C-3 | 巻数式の解析ロジックがサーバー（`parseVolumeExpression`）とクライアント（`parseVolumeInput`）で重複 | クライアント側検証を簡略化するか、仕様変更時は両方を同時に修正する |
-| C-4 | 自動テスト・Lint なし | 純粋関数（`parseVolumeExpression`, `generateNextId`）から単体テストを導入 |
+| C-4 | Lint なし。自動テスト（`npm test`）は画面（DOM 操作）と AI の写真解析（`requestSpineAnalysis` / `fetchAnthropicMessages`）を対象にしていない | 必要になったら ESLint の導入、`UrlFetchApp` のフェイクで AI 応答の解析をテスト |
 
 ## 6.5 機能拡張候補（旧仕様書から引き継ぎ）
 
