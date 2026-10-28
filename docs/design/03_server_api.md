@@ -406,6 +406,24 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 
 ---
 
+## 3.9.1 アニメ（`server/AnimeService.js`）
+
+シリーズは書籍と共通の `M_Series` を使います。種別 `ANIME_TYPES` = `TV` / `OVA` / `劇場版` / `その他`、状況 `ANIME_STATUSES` = `視聴予定` / `視聴中` / `視聴済` / `視聴中断`（いずれも空欄可）。更新系はすべて `withScriptLock` で排他します。
+
+| 関数 | 内容 |
+|---|---|
+| `getAnimeData()` | 画面用の全データ。`{ anime: [{ id, name, seriesId, seriesName }], seasons: [{ id, animeId, animeName, seriesId, seriesName, name, type, episodes, status, updated, updatedValue }], series: [{ id, name }] }`。`episodes` は数値または空文字、`updatedValue` は並べ替え用の日付数値 |
+| `addAnimeSeasonWeb(form)` | 期を登録。`form = { animeName, seriesName, seasonName, type, episodes, status }`。作品名が未登録なら作品を作成し、そのシリーズ（空欄なら作品名）が未登録ならシリーズも作成（`findOrCreateSeriesIdCore`）。期名が空欄なら作品名。同じ作品に同名の期があればエラー |
+| `updateAnimeWatch(seasonId, episodes, status)` | 話数・状況を更新（視聴中の一覧のボタン） |
+| `updateAnimeMaster(id, values)` | 作品の更新。`values = [作品名, シリーズ名 or SeriesID]`。作品名は重複不可、シリーズは既存のもののみ（空欄可） |
+| `updateAnimeSeasonMaster(id, values)` | 期の更新。`values = [作品名 or AnimeID, 期名, 種別, 視聴済話数, 状況]`。視聴状況は `writeAnimeWatch` で更新（行がなければ追加） |
+| `deleteAnimeSeason(id)` | 期と視聴状況の行を削除 |
+| `importLegacyAnime()` | 旧管理表の取込（**GAS エディタから手動実行**）。同じスプレッドシートのシート `アニメ取込`（列: タイトル / シリーズ / 話数 / 状況）を読み、シリーズは同名を共有・なければ作成、作品はシリーズ名で 1 件にまとめ、行ごとに期を作成。種別はタイトルから推定（`guessAnimeType`: 劇場版・映画・ムービー → `劇場版`、OVA・OAD・未放送 → `OVA`、他は `TV`）。同じ作品に同名の期があればスキップするため再実行可。スキップした期で視聴済話数が空欄なら、取込シートの話数で埋める。シリーズが `-` の行（旧管理表末尾の集計行）は取り込まない |
+
+内部関数: `getAnimeSheet(name, headers)` / `ensureAnimeSheets()`（シート作成）、`appendRows(sheet, rows)`、`parseEpisodeCount(value)`（全角数字・末尾「話」可）、`validateAnimeType` / `validateAnimeStatus`、`writeAnimeWatch(seasonId, episodes, status)`。
+
+---
+
 ## 3.10 API 呼び出し元一覧
 
 | API | 呼び出し元（クライアント関数） |
@@ -432,4 +450,8 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | 作品追加パネルの「追加して選択」 / `registerPhotoImport` |
 | `getTitles`, `addBulkVolumesWeb`, `getOwnedVolumesByTitle` | サーバー内部から使用（`analyzeBookSpines`, `bulkAddLibraryFromPhoto`） |
 | `testAnthropicConnection` | Apps Script エディタから手動実行 |
+| `getAnimeData` | `loadAnimeData`（視聴中の一覧・シリーズ別検索・アニメ登録）, `loadAnimeMaster`, `loadAnimeSeasonMaster` |
+| `addAnimeSeasonWeb` / `updateAnimeWatch` / `deleteAnimeSeason` | `addAnimeSeasonFromForm` / `updateAnimeWatchFromCard` / `deleteAnimeSeasonRow` |
+| `updateAnimeMaster` / `updateAnimeSeasonMaster` | `saveEdit`（`animeMasterTable` / `animeSeasonMasterTable`） |
+| `importLegacyAnime` | Apps Script エディタから手動実行 |
 | `getLibraryMaster` | なし（未使用） |

@@ -37,13 +37,16 @@ callGAS(funcName, successHandler, ...args)
 ## 5.3 タブ（画面）切替 — `showTab(tabId)`
 
 1. `tabId` の要素がなければ最初の `.view` を対象にする
-2. 全メニューボタンから `active` を外し、`data-tab` が一致するボタンに付与
-3. 全 `.view` を非表示 → 対象 View の状態をリセット（`resetViewState`）して表示
+2. View の ID からモードを決めて反映（`applyAppMode`。`Anime` で始まればアニメ、他は書籍）。`body[data-mode]` を切り替え、CSS で `.book-only` / `.anime-only` の部品（メニューのグループ、上部バーの検索、サマリー、最近追加）を出し分ける。モードは `localStorage`（`personalLibrary.appMode`）に保存し、次回の初期表示に使う
+3. 全メニューボタンから `active` を外し、`data-tab` が一致するボタンに付与
+4. 全 `.view` を非表示 → 対象 View の状態をリセット（`resetViewState`）して表示
    - フォーム（`.master-form`）と一覧テーブルを閉じ、検索キーワード（`*SearchKeyword`）をクリア
-   - 検索系 View（`SeriesView` / `TitleView` / `BoxView`）は入力欄と結果テーブルもクリア
-4. 通知をクリア
-5. サマリー・最近追加を再取得
-6. View ごとのローダーを実行
+   - 検索系 View（`SeriesView` / `TitleView` / `BoxView` / `AnimeSeriesView`）は入力欄と結果テーブルもクリア
+5. 通知をクリア
+6. 書籍モードのときだけサマリー・最近追加を再取得
+7. View ごとのローダーを実行
+
+メニュー先頭の切り替えボタンは `setAppMode(mode)` を呼び、そのモードの最初の画面（`APP_MODE_HOME`）を `showTab` で開きます。
 
 | View | ローダー |
 |---|---|
@@ -53,6 +56,8 @@ callGAS(funcName, successHandler, ...args)
 | `SeriesMasterView` / `TitleMasterView` / `BoxMasterView` | `loadSeriesMaster()` / `loadTitleMaster()` / `loadBoxMaster()` |
 | `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | ローディング表示 → `load*List(1)` |
 | 検索系 View | なし（候補は初期化時に構築済み） |
+| `AnimeWatchingView` / `AnimeSeriesView` / `AnimeEntryView` | `loadAnimeWatchingView()` / `loadAnimeSeriesView()` / `loadAnimeEntryView()`（いずれも `getAnimeData` で全件取得して描画） |
+| `AnimeMasterView` / `AnimeSeasonMasterView` | `loadAnimeMaster()` / `loadAnimeSeasonMaster()` |
 
 ## 5.4 テーブル描画
 
@@ -129,7 +134,7 @@ callGAS(funcName, successHandler, ...args)
    行に editing クラスを付与（スマホで入力欄の幅を確保）、入力欄のプレースホルダーに列名
    操作列を [保存] [取消] に置換
 [取消] → cancelEdit(btn)   元の値に戻し操作ボタンを再表示（appendRowActions）
-操作ボタン appendRowActions(actionTd, tableId): [編集]（createEditButton）。書籍マスタ管理のみ横に [削除]（createDeleteButton）
+操作ボタン appendRowActions(actionTd, tableId): [編集]（createEditButton）。書籍マスタ管理・アニメ期マスタ管理のみ横に [削除]（createDeleteButton。アニメは deleteAnimeSeasonRow）
    createDeleteButton(onConfirm) は確定時の処理を受け取れる（省略時は deleteRow。欲しい巻リストでも使用）
 [削除] → 1 回目: 「本当に削除」に変更（4 秒で元に戻る）／2 回目: deleteRow(btn)
    deleteLibraryMaster(1 列目の ID) → 成功時は書籍マスタ・最近追加・サマリーを再読込
@@ -145,6 +150,8 @@ callGAS(funcName, successHandler, ...args)
 | `titleMasterTable` | `updateTitleMaster` | `loadTitleMaster` | ○ |
 | `boxMasterTable` | `updateBoxMaster` | `loadBoxMaster` | ○ |
 | `libraryMasterTable` | `updateLibraryMaster` | `loadLibraryMaster`（キーワードで再検索＋最近追加・サマリー） | — |
+| `animeMasterTable` | `updateAnimeMaster` | `loadAnimeMaster` | — |
+| `animeSeasonMasterTable` | `updateAnimeSeasonMaster` | `loadAnimeSeasonMaster` | — |
 
 注意:
 
@@ -166,6 +173,7 @@ callGAS(funcName, successHandler, ...args)
 |---|---|---|
 | `masterCache` | `Common.html` | `{ series, title, box, library }` マスタ管理画面の取得結果。`titleOptions` は選択肢用の作品一覧（`populateTitle` で保持。作品表示の完結状態判定に使用） |
 | `titleListFilter` / `seriesListFilter` / `boxListFilter` / `libraryListFilter` | `Title.html` / `Series.html` / `Box.html` / `Library.html` | 各一覧の `createListFilter` インスタンス（初回表示時に作成し、絞り込み条件・並び順を保持） |
+| `animeState` | `Anime.html` | `getAnimeData` の結果（`anime`, `seasons`, `series`）。アニメ画面を開くたびに再取得。マスタ管理は `masterCache.anime` / `masterCache.animeSeasons` |
 | `messageTimeout` | `Common.html` | 通知自動消去タイマー |
 | `PAGE_SIZE`, `currentLibraryPage` | `Library.html` | 旧ページング用。現在は実質未使用 |
 | `photoImportState` | `PhotoImport.html` | 写真で確認・登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `wishKeys`, `mode`（`check` / `register`）, `busy`） |

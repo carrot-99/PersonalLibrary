@@ -53,24 +53,33 @@
 
 ## 4.2 メニュー構成（`client/Navbar.html`）
 
-| グループ | ボタン | 表示 View | 色 |
-|---|---|---|---|
-| 登録 | 写真で確認・登録 | `PhotoImportView` | 紫 |
-| | 欲しい巻リスト | `WishListView` | |
-| 検索 | シリーズ別検索 | `SeriesView` | 青 |
-| | 作品別検索 | `TitleView` | |
-| | 箱別検索 | `BoxView` | |
-| 一覧 | シリーズ一覧 | `SeriesListView` | 緑 |
-| | 作品一覧 | `TitleListView` | |
-| | 箱一覧 | `BoxListView` | |
-| | 書籍一覧 | `LibraryListView` | |
-| マスタ管理 | シリーズマスタ管理 | `SeriesMasterView` | 橙 |
-| | 作品マスタ管理 | `TitleMasterView` | |
-| | 箱マスタ管理 | `BoxMasterView` | |
-| | 書籍マスタ管理 | `LibraryMasterView` | |
+サイドメニューの先頭に **[📚 書籍] / [📺 アニメ] の切り替え**があり、選んだほうのメニューだけを表示します（下表の「モード」列）。
+
+| モード | グループ | ボタン | 表示 View | 色 |
+|---|---|---|---|---|
+| 書籍 | 登録 | 写真で確認・登録 | `PhotoImportView` | 紫 |
+| | | 欲しい巻リスト | `WishListView` | |
+| | 検索 | シリーズ別検索 | `SeriesView` | 青 |
+| | | 作品別検索 | `TitleView` | |
+| | | 箱別検索 | `BoxView` | |
+| | 一覧 | シリーズ一覧 | `SeriesListView` | 緑 |
+| | | 作品一覧 | `TitleListView` | |
+| | | 箱一覧 | `BoxListView` | |
+| | | 書籍一覧 | `LibraryListView` | |
+| | マスタ管理 | シリーズマスタ管理 | `SeriesMasterView` | 橙 |
+| | | 作品マスタ管理 | `TitleMasterView` | |
+| | | 箱マスタ管理 | `BoxMasterView` | |
+| | | 書籍マスタ管理 | `LibraryMasterView` | |
+| アニメ | 視聴・登録 | 視聴中の一覧 | `AnimeWatchingView` | ピンク |
+| | | アニメ登録 | `AnimeEntryView` | |
+| | 検索 | シリーズ別検索 | `AnimeSeriesView` | |
+| | マスタ管理 | アニメ作品マスタ管理 | `AnimeMasterView` | |
+| | | アニメ期マスタ管理 | `AnimeSeasonMasterView` | |
 
 - ボタン押下で `showTab('<View>')` → `closeSidebar()`。
-- **初期表示は `PhotoImportView`（写真で確認・登録）**。
+- モードを切り替えると、そのモードの最初の画面を開く（書籍: `PhotoImportView`、アニメ: `AnimeWatchingView`）。
+- 書籍モードだけの表示: 上部バーの作品名検索、所蔵サマリー、最近追加した漫画。アニメモードでは非表示。
+- **初期表示は前回のモードの最初の画面**（初回・保存できない環境では書籍の `PhotoImportView`）。モードはブラウザの `localStorage` に保存。
 
 ## 4.3 画面遷移
 
@@ -315,6 +324,47 @@
 | | 作品ごとのカード | `#wishListGroups` | 作品名順。見出しに巻の範囲、各巻に追加日と [削除]（2 回押しで確定、`deleteWish`） |
 
 書籍を登録すると、その巻は自動でリストから外れます（2.3.5 参照）。
+
+---
+
+## 4.8.1 アニメ画面
+
+メニューを「アニメ」モードに切り替えると表示。ファイルは `client/anime/`、ロジックは `Anime.html`。書籍の画面とは独立しており、共通なのはシリーズ（`M_Series`）のみ。書籍の所蔵サマリー・最近追加した漫画・作品名検索は表示しません。
+
+データは画面を開くたびに `getAnimeData()` で全件取得し（`loadAnimeData`）、絞り込みはクライアント側で行います。
+
+### 視聴中の一覧（`AnimeWatchingView`）
+
+| 区分 | 内容 |
+|---|---|
+| 視聴中 | 状況が `視聴中` の期をカード表示（最近更新した順）。期名・作品名（期名と違う場合）・種別・「N話まで視聴」。[+1話]（話数 +1）、[視聴済にする]、[中断]（`視聴中断`）で `updateAnimeWatch` を呼び、一覧を再読込 |
+| 視聴予定 | 状況が `視聴予定` の期（登録順）。[視聴開始] で `視聴中` に変更 |
+
+### シリーズ別検索（`AnimeSeriesView`）
+
+アニメが登録されているシリーズだけを候補に出します（`#animeSeriesSelectInput`）。[表示] で、まとめ（期の件数と種別内訳・状況内訳・視聴話数の合計）と、期の表（作品 / 期 / 種別 / 視聴済話数 / 状況。作品の登録順→期の登録順）を表示。画面を開き直すと入力・結果をクリア（`SEARCH_VIEW_IDS`）。
+
+### アニメ登録（`AnimeEntryView`）
+
+| 項目 | 要素 | 備考 |
+|---|---|---|
+| 作品名 | `#animeEntryAnimeInput` | 登録済み作品を候補表示。一致すれば「登録済みの作品に期を追加」、しなければ「新しい作品として登録」と表示（`syncAnimeEntrySeries`） |
+| シリーズ | `#animeEntrySeriesInput` | 新しい作品のときだけ表示。全シリーズ（書籍と共通）を候補表示。空欄なら作品名と同じシリーズ。未登録のシリーズ名は新規作成 |
+| 期名 | `#animeEntrySeasonInput` | 空欄なら作品名 |
+| 種別 | `#animeEntryType` | TV / OVA / 劇場版 / その他 |
+| 視聴済話数 | `#animeEntryEpisodesInput` | 空欄可 |
+| 状況 | `#animeEntryStatus` | 初期値 `視聴中` |
+
+[登録する] で `addAnimeSeasonWeb`。成功後は期名・話数・シリーズ欄をクリアし、書籍側の選択肢も再読込（`refreshMasterData`。シリーズが増えた場合のため）。下部に最近更新した期（10 件）を表示。
+
+### アニメ作品マスタ管理（`AnimeMasterView`）・アニメ期マスタ管理（`AnimeSeasonMasterView`）
+
+書籍のマスタ管理と同じ構成（[検索] → キーワード → [検索実行] で表を表示、行の [編集] でインライン編集）。追加は「アニメ登録」から行うため [追加] はありません。
+
+| 画面 | 列 | 編集時の保存先 |
+|---|---|---|
+| 作品 | AnimeID / 作品名 / シリーズ | `updateAnimeMaster`（シリーズは既存の名前のみ） |
+| 期 | SeasonID / 作品 / 期名 / 種別 / 視聴済話数 / 状況 | `updateAnimeSeasonMaster`。キーワードはシリーズ名にも一致。各行に [削除]（2 回押しで確定、`deleteAnimeSeason`） |
 
 ---
 

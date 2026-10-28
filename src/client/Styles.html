@@ -98,6 +98,12 @@
     text-overflow: clip;
   }
   #libraryMasterTable td:last-child .delete-action { margin-left: 8px; }
+  #animeSeasonMasterTable td:last-child {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  #animeSeasonMasterTable td:last-child .delete-action { margin-left: 8px; }
   /* マスタ管理の列幅（PC・タブレット）。applyColumnWidthHints の幅指定は合計が 100% を超え、
      作品マスタでは操作列が 0 幅になっていたため、表ごとに合計 100% で指定する。
      操作列は [保存] [取消]（書籍は [編集] [削除]）が並ぶ幅を確保 */
@@ -119,6 +125,17 @@
     #boxMasterTable th:nth-child(1), #boxMasterTable td:nth-child(1) { width: 15% !important; max-width: none !important; }
     #boxMasterTable th:nth-child(2), #boxMasterTable td:nth-child(2) { width: 60% !important; max-width: none !important; }
     #boxMasterTable th:nth-child(3), #boxMasterTable td:nth-child(3) { width: 25% !important; max-width: none !important; }
+    #animeMasterTable th:nth-child(1), #animeMasterTable td:nth-child(1) { width: 12% !important; max-width: none !important; }
+    #animeMasterTable th:nth-child(2), #animeMasterTable td:nth-child(2) { width: 38% !important; max-width: none !important; }
+    #animeMasterTable th:nth-child(3), #animeMasterTable td:nth-child(3) { width: 30% !important; max-width: none !important; }
+    #animeMasterTable th:nth-child(4), #animeMasterTable td:nth-child(4) { width: 20% !important; max-width: none !important; }
+    #animeSeasonMasterTable th:nth-child(1), #animeSeasonMasterTable td:nth-child(1) { width: 10% !important; max-width: none !important; }
+    #animeSeasonMasterTable th:nth-child(2), #animeSeasonMasterTable td:nth-child(2) { width: 20% !important; max-width: none !important; }
+    #animeSeasonMasterTable th:nth-child(3), #animeSeasonMasterTable td:nth-child(3) { width: 26% !important; max-width: none !important; }
+    #animeSeasonMasterTable th:nth-child(4), #animeSeasonMasterTable td:nth-child(4) { width: 8% !important; max-width: none !important; }
+    #animeSeasonMasterTable th:nth-child(5), #animeSeasonMasterTable td:nth-child(5) { width: 8% !important; max-width: none !important; }
+    #animeSeasonMasterTable th:nth-child(6), #animeSeasonMasterTable td:nth-child(6) { width: 9% !important; max-width: none !important; }
+    #animeSeasonMasterTable th:nth-child(7), #animeSeasonMasterTable td:nth-child(7) { width: 19% !important; max-width: none !important; }
     tr.editing td:last-child { white-space: nowrap; overflow: visible; }
     tr.editing td:last-child button { margin: 2px 4px 2px 0; }
   }
@@ -208,6 +225,36 @@
   .list-group { background: rgba(22,163,74,0.12); border-color: rgba(74,222,128,0.45); }
   .master-group { background: rgba(245,158,11,0.12); border-color: rgba(251,191,36,0.45); }
   .entry-group { background: rgba(124,58,237,0.12); border-color: rgba(167,139,250,0.45); }
+  .anime-group { background: rgba(219,39,119,0.12); border-color: rgba(244,114,182,0.45); }
+
+  /* 書籍／アニメの切り替え（body[data-mode] で表示する部品を切り替える） */
+  body[data-mode="anime"] .book-only,
+  body[data-mode="book"] .anime-only { display: none !important; }
+
+  .mode-switch {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+    padding: 4px;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.9);
+  }
+  .mode-switch button {
+    flex: 1 1 0;
+    margin: 0;
+    padding: 8px 6px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: #cbd5e1;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .mode-switch button:hover { background: rgba(148, 163, 184, 0.15); }
+  .mode-switch button.active[data-mode="book"] { background: #2563eb; color: #fff; }
+  .mode-switch button.active[data-mode="anime"] { background: #db2777; color: #fff; }
 
   .tab-title {
     font-weight: 700;
@@ -578,6 +625,9 @@
 
   .entry-tabs button { background: #7c3aed; }
   .entry-tabs button:hover { background: #6d28d9; }
+
+  .anime-tabs button { background: #db2777; }
+  .anime-tabs button:hover { background: #be185d; }
 
   .tabs button.active {
     filter: brightness(0.96);
@@ -966,6 +1016,28 @@
   }
   .ownership-line.is-wish span { color: #f9a8d4; font-weight: bold; }
 
+  /* アニメ（視聴中の一覧・登録） */
+  .anime-section-title { margin: 18px 0 6px; font-size: 1.1rem; color: #f9a8d4; }
+  .anime-cards { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+  .anime-card {
+    padding: 10px 12px;
+    border: 1px solid #374151;
+    border-left: 6px solid #db2777;
+    border-radius: 8px;
+    background: #0b1220;
+  }
+  .anime-card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+  .anime-card-meta { font-size: 0.85rem; color: #9ca3af; }
+  .anime-card-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+  .anime-card-episodes { flex: 1 1 auto; color: #f9a8d4; font-weight: bold; }
+  .anime-action { margin: 0; padding: 6px 12px; background: #db2777; box-shadow: none; }
+  .anime-action.anime-done { background: #16a34a; }
+  .anime-action.anime-drop { background: #374151; }
+  .anime-empty { color: #9ca3af; }
+  .anime-entry-panel > select { width: 100%; background: #111827; color: #f3f4f6; border: 1px solid #374151; }
+  .anime-entry-panel #animeEntrySeriesRow > input { width: 100%; background: #111827; color: #f3f4f6; border: 1px solid #374151; }
+  .anime-entry-hint { font-size: 0.85rem; color: #f9a8d4; }
+
   /* 所持状況（作品表示） */
   .ownership-summary {
     margin-top: 12px;
@@ -1038,6 +1110,7 @@
     .side-menu { width: min(86vw, 340px); padding: 72px 14px 24px; }
     .tab-group { padding: 10px 12px; margin-bottom: 12px; }
     .tab-title { font-size: 0.85rem; }
+    .mode-switch button { min-height: 48px; font-size: 1.05rem; }
     .tabs { gap: 8px; }
     .tabs button { min-height: 52px; font-size: 1.05rem; padding: 14px 16px; }
 
@@ -1094,7 +1167,9 @@
     #libraryMasterTable th:first-child, #libraryMasterTable td:first-child,
     #seriesListTable th:first-child, #seriesListTable td:first-child,
     #titleListTable th:first-child, #titleListTable td:first-child,
-    #libraryListTable th:first-child, #libraryListTable td:first-child { display: none; }
+    #libraryListTable th:first-child, #libraryListTable td:first-child,
+    #animeMasterTable th:first-child, #animeMasterTable td:first-child,
+    #animeSeasonMasterTable th:first-child, #animeSeasonMasterTable td:first-child { display: none; }
     td button,
     .edit-action {
       min-height: 44px;

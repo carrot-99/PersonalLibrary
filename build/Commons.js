@@ -11,7 +11,10 @@ const SHEETS = {
   TITLE:   'M_Title',
   BOX:     'M_Box',
   SERIES:  'M_Series',
-  WISH:    'M_Wish'
+  WISH:    'M_Wish',
+  ANIME:        'M_Anime',
+  ANIME_SEASON: 'M_AnimeSeason',
+  ANIME_WATCH:  'M_AnimeWatch'
 };
 
 // ----------------------
