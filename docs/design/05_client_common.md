@@ -65,7 +65,7 @@ callGAS(funcName, successHandler, ...args)
 | `WishListView` | `loadWishListView()`（作品候補の設定と欲しい巻一覧の取得） |
 | `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | ローディング表示 → `load*List(1)`（書籍一覧は追加フォームの候補 `loadLibraryAddForm()` も） |
 | 検索系 View | なし（候補は初期化時に構築済み） |
-| `AnimeWatchingView` / `AnimeEntryView` | `loadAnimeWatchingView()` / `loadAnimeEntryView()`（いずれも `getAnimeData` で全件取得して描画） |
+| `AnimeWatchingView` | `loadAnimeWatchingView()`（`getAnimeData` で全件取得し、カードを描画して登録フォームの候補を設定 `setupAnimeEntryForm`） |
 | `AnimeListView` | `loadAnimeListView()`（`getAnimeData` で全件取得し、期ごと・作品ごとの 2 つの `createListFilter` に渡す） |
 
 ## 5.4 テーブル描画

@@ -67,10 +67,13 @@ function toAnimeSeasonRow(season){
 }
 
 //////////////////////////////
-// 視聴中の一覧（＋視聴予定）
+// 視聴中の一覧（＋視聴予定）。登録フォームもこの画面に置く
 //////////////////////////////
 function loadAnimeWatchingView(){
-  loadAnimeData('AnimeWatchingView', renderAnimeWatching);
+  loadAnimeData('AnimeWatchingView', function(){
+    renderAnimeWatching();
+    setupAnimeEntryForm();
+  });
 }
 
 function renderAnimeWatching(){
@@ -82,7 +85,7 @@ function renderAnimeWatching(){
 
   document.getElementById('animeWatchingSummary').textContent = watching.length > 0
     ? `視聴中 ${watching.length}件`
-    : '視聴中のアニメはありません（アニメ登録で状況を「視聴中」にすると表示されます）';
+    : '視聴中のアニメはありません（[＋ アニメを登録] で状況を「視聴中」にすると表示されます）';
 
   renderAnimeCards('animeWatchingCards', watching, season => [
     { label: '+1話', onClick: btn => updateAnimeWatchFromCard(btn, season, (Number(season.episodes) || 0) + 1, '視聴中') },
@@ -257,23 +260,27 @@ function setAnimeListMode(mode){
 }
 
 //////////////////////////////
-// アニメ登録
+// アニメ登録（視聴中の一覧の [＋ アニメを登録]）
 //////////////////////////////
-function loadAnimeEntryView(){
-  loadAnimeData('AnimeEntryView', function(){
-    populateAutocomplete('animeEntryAnimeInput', animeState.anime, a => a.name, 'id', '作品名（例: オーバーロード）');
-    populateAutocomplete('animeEntrySeriesInput', animeState.series, s => s.name, 'id', 'シリーズ（空欄なら作品名と同じ）');
+function toggleAnimeEntryForm(){
+  if(toggleAddForm('animeEntryForm')){
+    document.getElementById('animeEntryAnimeInput').focus();
+  }
+}
 
-    // populateAutocomplete は oninput / onblur を上書きするため、作品の判定は addEventListener で 1 回だけ登録
-    const input = document.getElementById('animeEntryAnimeInput');
-    if(!input.dataset.animeEntryBound){
-      input.dataset.animeEntryBound = '1';
-      input.addEventListener('input', syncAnimeEntrySeries);
-      input.addEventListener('blur', () => setTimeout(syncAnimeEntrySeries, 200));
-    }
-    syncAnimeEntrySeries();
-    renderAnimeRecent();
-  });
+// 作品・シリーズの候補を設定（データを取得するたびに呼ぶ）
+function setupAnimeEntryForm(){
+  populateAutocomplete('animeEntryAnimeInput', animeState.anime, a => a.name, 'id', '作品名（例: オーバーロード）');
+  populateAutocomplete('animeEntrySeriesInput', animeState.series, s => s.name, 'id', 'シリーズ（空欄なら作品名と同じ）');
+
+  // populateAutocomplete は oninput / onblur を上書きするため、作品の判定は addEventListener で 1 回だけ登録
+  const input = document.getElementById('animeEntryAnimeInput');
+  if(!input.dataset.animeEntryBound){
+    input.dataset.animeEntryBound = '1';
+    input.addEventListener('input', syncAnimeEntrySeries);
+    input.addEventListener('blur', () => setTimeout(syncAnimeEntrySeries, 200));
+  }
+  syncAnimeEntrySeries();
 }
 
 function findAnimeByName(name){
@@ -331,7 +338,7 @@ function addAnimeSeasonFromForm(){
         document.getElementById('animeEntrySeriesInput').value = '';
         // 新しいシリーズを作った可能性があるので書籍側の選択肢も更新
         refreshMasterData();
-        loadAnimeEntryView();
+        loadAnimeWatchingView();
       } else {
         showError(res && res.message ? res.message : '登録に失敗しました');
       }
@@ -343,17 +350,8 @@ function addAnimeSeasonFromForm(){
     .addAnimeSeasonWeb(form);
 }
 
-function renderAnimeRecent(){
-  const rows = animeState.seasons
-    .slice()
-    .sort((a, b) => (b.updatedValue - a.updatedValue) || b.id.localeCompare(a.id))
-    .slice(0, 10)
-    .map(toAnimeSeasonRow);
-  renderTableReadOnly('animeRecentTable', rows, ['name', 'type', 'episodes', 'status', 'updated']);
-}
-
 window.loadAnimeWatchingView = loadAnimeWatchingView;
-window.loadAnimeEntryView = loadAnimeEntryView;
+window.toggleAnimeEntryForm = toggleAnimeEntryForm;
 window.addAnimeSeasonFromForm = addAnimeSeasonFromForm;
 window.setAnimeListMode = setAnimeListMode;
 </script>
