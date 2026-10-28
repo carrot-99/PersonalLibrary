@@ -119,6 +119,17 @@ git switch -c feature/xxx
 
 ### 2-3. ビルド → GAS に push
 
+push の前に自動テストを通す（Node.js だけで動く。`npm install` は不要）。
+
+```bash
+npm test
+```
+
+- テストは `tests/*.test.js`。`src/server` の GAS コードを Node で読み込み、スプレッドシートはメモリ上のフェイク（`tests/helpers/gasHarness.js`）に置き換えて動かす。本物のスプレッドシートには触れない
+- 画面（DOM）の動きはテストしていないので、画面の確認は「2-4」で手動で行う
+- 処理を変えたら対応するテストも直す・足す
+- GitHub に push すると CI（GitHub Actions、`.github/workflows/test.yml`）でも `npm test` が自動実行される。PR 画面の Checks が ✖ のときは main にマージできない（main のブランチ保護で必須にしてある）
+
 ```bash
 node build.js
 ```
@@ -296,7 +307,7 @@ GAS エディタ → プロジェクトの設定 → **スクリプト プロパ
 - **GAS エディタで直接コードを編集しない**: 次の `clasp push` で消える。どうしても緊急で直したら `clasp pull` ではなく、同じ修正を `src/` に入れてから push し直す（`clasp pull` は `build/` に書き込むので `src/` には反映されない）
 - **既知の不具合・改善候補**は設計書 `docs/design/06_known_issues.md` に一覧化してある。修正したらそこから消して `07_change_history.md` に 1 行追記
 - **巻数式**（`1-31`, `1, 3, 5-7`）の解析はサーバー（`parseVolumeExpression`）とクライアント（`parseVolumeInput`）の 2 か所にあるので、仕様を変えるときは両方直す
-- 自動テスト・Lint は無い。確認は手動（「2-4」）
+- 自動テスト（`npm test`）はサーバーの処理とクライアントの計算用の関数だけが対象。画面の操作・表示と AI の写真解析（外部通信）は手動で確認する（「2-4」）。Lint は無い
 
 ---
 
@@ -316,6 +327,7 @@ GAS エディタ → プロジェクトの設定 → **スクリプト プロパ
 | 状態確認 | `git status` |
 | 最新の main を取得 | `git switch main` → `git pull` |
 | 作業ブランチ作成 | `git switch -c feature/xxx`（バグ修正は `bugfix/xxx`） |
+| 自動テスト | `npm test` |
 | ビルド | `node build.js` |
 | GAS に反映 | `clasp push` |
 | GAS エディタを開く | `clasp open-script` |

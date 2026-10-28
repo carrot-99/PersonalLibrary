@@ -1,0 +1,9 @@
+{
+  "name": "personal-library",
+  "private": true,
+  "description": "個人用の蔵書管理 Web アプリ（Google Apps Script）",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node --test \"tests/**/*.test.js\""
+  }
+}
