@@ -86,6 +86,10 @@ function callGAS(funcName, successHandler, ...args){
 //////////////////////////////
 function showTab(tabId){
 
+  // メニューから開いたときは「戻る」の履歴を消す（詳細画面の移動・戻るでは残す）
+  if(!navigating) navHistory.length = 0;
+  navEntry = function(){ showTab(tabId); };
+
   let targetView = document.getElementById(tabId);
   if(!targetView){
     targetView = document.querySelector('.view');
@@ -128,6 +132,89 @@ function showTab(tabId){
   }
 
   if(loaders[tabId]) loaders[tabId]();
+  updateDetailBackButtons();
+}
+
+//////////////////////////////
+// 詳細画面（作品別・シリーズ別・箱別）への移動と「戻る」
+// 一覧や詳細の中のリンクから ID を指定して開く。開く前の画面を navHistory に積み、[← 戻る] で開き直す
+//////////////////////////////
+const NAV_HISTORY_LIMIT = 20;
+const navHistory = [];
+let navEntry = null;     // 今の画面を開き直す関数
+let navigating = false;  // 詳細への移動・戻るの最中（showTab で履歴を消さない）
+
+function openDetail(viewId, show){
+  const reopen = function(){
+    navigating = true;
+    try { showTab(viewId); } finally { navigating = false; }
+    navEntry = reopen;
+    show();
+    updateDetailBackButtons();
+  };
+  if(navEntry){
+    navHistory.push(navEntry);
+    if(navHistory.length > NAV_HISTORY_LIMIT) navHistory.shift();
+  }
+  closeSidebar();
+  reopen();
+}
+
+function backFromDetail(){
+  const previous = navHistory.pop();
+  if(!previous) return;
+  navigating = true;
+  try { previous(); } finally { navigating = false; }
+  updateDetailBackButtons();
+}
+
+function updateDetailBackButtons(){
+  document.querySelectorAll('.detail-back').forEach(btn => {
+    btn.style.display = navHistory.length > 0 ? '' : 'none';
+  });
+}
+
+function openTitleDetail(titleId){
+  const id = String(titleId ?? '').trim();
+  if(!id) return;
+  openDetail('TitleView', function(){
+    const title = (masterCache.titleOptions || []).find(t => String(t.id) === id);
+    document.getElementById('titleViewSelectInput').value = title ? getTitleLabel(title) : '';
+    showTitle(id);
+  });
+}
+
+function openSeriesDetail(seriesId){
+  const id = String(seriesId ?? '').trim();
+  if(!id) return;
+  openDetail('SeriesView', function(){
+    const series = (masterCache.seriesOptions || []).find(s => String(s.id) === id);
+    document.getElementById('seriesSelectInput').value = series ? series.name : '';
+    showSeries(id);
+  });
+}
+
+function openBoxDetail(boxId){
+  const id = String(boxId ?? '').trim();
+  if(!id) return;
+  openDetail('BoxView', function(){
+    const box = (masterCache.boxOptions || []).find(b => String(b.id) === id);
+    document.getElementById('boxViewSelectInput').value = box ? `${box.id} : ${box.place}` : id;
+    showBox(id);
+  });
+}
+
+// 表のセルに置くリンク（詳細画面へ移動）
+function createCellLink(text, onClick){
+  const link = document.createElement('a');
+  link.href = '#';
+  link.className = 'table-link';
+  link.textContent = text;
+  link.addEventListener('click', function(event){
+    event.preventDefault();
+    onClick();
+  });
+  return link;
 }
 
 //////////////////////////////
@@ -277,8 +364,9 @@ function createEditButton(){
 
 //////////////////////////////
 // テーブル描画（編集なし・検索用）
+// links: { 列キー: row => 処理 }（指定した列はリンクにする。値が空の行はリンクなし）
 //////////////////////////////
-function renderTableReadOnly(tableId, data, columns) {
+function renderTableReadOnly(tableId, data, columns, links = {}) {
   const table = document.getElementById(tableId);
   if(!table) return;
 
@@ -296,7 +384,12 @@ function renderTableReadOnly(tableId, data, columns) {
     columns.forEach(col => {
       const td = document.createElement('td');
       const rawValue = row[col] ?? '';
-      td.textContent = getDisplayTableValue(rawValue, col);
+      const text = getDisplayTableValue(rawValue, col);
+      if(links[col] && String(rawValue) !== ''){
+        td.appendChild(createCellLink(text, () => links[col](row)));
+      } else {
+        td.textContent = text;
+      }
       td.title = String(rawValue);
       tr.appendChild(td);
     });
@@ -314,7 +407,7 @@ function renderTableReadOnly(tableId, data, columns) {
 function renderPagedTableDOM(options){
   // options:
   // tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable, idKey
-  // columns: 列キーの配列、または createListFilter の列定義（{ key, edit }）の配列
+  // columns: 列キーの配列、または createListFilter の列定義（{ key, edit, link }）の配列
 
   const { tableId, data, columns, currentPage, pageSize, totalRows, onPageChange, editable, idKey } = options;
 
@@ -329,7 +422,13 @@ function renderPagedTableDOM(options){
       const col = typeof column === 'string' ? column : column.key;
       const td = document.createElement('td');
       const rawValue = row[col] ?? '';
-      td.textContent = getDisplayTableValue(rawValue, col);
+      const text = getDisplayTableValue(rawValue, col);
+      // 列定義の link: row => 処理（詳細画面へのリンク）
+      if(column.link && String(rawValue) !== ''){
+        td.appendChild(createCellLink(text, () => column.link(row)));
+      } else {
+        td.textContent = text;
+      }
       td.title = String(rawValue);
       td.dataset.field = col;
       // 編集時の初期値（表示は省略・整形されるため元の値を持たせる）
@@ -702,6 +801,7 @@ function getAutocompleteValue(inputId){
 
 // シリーズ選択肢取得
 function populateSeries(series){
+  masterCache.seriesOptions = series || [];
   populateSelect(
     ['seriesSelect', 'newTitleSeries'],
     series,
@@ -744,6 +844,7 @@ function getTitleLabel(title){
 
 // 箱選択肢取得
 function populateBoxes(boxes){
+  masterCache.boxOptions = boxes || [];
   populateSelect(
     ['boxSelect','boxViewSelect'],
     boxes,
@@ -795,7 +896,8 @@ function startEdit(btn){
     if(!column || !column.edit) return;
 
     const value = td.dataset.editValue ?? td.textContent;
-    td.dataset.display = td.textContent;
+    // 取消でリンクごと元に戻せるよう、表示中の要素を退避
+    td.originalNodes = Array.from(td.childNodes);
 
     let input;
     if(column.editOptions){
@@ -846,7 +948,7 @@ function cancelEdit(btn){
   Array.from(tr.cells).forEach((td, index) => {
     const column = config && config.columns[index];
     if(!column || !column.edit) return;
-    td.textContent = td.dataset.display || '';
+    td.replaceChildren(...(td.originalNodes || []));
   });
 
   // 操作列を戻す
@@ -1238,10 +1340,7 @@ function runGlobalSearch(){
 
   input.value = '';
   input.blur();
-  closeSidebar();
-  showTab('TitleView');
-  document.getElementById('titleViewSelectInput').value = getTitleLabel(match);
-  showTitle(String(match.id));
+  openTitleDetail(match.id);
 }
 
 function initApp(){
@@ -1261,6 +1360,10 @@ window.closeSidebar = closeSidebar;
 window.refreshMasterData = refreshMasterData;
 window.callGAS = callGAS;
 window.showTab = showTab;
+window.openTitleDetail = openTitleDetail;
+window.openSeriesDetail = openSeriesDetail;
+window.openBoxDetail = openBoxDetail;
+window.backFromDetail = backFromDetail;
 window.setAppMode = setAppMode;
 window.clearGlobalMessage = clearGlobalMessage;
 window.showSuccess = showSuccess;

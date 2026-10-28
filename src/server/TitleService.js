@@ -23,6 +23,7 @@ function getTitleMaster(){
     id: row[0],
     name: row[1],
     label: labelMap.get(String(row[0]).trim()),
+    seriesId: row[2],
     seriesName: seriesMap.get(row[2]) || '',
     type: row[3],
     completed: row[4]

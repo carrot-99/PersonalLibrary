@@ -386,7 +386,7 @@ function deleteLibraryMaster(id){
 
 // ----------------------
 // 書籍一覧（全件。画面側で絞り込み・並べ替え・ページングする）
-// 戻り値: [{ id, title, type, volume, box, date, month, dateValue }]
+// 戻り値: [{ id, titleId, title, type, volume, boxId, box, date, month, dateValue }]
 // ----------------------
 function getLibraryListAll(){
   const titles = getData(SHEETS.TITLE);
@@ -398,9 +398,11 @@ function getLibraryListAll(){
     const titleId = String(r[1]).trim();
     return {
       id: r[0],
+      titleId,
       title: labelMap.get(titleId) || '',
       type: typeMap.get(titleId) || '',
       volume: String(r[3]).trim(),
+      boxId: String(r[2]).trim(),
       box: boxMap.get(String(r[2]).trim()) || '',
       date: formatDateCell(r[4]),
       month: formatDateCell(r[4], 'yyyy/MM'),
@@ -487,7 +489,9 @@ function getSeriesDetail(seriesId){
   const volumesMap = getOwnedVolumesByTitle();
 
   return filteredTitles.map(row => ({
+    id: row[0],
     name: row[1],
+    type: row[3],
     count: countMap.get(row[0]) || 0,
     completed: row[4],
     volumes: volumesMap[String(row[0]).trim()] || []
@@ -529,6 +533,7 @@ function getBoxDetail(boxId){
   return libs
     .filter(row => String(row[2]) === String(boxId))
     .map(row => ({
+      titleId: row[1],
       name: titleMap.get(row[1]) || '',
       volume: row[3]
     }));

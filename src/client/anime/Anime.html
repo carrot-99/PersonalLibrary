@@ -218,7 +218,8 @@ function loadAnimeSeriesBooks(seriesId){
         appendOwnershipLine(box, '-', 'このシリーズの書籍は登録されていません');
       } else {
         titles.forEach(title => {
-          appendOwnershipLine(box, title.name, formatOwnershipText(summarizeOwnedVolumes(title.volumes), title.completed));
+          // 作品名から書籍の作品別検索へ（書籍モードに切り替わる）
+          appendOwnershipLine(box, title.name, formatOwnershipText(summarizeOwnedVolumes(title.volumes), title.completed), () => openTitleDetail(title.id));
         });
       }
       box.style.display = 'block';
@@ -229,11 +230,16 @@ function loadAnimeSeriesBooks(seriesId){
     .getSeriesDetail(seriesId);
 }
 
-function appendOwnershipLine(box, label, value){
+// onLabelClick: 指定するとラベルをリンクにする
+function appendOwnershipLine(box, label, value, onLabelClick){
   const line = document.createElement('div');
   line.className = 'ownership-line';
   const strong = document.createElement('strong');
-  strong.textContent = label;
+  if(onLabelClick){
+    strong.appendChild(createCellLink(label, onLabelClick));
+  } else {
+    strong.textContent = label;
+  }
   const span = document.createElement('span');
   span.textContent = value;
   line.appendChild(strong);

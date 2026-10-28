@@ -244,7 +244,6 @@
     background: rgba(15, 23, 42, 0.9);
   }
 
-  .search-group { background: rgba(30,64,175,0.15); border-color: rgba(96,165,250,0.5); }
   .list-group { background: rgba(22,163,74,0.12); border-color: rgba(74,222,128,0.45); }
   .entry-group { background: rgba(124,58,237,0.12); border-color: rgba(167,139,250,0.45); }
   .anime-group { background: rgba(219,39,119,0.12); border-color: rgba(244,114,182,0.45); }
@@ -1081,6 +1080,21 @@
   .ownership-line strong {
     flex: 0 0 4.5em;
     color: #cbd5e1;
+  }
+  /* 詳細画面へのリンク（一覧の名前・詳細内の作品／シリーズ／Box） */
+  a.table-link {
+    color: #67e8f9;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+  a.table-link:hover { color: #a5f3fc; }
+  /* 詳細画面の [← 戻る] */
+  .detail-back {
+    margin: 0 0 8px;
+    padding: 6px 14px;
+    background: #374151;
+    box-shadow: none;
   }
   .ownership-line.is-ok span { color: #86efac; }
   .ownership-line.is-warning span { color: #fcd34d; font-weight: bold; }
