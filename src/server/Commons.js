@@ -153,7 +153,7 @@ function getDateValue(value){
 
 // ID 末尾の数字（並べ替えの同日内の順序に使う）
 function getIdNumber(id){
-  const match = String(id || '').match(/(d+)$/);
+  const match = String(id || '').match(/(\d+)$/);
   return match ? parseInt(match[1], 10) : 0;
 }
 

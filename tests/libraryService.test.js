@@ -129,6 +129,17 @@ test('getRecentLibrary: 追加日の新しい順に作品ラベル・Box 名付�
   ]);
 });
 
+test('getRecentLibrary: 同じ日に登録した本は後から登録した（ID が大きい）順', () => {
+  const { gas } = loadServer(baseSheets({
+    M_Library: [
+      ['L000002', 'T000001', 'B01', '2', new Date(2026, 0, 10)],
+      ['L000001', 'T000001', 'B01', '1', new Date(2026, 0, 10)],
+      ['L000003', 'T000001', 'B01', '3', new Date(2026, 0, 10)]
+    ]
+  }));
+  assert.deepEqual(plain(gas.getRecentLibrary()).map(r => r.volume), ['3', '2', '1']);
+});
+
 test('getLibraryListAll: 一覧用の項目をそろえて返す', () => {
   const { gas } = loadServer(baseSheets());
   const list = plain(gas.getLibraryListAll());
