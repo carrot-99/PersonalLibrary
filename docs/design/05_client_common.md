@@ -63,6 +63,7 @@ callGAS(funcName, successHandler, ...args)
 |---|---|
 | `PhotoImportView` | `loadPhotoImportView()`（前回の写真・結果のクリアと、作品・シリーズ・Box の候補取得） |
 | `WishListView` | `loadWishListView()`（作品候補の設定と欲しい巻一覧の取得） |
+| `ReleaseView` | `loadReleaseView()`（`getReleaseViewWeb` で発売予定・発売済未所持・見つからなかった作品を取得） |
 | `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | ローディング表示 → `load*List(1)`（書籍一覧は追加フォームの候補 `loadLibraryAddForm()` も） |
 | 検索系 View | なし（候補は初期化時に構築済み） |
 | `AnimeWatchingView` | `loadAnimeWatchingView()`（`getAnimeData` で全件取得し、カードを描画して登録フォームの候補を設定 `setupAnimeEntryForm`） |
@@ -194,6 +195,7 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | `messageTimeout` | `Common.html` | 通知自動消去タイマー |
 | `photoImportState` | `PhotoImport.html` | 写真で確認・登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `wishKeys`, `mode`（`check` / `register`）, `busy`） |
 | `wishState` | `Wish.html` | 欲しい巻リストの状態（`list`, `selectedTitleId`, `nextVolume`） |
+| `releaseState` | `Release.html` | 発売予定の状態（`data`: `getReleaseViewWeb` の戻り値、`busy`: 取得中） |
 | `photoImportImagesPromise` | `PhotoImport.html` | 選択写真の縮小処理（長辺 1568px・JPEG 品質 0.9）の Promise。解析時に完了を待つ |
 
 ## 5.10 所持巻の集計

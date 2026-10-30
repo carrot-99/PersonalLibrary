@@ -1,0 +1,21 @@
+<!-- ReleaseView.html -->
+<!-- 発売予定（完結状態が「連載中」の漫画の、所持巻より先の巻。楽天ブックスから取得） -->
+<div id="ReleaseView" class="view" style="display:none;">
+  <h3>発売予定</h3>
+
+  <div class="anime-season-nav">
+    <span id="releaseStatus" class="release-status"></span>
+    <button type="button" id="releaseFetchButton" class="anime-season-button anime-season-refresh" onclick="fetchReleases()">発売情報を取得</button>
+  </div>
+  <p class="photo-import-note">完結状態が「連載中」の漫画について、持っている巻より先の巻を楽天ブックスから取得します。毎日 5 時台に自動で取得します（楽天に載るのは予約が始まる発売の 1〜2 か月前から）。</p>
+
+  <h4 class="release-heading">発売予定 <span id="releaseUpcomingCount" class="release-count"></span></h4>
+  <div id="releaseUpcoming" class="wish-groups"></div>
+
+  <h4 class="release-heading">発売済・未所持 <span id="releaseUnownedCount" class="release-count"></span></h4>
+  <div id="releaseUnowned" class="wish-groups"></div>
+
+  <h4 class="release-heading">見つからなかった作品 <span id="releaseProblemsCount" class="release-count"></span></h4>
+  <p class="photo-import-note">作品名が楽天ブックスの書名と違うと見つかりません。作品一覧で作品名を書名に合わせてから [再取得] してください。</p>
+  <div id="releaseProblems" class="wish-groups"></div>
+</div>

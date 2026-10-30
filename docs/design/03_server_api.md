@@ -444,13 +444,57 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 
 ---
 
+## 3.9.3 連載中の漫画の発売日（`server/ReleaseService.js`）
+
+楽天ブックス書籍検索 API（`GET https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404`）で連載中の漫画（種別 `漫画`・完結状態 `連載中`）の作品名を検索し、所持巻より先の巻と発売日を `M_Release` / `M_ReleaseCheck`（2.3.9・2.3.10）に保存します。取得は毎日のトリガーと発売予定画面の [発売情報を取得] で行い、画面はシートを読むだけです。
+
+| 定数 `RAKUTEN` | 値 | 内容 |
+|---|---|---|
+| `APP_ID_PROPERTY` / `ACCESS_KEY_PROPERTY` | `RAKUTEN_APPLICATION_ID` / `RAKUTEN_ACCESS_KEY` | 認証情報のスクリプトプロパティ名（どちらもクエリで送る） |
+| `REFERER` / `ORIGIN` | `https://script.google.com/` | `Referer` / `Origin` ヘッダー。楽天は Referer 必須で、アプリ設定の「許可されたWebサイト」と照合する（`UrlFetchApp` は Referer を送らないため明示） |
+| `GENRE_COMIC` | `001001` | ジャンル「コミック」（`booksGenreId`） |
+| `HITS` | 30 | 1 回の取得件数（API の上限。1 ページ目のみ取得） |
+| `WAIT_MS` | 1500 | 連続で呼ぶときの間隔（1 秒だと 429 になることがあるため） |
+| `TEST_COUNT` | 150 | `testRakutenConnection` で試す作品数（1 件約 1.8 秒。実行時間の上限 6 分に収まる件数） |
+
+| 定数 `RELEASE_UPDATE` | 値 | 内容 |
+|---|---|---|
+| `REFRESH_HOURS` | 20 | 取得からこの時間がたった作品を取り直す |
+| `TRIGGER_BUDGET_MS` / `WEB_BUDGET_MS` | 4.5 分 / 40 秒 | 1 回の実行で取得に使う時間（超えたら残りは次回）。トリガーは実行時間の上限 6 分に収まるよう、画面からは待ち時間を短く |
+| `TRIGGER_HANDLER` / `TRIGGER_HOUR` | `updateReleasesByTrigger` / 5 | 毎日のトリガーの関数と時刻（5 時台） |
+
+| 関数 | 内容 |
+|---|---|
+| `getReleaseViewWeb()` | 画面用。戻り値 `{ success, configured（楽天の認証情報があるか）, titleCount（連載中の漫画）, fetchedCount, lastFetchedAt, upcoming, unowned, problems }`。`upcoming` は未発売の巻 `[{ titleId, titleName, volume, edition, title, salesDate, sortKey, precision, url, wished }]`（発売日→作品名→巻の順）。`unowned` は発売済みで未所持の巻を作品ごとに `[{ titleId, titleName, stale, latestVolume, latestSalesDate, volumes: [{ volume, salesDate, wished, url }] }]`（完結済みかもは後ろ、他は作品名順）。`problems` は結果が `該当なし` / `エラー` の作品 `[{ titleId, titleName, result, message, fetchedAt }]`。`M_Library` にある巻・連載中でない作品は除き、`wished` は `M_Wish` と照合。発売済みかは表示時に `isReleased` で判定 |
+| `updateReleasesWeb(titleId)` | 画面用の取得。`titleId` なしなら取り直しが必要な作品を 40 秒分、指定ならその作品だけ。戻り値 `{ success, message, updated, remaining, notFound, errors }`。エラー: 認証情報未設定 / 楽天に拒否された / 連載中の漫画でない作品の指定 |
+| `updateReleases(options)` | 取得の本体。`options.budgetMs`（取得に使う時間）、`options.titleIds`（指定した作品だけ取り直す）。作品ごとに `fetchReleaseResult` で取得し、最後に `saveReleaseResults` でまとめて保存（途中で止まっても取得済みの分は保存）。認証エラーは保存後に投げ直す |
+| `updateReleasesByTrigger()` | 毎日のトリガーから呼ぶ（4.5 分分を取得してログに件数を出す） |
+| `setupReleaseTrigger()` | トリガーの設定（**GAS エディタから 1 回だけ手動実行**）。既存の同じトリガーを消してから、毎日 5 時台の時間主導トリガーを作る。権限 `script.scriptapp` を使う |
+| `testRakutenConnection()` | 接続・照合の確認（**GAS エディタから手動実行**）。連載中の漫画（種別 `漫画`・完結状態 `連載中`）から `TEST_COUNT` 件を等間隔に選んで検索し、作品ごとに `[発売予定]` / `[未所持あり]`（発売済みで所持していない巻）/ `[最新まで所持]` / `[該当なし]` / `[エラー]` と件数の集計をログに出す。完結済みの可能性があるもの（`stale`）には「最新刊が1年以上前。完結済みかも」を付ける。認証エラー（401 / 403）は打ち切る |
+
+- 検索: `title` に作品名（`buildRakutenKeyword` で記号を空白に置き換え。`2.5次元` のような数字の間の `.` は残す。`×` `＋` `≡` も空白にする）、`booksGenreId=001001`、`sort=-releaseDate`（発売日の新しい順）、`outOfStockFlag=1`（品切れも含む）、`formatVersion=2`。404 / `not_found` は 0 件として扱う。
+- 巻の判定（`parseRakutenVolume`）: 商品名と作品名を `normalizeTitleForMatch` で正規化し、商品名に作品名が含まれ、その直後が数字（前の「第」・後の「巻」は任意）のものを巻とする。作品名の前に親作品名・英語表記が付いていてもよい（例: `とある魔術の禁書目録外伝 とある科学の心理掌握（5）`、`GHOST GIRL ゴーストガール 4`）。直後が数字でなければ、`〜副題〜` を除いてもう一度読む（例: `バキしみ 〜…〜 2`）。巻数が作品名の途中に入るものも読む（例: `BORUTO-ボルトー 9 -TWO BLUE VORTEX-` は作品名 `ボルト TWO BLUE VORTEX` の 9 巻）。照合では `normalizeTitleForMatch` に加えて罫線・ダッシュ・波線（`─―—〜` など）も除く（`toReleaseMatchKey`）。商品名が作品名だけ（作品名で始まり数字なし）なら 1 巻。数字の後ろの表記は「版・付・限定・特装・同梱・特典」を含めば版（例: `特装版`）、それ以外は各巻の副題として無視。「セット」「全巻」「BOX」を含む商品は除く。外伝・ファンブックなど作品名の後ろが数字でないものは巻とみなさない。
+- 所持巻との照合（`matchReleaseItems`）: 所持巻のうち数字の巻の最大値（`getMaxOwnedVolume`）より大きい巻を巻順に返す。同じ巻が複数あれば通常版（版の表記なし）を優先。未発売の巻がなく最新の巻の発売日が 365 日（`RELEASE_STALE_DAYS`）より前なら `stale: true`（完結済みの可能性。`isStaleRelease`）。
+- 検索で見つからない作品: 楽天の書名が登録した作品名と違うもの（例: `ザ・ジョジョランズ` は楽天では `The JOJOLands`）は見つからない。本実装で作品ごとの検索キーワードを指定できるようにする。
+- 発売日（`parseRakutenSalesDate`）: `2026年11月04日`（日）、`2026年11月下旬` / `2026年12月頃`（月）、`2026年`（年）を読み、並べ替え用の `sortKey`（yyyyMMdd。上旬 10・中旬 20・下旬 31・日なし 99・月なし 9999）を付ける。発売済みの判定（`isReleased`）は、日付が今日以前、月だけ・年だけはその月・年が終わったとき。
+
+- 取り直す作品（`selectReleaseTargets`）: 未取得の作品 → 取得日時の古い順に、取得から `REFRESH_HOURS` 時間以上たった作品。1 作品約 1.8 秒（楽天への間隔 1.5 秒を含む）なので、130 作品ならトリガー 1 回で全件取れる。
+- 保存（`saveReleaseResults`）: スクリプトロックを取り、取り直した作品の `M_Release` の行を差し替え（エラーの作品は前回の行を残す）、`M_ReleaseCheck` の行を更新。連載中でなくなった作品の行は両方から消す。シートはデータ行をまとめて書き直す（`writeReleaseRows`）。
+
+内部関数: `getRakutenCredentials()`、`fetchRakutenBooks(keyword, credentials)`、`getOngoingComicTitles()`、`pickEvenly(list, count)`、`getReleaseSheet(name, headers)` / `getReleaseRows(name)` / `writeReleaseRows(name, headers, rows)`（シート）、`selectReleaseTargets(titles, checkRows, now, titleIds)`、`fetchReleaseResult(title, ownedVolumes, credentials, now)`、`saveReleaseResults(results, titles)`。
+
+---
+
 ## 3.10 API 呼び出し元一覧
 
 | API | 呼び出し元（クライアント関数） |
 |---|---|
 | `getTitleMaster` | `refreshMasterData`, `loadLibraryAddForm`, `loadPhotoImportView` |
 | `getTitleListWithOwnership` | `loadTitleList` |
-| `getWishList` / `addWishes` / `deleteWish` | `loadWishListView`・`reloadWishList` / `addWishFromForm`・`addPhotoRowToWishList` / `deleteWishItem` |
+| `getWishList` / `addWishes` / `deleteWish` | `loadWishListView`・`reloadWishList` / `addWishFromForm`・`addPhotoRowToWishList`・`addReleaseToWish`（発売予定）/ `deleteWishItem` |
+| `getReleaseViewWeb` / `updateReleasesWeb` | `loadReleaseView`（発売予定を開いたとき・取得や欲しい巻への追加の後）/ `fetchReleases`（[発売情報を取得]・[続きを取得]・作品ごとの [再取得]） |
+| `updateReleasesByTrigger` | 毎日 5 時台の時間主導トリガー（`setupReleaseTrigger` で設定） |
+| `setupReleaseTrigger` | Apps Script エディタから手動実行（1 回だけ） |
 | `getWishKeys` | `appendTitleWishLine`（作品表示） |
 | `getTitleDetail` | `showTitle`, `onWishTitleInput`（欲しい巻リストの「次の巻」） |
 | `getSeriesMaster` | `refreshMasterData` |
@@ -474,6 +518,7 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 | `getAnimeData` | `loadAnimeData`（視聴中の一覧・アニメ一覧）。サーバー内部から `getSeriesListWithCounts` / `getSeriesOverview` / `getCurrentSeasonAnimeWeb` |
 | `getCurrentSeasonAnimeWeb` | `fetchAnimeSeason`（今期のアニメ。メニューから開いたとき・[◀ 前の期] [次の期 ▶]・[最新の情報を取得]・登録後） |
 | `testAnnictConnection` | Apps Script エディタから手動実行 |
+| `testRakutenConnection` | Apps Script エディタから手動実行 |
 | `addAnimeSeasonWeb` / `updateAnimeWatch` / `deleteAnimeSeason` | `addAnimeSeasonFromForm` / `updateAnimeWatchFromCard` / `deleteListRow`（アニメ一覧・期ごとの [削除]） |
 | `updateAnimeMaster` / `updateAnimeSeasonMaster` | `saveEdit`（アニメ一覧の `animeWorkListTable` / `animeListTable`） |
 | `importLegacyAnime` | Apps Script エディタから手動実行 |

@@ -31,6 +31,7 @@
 | 2026-10-29 | 1.24 | CI を導入（GitHub Actions `.github/workflows/test.yml`。PR と main への push で `npm test` を実行し、main へのマージ条件に設定） |
 | 2026-10-29 | 1.25 | 不具合 B-7 を修正（`getIdNumber` の正規表現の `\d` 抜け。最近追加・最終追加日で、同じ日に登録した書籍が ID の大きい順に並ぶように）。06 章から削除 |
 | 2026-10-29 | 1.26 | 今期のアニメ一覧（`AnimeSeasonView`）を追加。Annict API から期の作品を取得（スクリプトプロパティ `ANNICT_ACCESS_TOKEN`、6 時間キャッシュ）して登録状況を照合し、[登録] で登録フォームを Annict の情報入りで開いて確認してから登録。前後の期への移動。API `getCurrentSeasonAnimeWeb`・接続確認 `testAnnictConnection` を追加。06 章の機能拡張候補から削除し、R-16（Annict への依存）を追記 |
+| 2026-10-31 | 1.27 | 発売予定画面（`ReleaseView`）を追加。完結状態が「連載中」の漫画を楽天ブックス書籍検索 API（スクリプトプロパティ `RAKUTEN_APPLICATION_ID` / `RAKUTEN_ACCESS_KEY`）で検索し、商品名から巻と版を読んで所持巻より先の巻を `M_Release`・作品ごとの取得状況を `M_ReleaseCheck` に保存（`ReleaseService.js`）。取得は毎日 5 時台のトリガー（`setupReleaseTrigger` で設定、`oauthScopes` に `script.scriptapp` を追加）と画面の [発売情報を取得]。発売予定を月ごとに、発売済みで未所持の巻を作品ごとに表示し、欲しい巻リストに追加できる。最新刊が 1 年以上前の作品に「完結済みかも」、見つからない作品は [再取得]。接続・照合の確認 `testRakutenConnection` を追加。06 章の機能拡張候補から削除し、ラノベ対応・カレンダー表示・Google カレンダー登録・作品ごとの検索キーワードを候補に、R-17（楽天への依存）を追記 |
 
 ## 7.2 機能の変遷（Git 履歴より）
 
