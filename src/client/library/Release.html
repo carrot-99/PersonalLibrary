@@ -1,0 +1,307 @@
+<!-- Release.html -->
+<script>
+//////////////////////////////
+// 発売予定（連載中の漫画）
+//////////////////////////////
+const releaseState = {
+  data: null,
+  busy: false
+};
+
+function loadReleaseView(){
+  showInlineLoading('ReleaseView', '読み込み中...');
+  callGAS('getReleaseViewWeb', function(res){
+    hideInlineLoading('ReleaseView');
+    if(!res || !res.success) return showError(res && res.message ? res.message : '発売予定の読み込みに失敗しました');
+    releaseState.data = res;
+    renderReleaseView();
+  });
+}
+
+// 楽天から取得（titleId 指定でその作品だけ）。画面からは 1 回 40 秒ほどで区切り、残りは [続きを取得]
+function fetchReleases(titleId, btn){
+  if(releaseState.busy) return;
+  releaseState.busy = true;
+
+  const mainButton = document.getElementById('releaseFetchButton');
+  const button = btn || mainButton;
+  button.disabled = true;
+  button.textContent = '取得中...';
+  showInlineLoading('ReleaseView', titleId ? '取得中...' : '楽天ブックスから取得中（1 分ほどかかります）...');
+
+  const finish = function(){
+    releaseState.busy = false;
+    button.disabled = false;
+    hideInlineLoading('ReleaseView');
+  };
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      finish();
+      if(res && res.success){
+        showSuccess(res.message);
+        mainButton.textContent = !titleId && res.remaining > 0 ? '続きを取得' : '発売情報を取得';
+        if(btn) btn.textContent = '再取得';
+        loadReleaseView();
+      } else {
+        button.textContent = btn ? '再取得' : '発売情報を取得';
+        showError(res && res.message ? res.message : '取得に失敗しました');
+      }
+    })
+    .withFailureHandler(function(error){
+      finish();
+      button.textContent = btn ? '再取得' : '発売情報を取得';
+      showError(error && error.message ? error.message : '通信に失敗しました');
+    })
+    .updateReleasesWeb(titleId || '');
+}
+
+// 欲しい巻リストに追加（volumes: 巻の配列）
+function addReleaseToWish(titleId, volumes, memo, btn){
+  btn.disabled = true;
+  callGAS('addWishes', function(res){
+    if(res && res.success){
+      showSuccess(res.message);
+      loadReleaseView();
+    } else {
+      btn.disabled = false;
+      showError(res && res.message ? res.message : '追加に失敗しました');
+    }
+  }, titleId, volumes.join(','), memo);
+}
+
+//////////////////////////////
+// 表示用の整形（DOM を使わない）
+//////////////////////////////
+// 発売日の並べ替えキー（yyyyMMdd。上旬 10・中旬 20・下旬 31・日なし 99・月なし 9999）→ 月の見出し
+function getReleaseMonthLabel(sortKey){
+  const key = Number(sortKey) || 0;
+  if(key <= 0 || key >= 99999999) return '発売日未定';
+  const year = Math.floor(key / 10000);
+  const month = Math.floor(key / 100) % 100;
+  return month === 99 ? `${year}年（月未定）` : `${year}年${month}月`;
+}
+
+// 月の中の日の表示（例: 11/4、11月下旬、11月）
+function formatReleaseDay(item){
+  const key = Number(item.sortKey) || 0;
+  const month = Math.floor(key / 100) % 100;
+  const day = key % 100;
+  if(item.precision === 'day') return `${month}/${day}`;
+  if(item.precision === 'month'){
+    const part = { 10: '上旬', 20: '中旬', 31: '下旬' }[day];
+    return part ? `${month}月${part}` : `${month}月`;
+  }
+  return item.salesDate || '未定';
+}
+
+// 発売日順の配列 → 月ごとのまとまり [{ label, items }]
+function groupReleasesByMonth(items){
+  const groups = [];
+  (items || []).forEach(item => {
+    const label = getReleaseMonthLabel(item.sortKey);
+    const last = groups[groups.length - 1];
+    if(last && last.label === label){
+      last.items.push(item);
+    } else {
+      groups.push({ label, items: [item] });
+    }
+  });
+  return groups;
+}
+
+//////////////////////////////
+// 描画
+//////////////////////////////
+function renderReleaseView(){
+  const data = releaseState.data;
+  if(!data) return;
+
+  const byType = (data.typeCounts || []).map(t => `${t.type} ${t.count}`).join('・');
+  const status = [`連載中 ${data.titleCount} 作品（${byType}。取得済 ${data.fetchedCount}）`, `最終取得: ${data.lastFetchedAt || '未取得'}`];
+  if(!data.configured) status.push('楽天のアプリ ID が未設定です');
+  document.getElementById('releaseStatus').textContent = status.join('・');
+
+  renderReleaseUpcoming(data.upcoming || []);
+  renderReleaseUnowned(data.unowned || []);
+  renderReleaseProblems(data.problems || []);
+}
+
+function createReleaseTitleLink(item){
+  return createCellLink(item.titleName || item.titleId, function(){ openTitleDetail(item.titleId); });
+}
+
+// 種別（漫画・ラノベ）のバッジ。同じ作品名の漫画とラノベを見分ける
+function createReleaseTypeBadge(item){
+  const type = item.titleType || '';
+  return createReleaseBadge(type, type === 'ラノベ' ? 'is-type is-novel' : 'is-type');
+}
+
+function createReleaseWishButton(label, onClick){
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'photo-import-wish';
+  button.textContent = label;
+  button.addEventListener('click', function(){ onClick(button); });
+  return button;
+}
+
+function createReleaseBadge(text, className){
+  const badge = document.createElement('span');
+  badge.className = `release-badge ${className || ''}`;
+  badge.textContent = text;
+  return badge;
+}
+
+function createReleaseShopLink(url){
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  link.className = 'release-shop';
+  link.textContent = '楽天';
+  return link;
+}
+
+function renderReleaseUpcoming(items){
+  const container = document.getElementById('releaseUpcoming');
+  container.innerHTML = '';
+  document.getElementById('releaseUpcomingCount').textContent = `${items.length}冊`;
+  if(items.length === 0){
+    container.textContent = '発売予定の巻はありません';
+    return;
+  }
+
+  groupReleasesByMonth(items).forEach(group => {
+    const card = document.createElement('div');
+    card.className = 'wish-group release-group';
+
+    const head = document.createElement('div');
+    head.className = 'wish-group-head';
+    const label = document.createElement('strong');
+    label.textContent = group.label;
+    const count = document.createElement('span');
+    count.className = 'wish-group-volumes';
+    count.textContent = `${group.items.length}冊`;
+    head.appendChild(label);
+    head.appendChild(count);
+    card.appendChild(head);
+
+    group.items.forEach(item => {
+      const line = document.createElement('div');
+      line.className = 'wish-item release-item';
+
+      const day = document.createElement('span');
+      day.className = 'release-day';
+      day.textContent = formatReleaseDay(item);
+
+      const text = document.createElement('span');
+      text.className = 'release-title';
+      text.appendChild(createReleaseTypeBadge(item));
+      text.appendChild(createReleaseTitleLink(item));
+      text.appendChild(document.createTextNode(` ${item.volume}巻`));
+      if(item.edition) text.appendChild(createReleaseBadge('特装版など'));
+
+      line.appendChild(day);
+      line.appendChild(text);
+      if(item.wished){
+        line.appendChild(createReleaseBadge('欲しい巻に追加済', 'is-wished'));
+      } else {
+        line.appendChild(createReleaseWishButton('欲しい巻に追加', btn =>
+          addReleaseToWish(item.titleId, [item.volume], `発売日 ${item.salesDate}`, btn)));
+      }
+      if(item.url) line.appendChild(createReleaseShopLink(item.url));
+      card.appendChild(line);
+    });
+
+    container.appendChild(card);
+  });
+}
+
+function renderReleaseUnowned(groups){
+  const container = document.getElementById('releaseUnowned');
+  container.innerHTML = '';
+  const total = groups.reduce((sum, group) => sum + group.volumes.length, 0);
+  document.getElementById('releaseUnownedCount').textContent = `${groups.length}作品・${total}冊`;
+  if(groups.length === 0){
+    container.textContent = '発売済みで持っていない巻はありません';
+    return;
+  }
+
+  groups.forEach(group => {
+    const card = document.createElement('div');
+    card.className = 'wish-group release-group is-unowned';
+
+    const head = document.createElement('div');
+    head.className = 'wish-group-head';
+    head.appendChild(createReleaseTypeBadge(group));
+    head.appendChild(createReleaseTitleLink(group));
+    const numbers = group.volumes.map(v => Number(v.volume)).filter(n => Number.isFinite(n));
+    const volumes = document.createElement('span');
+    volumes.className = 'wish-group-volumes';
+    volumes.textContent = `${formatVolumeRanges(numbers)}巻`;
+    head.appendChild(volumes);
+    if(group.stale) head.appendChild(createReleaseBadge('完結済みかも', 'is-stale'));
+    card.appendChild(head);
+
+    const line = document.createElement('div');
+    line.className = 'wish-item release-item';
+    const info = document.createElement('span');
+    info.className = 'release-title';
+    info.textContent = group.latestVolume ? `最新 ${group.latestVolume}巻（${group.latestSalesDate}）` : '';
+    line.appendChild(info);
+
+    const notWished = group.volumes.filter(v => !v.wished).map(v => v.volume);
+    if(notWished.length === 0){
+      line.appendChild(createReleaseBadge('欲しい巻に追加済', 'is-wished'));
+    } else {
+      const label = notWished.length === 1 ? '欲しい巻に追加' : `${notWished.length}冊を欲しい巻に追加`;
+      line.appendChild(createReleaseWishButton(label, btn => addReleaseToWish(group.titleId, notWished, '', btn)));
+    }
+    card.appendChild(line);
+
+    container.appendChild(card);
+  });
+}
+
+function renderReleaseProblems(items){
+  const container = document.getElementById('releaseProblems');
+  container.innerHTML = '';
+  document.getElementById('releaseProblemsCount').textContent = `${items.length}作品`;
+  if(items.length === 0){
+    container.textContent = 'ありません';
+    return;
+  }
+
+  const card = document.createElement('div');
+  card.className = 'wish-group release-group is-problem';
+  items.forEach(item => {
+    const line = document.createElement('div');
+    line.className = 'wish-item release-item';
+
+    const text = document.createElement('span');
+    text.className = 'release-title';
+    text.appendChild(createReleaseTypeBadge(item));
+    text.appendChild(createReleaseTitleLink(item));
+    text.appendChild(createReleaseBadge(item.result, 'is-stale'));
+    const message = document.createElement('small');
+    message.className = 'release-message';
+    message.textContent = `${item.message}（${item.fetchedAt}）`;
+    text.appendChild(message);
+
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'anime-season-button release-retry';
+    retry.textContent = '再取得';
+    retry.addEventListener('click', function(){ fetchReleases(item.titleId, retry); });
+
+    line.appendChild(text);
+    line.appendChild(retry);
+    card.appendChild(line);
+  });
+  container.appendChild(card);
+}
+
+window.loadReleaseView = loadReleaseView;
+window.fetchReleases = fetchReleases;
+</script>

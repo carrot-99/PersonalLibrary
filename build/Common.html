@@ -120,6 +120,7 @@ function showTab(tabId){
   const loaders = {
     PhotoImportView: loadPhotoImportView,
     WishListView: loadWishListView,
+    ReleaseView: loadReleaseView,
     SeriesListView: function(){ showInlineLoading('SeriesListView', '読み込み中...'); loadSeriesList(1); },
     TitleListView: function(){ showInlineLoading('TitleListView', '読み込み中...'); loadTitleList(1); },
     BoxListView: function(){ showInlineLoading('BoxListView', '読み込み中...'); loadBoxList(1); },

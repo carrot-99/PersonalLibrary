@@ -93,6 +93,22 @@ class FakeRange {
   setValue(value){
     return this.setValues([[value]]);
   }
+
+  // 値を消す。GAS と同じく、末尾の空行は getLastRow に数えない
+  clearContent(){
+    for(let r = 0; r < this.numRows; r++){
+      const line = this.sheet.values[this.row - 1 + r];
+      if(!line) continue;
+      for(let c = 0; c < this.numCols; c++){
+        if(this.col - 1 + c < line.length) line[this.col - 1 + c] = '';
+      }
+    }
+    const values = this.sheet.values;
+    while(values.length > 0 && values[values.length - 1].every(value => value === '' || value === undefined)){
+      values.pop();
+    }
+    return this;
+  }
 }
 
 class FakeSpreadsheet {
@@ -154,6 +170,7 @@ function loadServer(sheets, options = {}){
     releaseLock(){ this.held = false; }
   };
   const logs = [];
+  const sleeps = [];
   // スクリプトキャッシュ（有効期限は見ない）。cache.store で中身を確認できる
   const cache = {
     store: new Map(options.cache || []),
@@ -167,7 +184,8 @@ function loadServer(sheets, options = {}){
     console,
     SpreadsheetApp: { getActive: () => ss, getActiveSpreadsheet: () => ss },
     LockService: { getScriptLock: () => lock },
-    Utilities: { formatDate },
+    // sleep は待たずに回数だけ数える（sleeps）
+    Utilities: { formatDate, sleep: ms => sleeps.push(ms) },
     Session: { getScriptTimeZone: () => 'Asia/Tokyo' },
     Logger: { log: message => logs.push(message) },
     PropertiesService: {
@@ -187,7 +205,7 @@ function loadServer(sheets, options = {}){
     vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
   });
 
-  return { gas: context, ss, lock, logs, cache };
+  return { gas: context, ss, lock, logs, cache, sleeps };
 }
 
 // ----------------------
