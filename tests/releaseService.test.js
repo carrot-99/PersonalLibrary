@@ -76,6 +76,22 @@ test('parseRakutenVolume: 作品名の直後の数字を巻として読み、続
   assert.equal(gas.parseRakutenVolume('別の漫画 3', '葬送のフリーレン'), null);
 });
 
+test('parseRakutenVolume: 小数の巻・数字の副題・山括弧・作品名の注記', () => {
+  const { gas } = loadServer({});
+  // 「11.5」は 11.5 巻（115 巻にしない）
+  assert.equal(gas.parseRakutenVolume('お隣の天使様にいつの間にか駄目人間にされていた件 11.5', 'お隣の天使様にいつの間にか駄目人間にされていた件').volume, 11.5);
+  // 巻数の後ろの数字とつなげない・「18禁」「2013年」は巻数にしない
+  const name = 'クズレス・オブリージュ';
+  assert.equal(gas.parseRakutenVolume('クズレス・オブリージュ 6 18禁ゲー世界のラスボス悪役貴族に転生したけど', name).volume, 6);
+  assert.equal(gas.parseRakutenVolume('クズレス・オブリージュ 18禁ゲー世界のラスボス悪役貴族に転生したけど', name), null);
+  assert.equal(gas.parseRakutenVolume('俺の妹がこんなに可愛いわけがない 2013年カレンダー', '俺の妹がこんなに可愛いわけがない'), null);
+  // 書名の山括弧は無視
+  assert.equal(gas.parseRakutenVolume('IS＜インフィニット・ストラトス＞12', 'インフィニットストラトス').volume, 12);
+  assert.equal(gas.parseRakutenVolume('IS〈インフィニット・ストラトス〉（10）', 'インフィニットストラトス').volume, 10);
+  // 作品名の末尾の「（小説）」「（原作）」は除いて照合
+  assert.equal(gas.parseRakutenVolume('魔王学院の不適合者 16', '魔王学院の不適合者（原作）').volume, 16);
+});
+
 test('buildRakutenKeyword / getMaxOwnedVolume', () => {
   const { gas } = loadServer({});
   assert.equal(gas.buildRakutenKeyword('Re:ゼロから始める異世界生活'), 'Re ゼロから始める異世界生活');
@@ -84,6 +100,8 @@ test('buildRakutenKeyword / getMaxOwnedVolume', () => {
   assert.equal(gas.buildRakutenKeyword('Dr.STONE'), 'Dr STONE');
   assert.equal(gas.buildRakutenKeyword('HUNTER×HUNTER'), 'HUNTER HUNTER');
   assert.equal(gas.buildRakutenKeyword('顔に出ない柏田さんと顔に出る太田君＋'), '顔に出ない柏田さんと顔に出る太田君');
+  assert.equal(gas.buildRakutenKeyword('とある科学の超電磁砲（小説）'), 'とある科学の超電磁砲');
+  assert.equal(gas.buildRakutenKeyword('IS〈インフィニット・ストラトス〉'), 'IS インフィニット ストラトス');
   assert.equal(gas.getMaxOwnedVolume(['1', '12', '上', '３']), 12);
   assert.equal(gas.getMaxOwnedVolume(['外伝']), 0);
   assert.equal(gas.getMaxOwnedVolume(undefined), 0);
@@ -147,16 +165,32 @@ test('fetchRakutenBooks: 該当なしは 0 件、認証エラーは設定の確�
     /多すぎます/);
 });
 
-test('getOngoingComicTitles: 種別「漫画」・完結状態「連載中」だけ', () => {
+test('getOngoingReleaseTitles: 完結状態「連載中」の漫画・ラノベ（種別の指定も可）', () => {
   const sheets = baseSheets({
     M_Title: [
       ['T000001', '進撃の巨人', 'S000001', '漫画', '完結済', 0],
       ['T000002', 'よつばと!', 'S000002', '漫画', '連載中', 0],
-      ['T000003', 'よつばと!', 'S000002', 'ラノベ', '連載中', 0]
+      ['T000003', 'よつばと!', 'S000002', 'ラノベ', '連載中', 0],
+      ['T000004', '画集', 'S000002', '', '連載中', 0]
     ]
   });
   const { gas } = loadServer(sheets);
-  assert.deepEqual(plain(gas.getOngoingComicTitles()), [{ id: 'T000002', name: 'よつばと!' }]);
+  assert.deepEqual(plain(gas.getOngoingReleaseTitles()), [
+    { id: 'T000002', name: 'よつばと!', type: '漫画' },
+    { id: 'T000003', name: 'よつばと!', type: 'ラノベ' }
+  ]);
+  assert.deepEqual(plain(gas.getOngoingReleaseTitles('ラノベ')).map(t => t.id), ['T000003']);
+});
+
+test('fetchRakutenBooks: ラノベはライトノベルのジャンル、漫画はコミックのジャンルで探す', () => {
+  const rakuten = fakeRakuten({});
+  const { gas } = loadServer({}, { fetch: rakuten.fetch });
+  const credentials = { applicationId: 'a', accessKey: 'k' };
+
+  gas.fetchRakutenBooks('陰の実力者になりたくて', credentials, 'ラノベ');
+  gas.fetchRakutenBooks('陰の実力者になりたくて', credentials, '漫画');
+  assert.match(rakuten.calls[0].url, /booksGenreId=001017&/);
+  assert.match(rakuten.calls[1].url, /booksGenreId=001001&/);
 });
 
 test('pickEvenly: 件数以下ならそのまま、多ければ等間隔に選ぶ', () => {
@@ -179,6 +213,21 @@ test('testRakutenConnection: 認証情報がなければエラー、あれば作
   gas.testRakutenConnection();
   assert.equal(rakuten.calls.length, 2);
   assert.deepEqual(sleeps, [1500]);
+});
+
+test('testRakutenConnection は漫画だけ、testRakutenLightNovels はラノベだけを検索する', () => {
+  const sheets = baseSheets({
+    M_Title: [
+      ['T000002', 'よつばと!', 'S000002', '漫画', '連載中', 0],
+      ['T000003', 'よつばと!', 'S000002', 'ラノベ', '連載中', 0]
+    ]
+  });
+  const rakuten = fakeRakuten({});
+  const { gas } = loadServer(sheets, { properties: CREDENTIALS, fetch: rakuten.fetch });
+
+  gas.testRakutenConnection();
+  gas.testRakutenLightNovels();
+  assert.deepEqual(rakuten.calls.map(c => (c.url.match(/booksGenreId=(\d+)/) || [])[1]), ['001001', '001017']);
 });
 
 
@@ -228,6 +277,22 @@ test('updateReleases: 取得結果を保存し、20 時間以内に取得した�
   assert.equal(gas.updateReleases({ budgetMs: 60000 }).updated, 0);
   assert.equal(gas.updateReleases({ budgetMs: 60000, titleIds: ['T000004'] }).updated, 1);
   assert.equal(rakuten.calls.length, 3);
+});
+
+test('updateReleases: ラノベの作品はラノベとして検索して保存する', () => {
+  const rakuten = fakeRakuten({
+    'よつばと': [ITEM('よつばと! 4', '2099年02月01日')]
+  });
+  const sheets = ongoingSheets({}, {
+    M_Title: [['T000003', 'よつばと!', 'S000002', 'ラノベ', '連載中', 0]],
+    M_Library: [['L000001', 'T000003', 'B01', '3', new Date(2026, 0, 1)]]
+  });
+  const { gas, ss } = loadServer(sheets, { properties: CREDENTIALS, fetch: rakuten.fetch });
+
+  gas.updateReleases({ budgetMs: 60000 });
+  assert.match(rakuten.calls[0].url, /booksGenreId=001017&/);
+  assert.deepEqual(ss.rows('M_Release').map(r => [r[0], r[1]]), [['T000003', '4']]);
+  assert.equal(plain(gas.getReleaseViewWeb()).upcoming[0].titleType, 'ラノベ');
 });
 
 test('updateReleases: 時間を使い切ったら残りは次回。連載中でなくなった作品の行は消す', () => {
@@ -302,7 +367,9 @@ test('getReleaseViewWeb: 未発売は発売日順、発売済みは作品ごと�
   assert.equal(view.success, true);
   assert.equal(view.configured, true);
   assert.equal(view.titleCount, 2);
+  assert.deepEqual(view.typeCounts, [{ type: '漫画', count: 2 }, { type: 'ラノベ', count: 0 }]);
   assert.equal(view.fetchedCount, 2);
+  assert.equal(view.upcoming[0].titleType, '漫画');
   assert.equal(view.lastFetchedAt, '2026/10/30 05:00');
 
   assert.deepEqual(view.upcoming.map(r => [r.volume, r.sortKey, r.precision]), [['3', 20990110, 'day'], ['4', 20990231, 'month']]);
@@ -338,7 +405,7 @@ test('getReleaseViewWeb: 該当なしの作品を返し、シートがなくて�
   });
   const view = plain(loadServer(sheets).gas.getReleaseViewWeb());
   assert.equal(view.configured, false);
-  assert.deepEqual(view.problems, [{ titleId: 'T000004', titleName: 'ダンダダン', result: '該当なし', message: '検索 0 件', fetchedAt: '2026/10/30 05:00' }]);
+  assert.deepEqual(view.problems, [{ titleId: 'T000004', titleName: 'ダンダダン', titleType: '漫画', result: '該当なし', message: '検索 0 件', fetchedAt: '2026/10/30 05:00' }]);
 
   const empty = plain(loadServer(ongoingSheets()).gas.getReleaseViewWeb());
   assert.deepEqual([empty.upcoming, empty.unowned, empty.problems, empty.lastFetchedAt], [[], [], [], '']);

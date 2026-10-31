@@ -1,6 +1,6 @@
 // ======================================================
 // ReleaseService.gs
-// 連載中の漫画の発売日（楽天ブックス書籍検索 API から作品の巻と発売日を取得し、所持巻と照合）
+// 連載中の漫画・ラノベの発売日（楽天ブックス書籍検索 API から作品の巻と発売日を取得し、所持巻と照合）
 // 取得結果は M_Release（所持巻より先の巻）と M_ReleaseCheck（作品ごとの取得状況）に保存し、
 // 毎日のトリガー（updateReleasesByTrigger）と画面の [取得] で更新する
 // ======================================================
@@ -12,7 +12,6 @@ const RAKUTEN = {
   // 楽天のアプリ設定「許可されたWebサイト」に登録するドメイン。UrlFetchApp は Referer を送らないため明示する
   REFERER: 'https://script.google.com/',
   ORIGIN: 'https://script.google.com',
-  GENRE_COMIC: '001001',
   HITS: 30,
   // 連続で呼ぶときの間隔（1 秒だと 429 になることがあるため余裕を持たせる）
   WAIT_MS: 1500,
@@ -20,8 +19,19 @@ const RAKUTEN = {
   TEST_COUNT: 150
 };
 
+// 作品の種別ごとの検索ジャンル（booksGenreId）。種別がここにない作品は対象外
+// 漫画はコミック（001001）、ラノベはライトノベル（001017。文庫・単行本などはこの下のジャンル）
+const RELEASE_GENRES = {
+  '漫画': { genreId: '001001' },
+  'ラノベ': { genreId: '001017' }
+};
+
 // 巻数として扱わない商品（セット・BOX など）
 const RELEASE_EXCLUDE_PATTERN = /セット|全巻|BOX|ボックス/i;
+// 作品名の末尾の種別の注記（同じ作品名の漫画と区別するための「（小説）」など）。検索と照合では除く
+const RELEASE_NAME_NOTE_PATTERN = /\s*[（(](?:小説|原作|ラノベ|ライトノベル|漫画|マンガ|コミック|コミックス)[)）]\s*$/;
+// 数字の直後がこれなら巻数ではない（「18禁」「2013年」など）
+const RELEASE_NOT_VOLUME_PATTERN = /^[禁歳才年月日人話回周枚冊号%]/;
 // 巻数の後ろの表記のうち版とみなすもの（それ以外は各巻の副題として扱う）
 const RELEASE_EDITION_PATTERN = /版|付|限定|特装|同梱|特典/;
 // 最新刊がこれより前（日数）で発売予定もなければ「完結済みかも」とする
@@ -53,11 +63,16 @@ function getRakutenCredentials(){
   return { applicationId, accessKey };
 }
 
+// 検索・照合に使う作品名（末尾の「（小説）」などの注記を除く）
+function toReleaseSearchName(name){
+  return String(name || '').trim().replace(RELEASE_NAME_NOTE_PATTERN, '');
+}
+
 // 作品名 → 検索キーワード（記号は検索で 0 件になりやすいので空白に置き換える。「2.5次元」のような数字の間の . は残す）
 function buildRakutenKeyword(name){
-  return String(name || '')
+  return toReleaseSearchName(name)
     .normalize('NFKC')
-    .replace(/[!?・:〜~「」『』()【】\[\]'"’”#&\/☆★♪、。,×+≡─―]/g, ' ')
+    .replace(/[!?・:〜~「」『』()【】\[\]<>〈〉《》≪≫'"’”#&\/☆★♪、。,×+≡─―]/g, ' ')
     .replace(/(?<!\d)\.|\.(?!\d)/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -65,16 +80,18 @@ function buildRakutenKeyword(name){
 
 
 // ----------------------
-// 楽天ブックス書籍検索（コミック・発売日の新しい順・1 ページ目のみ）
+// 楽天ブックス書籍検索（作品の種別のジャンル・発売日の新しい順・1 ページ目のみ）
+// type: 作品の種別（RELEASE_GENRES のキー。省略時は漫画）
 // 戻り値: 商品の配列（Items[].Item）
 // ----------------------
-function fetchRakutenBooks(keyword, credentials){
+function fetchRakutenBooks(keyword, credentials, type){
 
+  const genre = RELEASE_GENRES[type] || RELEASE_GENRES['漫画'];
   const query = [
     `applicationId=${encodeURIComponent(credentials.applicationId)}`,
     `accessKey=${encodeURIComponent(credentials.accessKey)}`,
     `title=${encodeURIComponent(keyword)}`,
-    `booksGenreId=${RAKUTEN.GENRE_COMIC}`,
+    `booksGenreId=${genre.genreId}`,
     `sort=${encodeURIComponent('-releaseDate')}`,
     `hits=${RAKUTEN.HITS}`,
     'outOfStockFlag=1',
@@ -157,6 +174,7 @@ function isReleased(date, today){
 // ・作品名の後ろの「〜副題〜」は除いて読む（例: 「バキしみ 〜…〜 2」→ 2）
 // ・巻数が作品名の途中に入っていてもよい（例: 「BORUTO-ボルト- 9 -TWO BLUE VORTEX-」→ 作品名「ボルト TWO BLUE VORTEX」の 9）
 // ・商品名が作品名だけ（数字なし）なら 1 巻とみなす
+// ・「11.5」は 11.5 巻。「18禁」「2013年」のような数字は巻数にしない
 // 例: 「葬送のフリーレン（14）」→ 14、「よつばと! 16 特装版」→ 16・版「特装版」
 // 戻り値: { volume, edition }（作品の巻でなければ null）
 // ----------------------
@@ -164,39 +182,55 @@ function parseRakutenVolume(itemTitle, titleName){
   const raw = String(itemTitle || '');
   if(RELEASE_EXCLUDE_PATTERN.test(raw)) return null;
 
-  const nameKey = toReleaseMatchKey(titleName);
+  const nameKey = toReleaseVolumeKey(toReleaseSearchName(titleName));
   if(!nameKey) return null;
 
-  const toVolume = (volume, rest) => ({ volume: Number(volume), edition: RELEASE_EDITION_PATTERN.test(rest) ? rest : '' });
+  // 巻数（「11_5」は 11.5 巻）。数字の直後（after）が「禁」「年」などなら巻数ではない。rest は版の判定に使う残りの表記
+  const toVolume = (volume, after, rest) => {
+    if(RELEASE_NOT_VOLUME_PATTERN.test(after)) return null;
+    const edition = (rest === undefined ? after : rest).replace(/^巻/, '');
+    return { volume: Number(volume.replace('_', '.')), edition: RELEASE_EDITION_PATTERN.test(edition) ? edition : '' };
+  };
   const withoutSubtitle = raw.replace(/[〜～][^〜～]*[〜～]/g, ' ');
 
   for(const text of [raw, withoutSubtitle]){
-    const itemKey = toReleaseMatchKey(text);
+    const itemKey = toReleaseVolumeKey(text);
     const index = itemKey.indexOf(nameKey);
     if(index >= 0){
       const rest = itemKey.slice(index + nameKey.length);
       if(rest === '' && index === 0) return { volume: 1, edition: '' };
 
-      const match = rest.match(/^第?(\d+)巻?(.*)$/);
-      if(match) return toVolume(match[1], match[2]);
+      const match = rest.match(/^第?(\d+(?:_\d+)?)(.*)$/);
+      const volume = match && toVolume(match[1], match[2]);
+      if(volume) return volume;
     }
 
     // 巻数を除くと作品名になり、巻数が作品名の途中にある
-    for(const match of itemKey.matchAll(/\d+/g)){
+    for(const match of itemKey.matchAll(/\d+(?:_\d+)?/g)){
       const position = match.index;
       const removed = itemKey.slice(0, position) + itemKey.slice(position + match[0].length);
       const start = removed.indexOf(nameKey);
       if(start >= 0 && start < position && position < start + nameKey.length){
-        return toVolume(match[0], removed.slice(start + nameKey.length));
+        const volume = toVolume(match[0], itemKey.slice(position + match[0].length), removed.slice(start + nameKey.length));
+        if(volume) return volume;
       }
     }
   }
   return null;
 }
 
-// 照合用のキー（normalizeTitleForMatch に加えて、副題の囲みに使われる罫線・ダッシュ・波線も除く）
+// 照合用のキー（normalizeTitleForMatch に加えて、副題の囲みに使われる罫線・ダッシュ・波線・山括弧も除く）
 function toReleaseMatchKey(value){
-  return normalizeTitleForMatch(value).replace(/[─━―—–〜]/g, '');
+  return normalizeTitleForMatch(value).replace(/[─━―—–〜<>〈〉《》≪≫]/g, '');
+}
+
+// 巻数を読むためのキー。空白や「.」が消えて数字がつながらないよう、
+// 小数の巻（「11.5」）は「11_5」に、空白で区切られた数字（「2 18禁」）は「2|18禁」にしてから照合用のキーにする
+function toReleaseVolumeKey(value){
+  return toReleaseMatchKey(String(value || '')
+    .normalize('NFKC')
+    .replace(/(\d)\.(?=\d)/g, '$1_')
+    .replace(/(\d)\s+(?=\d)/g, '$1|'));
 }
 
 // 発売日が今日から RELEASE_STALE_DAYS 日より前か（日付の読めないものは false）
@@ -247,7 +281,8 @@ function matchReleaseItems(items, titleName, ownedVolumes, today){
       salesDate: String(item.salesDate || ''),
       date,
       released: isReleased(date, today),
-      url: String(item.itemUrl || '')
+      url: String(item.itemUrl || ''),
+      genreId: String(item.booksGenreId || '')
     };
 
     // 同じ巻は通常版（版の表記なし）を優先
@@ -268,14 +303,16 @@ function matchReleaseItems(items, titleName, ownedVolumes, today){
 
 
 // ----------------------
-// 連載中の漫画（種別「漫画」・完結状態「連載中」）
-// 戻り値: [{ id, name }]
+// 連載中の作品（完結状態「連載中」で、種別が RELEASE_GENRES にある漫画・ラノベ）
+// type を指定したらその種別だけ
+// 戻り値: [{ id, name, type }]
 // ----------------------
-function getOngoingComicTitles(){
+function getOngoingReleaseTitles(type){
   return getData(SHEETS.TITLE)
-    .filter(row => String(row[3]).trim() === '漫画' && String(row[4]).trim() === '連載中')
-    .map(row => ({ id: String(row[0]).trim(), name: String(row[1]).trim() }))
-    .filter(title => title.id && title.name);
+    .map(row => ({ id: String(row[0]).trim(), name: String(row[1]).trim(), type: String(row[3]).trim(), status: String(row[4]).trim() }))
+    .filter(title => title.id && title.name && title.status === '連載中' && RELEASE_GENRES[title.type])
+    .filter(title => !type || title.type === type)
+    .map(title => ({ id: title.id, name: title.name, type: title.type }));
 }
 
 // 配列から count 件を等間隔に選ぶ（一部の作品に偏らないように）
@@ -287,19 +324,28 @@ function pickEvenly(list, count){
 
 
 // ----------------------
-// 接続・照合の確認（Apps Scriptエディタから手動実行）
-// 連載中の漫画から RAKUTEN.TEST_COUNT 件を選んで検索し、所持巻より先の巻と発売日をログに出す
+// 接続・照合の確認（Apps Scriptエディタから手動実行。シートには書き込まない）
+// 連載中の作品から RAKUTEN.TEST_COUNT 件を選んで検索し、所持巻より先の巻と発売日をログに出す
+// testRakutenConnection は漫画、testRakutenLightNovels はラノベ
 // ----------------------
 function testRakutenConnection(){
+  testRakutenMatching('漫画');
+}
+
+function testRakutenLightNovels(){
+  testRakutenMatching('ラノベ');
+}
+
+function testRakutenMatching(type){
 
   const credentials = getRakutenCredentials();
   if(!credentials){
     throw new Error(`スクリプトプロパティ ${RAKUTEN.APP_ID_PROPERTY} / ${RAKUTEN.ACCESS_KEY_PROPERTY} が設定されていません`);
   }
 
-  const titles = getOngoingComicTitles();
+  const titles = getOngoingReleaseTitles(type);
   if(titles.length === 0){
-    console.log('連載中の漫画がありません（種別「漫画」・完結状態「連載中」の作品が対象）');
+    console.log(`連載中の${type}がありません（種別「${type}」・完結状態「連載中」の作品が対象）`);
     return;
   }
 
@@ -308,14 +354,14 @@ function testRakutenConnection(){
   const today = new Date();
   const counts = { upcoming: 0, unownedReleased: 0, upToDate: 0, notFound: 0, error: 0, stale: 0 };
 
-  console.log(`連載中の漫画 ${titles.length} 件から ${targets.length} 件を確認します`);
+  console.log(`連載中の${type} ${titles.length} 件から ${targets.length} 件を確認します`);
 
   targets.forEach((title, i) => {
     if(i > 0) Utilities.sleep(RAKUTEN.WAIT_MS);
 
     let items;
     try{
-      items = fetchRakutenBooks(buildRakutenKeyword(title.name), credentials);
+      items = fetchRakutenBooks(buildRakutenKeyword(title.name), credentials, title.type);
     } catch(e){
       // 認証エラーは全件同じ結果になるので打ち切る
       if(/拒否|許可されていません/.test(e.message)) throw e;
@@ -336,7 +382,8 @@ function testRakutenConnection(){
 
     const upcoming = result.unowned.filter(release => !release.released);
     const unownedReleased = result.unowned.filter(release => release.released);
-    const latestText = `楽天の最新 ${result.latest.volume} 巻（${result.latest.salesDate}）`;
+    // ジャンル ID は検索ジャンルの見直し用（ラノベの商品がどのジャンルにあるか）
+    const latestText = `楽天の最新 ${result.latest.volume} 巻（${result.latest.salesDate}・ジャンル ${result.latest.genreId}）`;
     const describe = release => `${release.volume}巻${release.edition ? `[${release.edition}]` : ''} ${release.salesDate}`;
     const staleText = result.stale ? '（最新刊が1年以上前。完結済みかも）' : '';
     if(result.stale) counts.stale++;
@@ -426,7 +473,7 @@ function fetchReleaseResult(title, ownedVolumes, credentials, now){
 
   let items;
   try{
-    items = fetchRakutenBooks(buildRakutenKeyword(title.name), credentials);
+    items = fetchRakutenBooks(buildRakutenKeyword(title.name), credentials, title.type);
   } catch(e){
     if(/拒否|許可されていません/.test(e.message)) throw e;
     return { releases: null, check: [title.id, now, RELEASE_RESULTS.ERROR, '', '', false, e.message] };
@@ -463,7 +510,7 @@ function updateReleases(options){
   const startedAt = Date.now();
   const now = new Date();
   const budgetMs = opts.budgetMs || RELEASE_UPDATE.WEB_BUDGET_MS;
-  const titles = getOngoingComicTitles();
+  const titles = getOngoingReleaseTitles();
   const targets = selectReleaseTargets(titles, getReleaseRows(SHEETS.RELEASE_CHECK), now, opts.titleIds);
   const owned = getOwnedVolumesByTitle();
   const results = new Map();
@@ -565,7 +612,7 @@ function updateReleasesWeb(titleId){
       titleIds: targetId ? [targetId] : null
     });
 
-    if(targetId && result.updated === 0) return failure('連載中の漫画ではないため取得できません');
+    if(targetId && result.updated === 0) return failure('連載中の漫画・ラノベではないため取得できません');
     if(result.updated === 0){
       return Object.assign(success(`取得が必要な作品はありません（${RELEASE_UPDATE.REFRESH_HOURS} 時間以内に取得済み）`), result);
     }
@@ -586,10 +633,10 @@ function updateReleasesWeb(titleId){
 // ----------------------
 // 画面用: 発売予定の一覧
 // 戻り値: {
-//   success, configured, titleCount, fetchedCount, lastFetchedAt,
-//   upcoming: 未発売の巻（発売日順）[{ titleId, titleName, volume, edition, title, salesDate, sortKey, precision, url, wished }],
-//   unowned: 発売済みで未所持の巻（作品ごと）[{ titleId, titleName, stale, latestVolume, latestSalesDate, volumes: [{ volume, salesDate, wished, url }] }],
-//   problems: 該当なし・エラーの作品 [{ titleId, titleName, result, message, fetchedAt }]
+//   success, configured, titleCount, typeCounts（種別ごとの作品数）, fetchedCount, lastFetchedAt,
+//   upcoming: 未発売の巻（発売日順）[{ titleId, titleName, titleType, volume, edition, title, salesDate, sortKey, precision, url, wished }],
+//   unowned: 発売済みで未所持の巻（作品ごと）[{ titleId, titleName, titleType, stale, latestVolume, latestSalesDate, volumes: [{ volume, salesDate, wished, url }] }],
+//   problems: 該当なし・エラーの作品 [{ titleId, titleName, titleType, result, message, fetchedAt }]
 // }
 // 所持済みになった巻・連載中でなくなった作品は表示しない（シートは次の取得で整理される）
 // ----------------------
@@ -597,13 +644,13 @@ function getReleaseViewWeb(){
 
   try{
     const today = new Date();
-    const titles = getOngoingComicTitles();
-    const titleNames = new Map(titles.map(title => [title.id, title.name]));
+    const titles = getOngoingReleaseTitles();
+    const titleMap = new Map(titles.map(title => [title.id, title]));
     const ownedKeys = new Set(getLibraryKeys());
     const wishKeys = new Set(getWishKeys());
 
     const checkRows = getReleaseRows(SHEETS.RELEASE_CHECK)
-      .filter(row => titleNames.has(String(row[0]).trim()));
+      .filter(row => titleMap.has(String(row[0]).trim()));
     const checks = new Map(checkRows.map(row => [String(row[0]).trim(), row]));
 
     const upcoming = [];
@@ -613,7 +660,8 @@ function getReleaseViewWeb(){
       const titleId = String(row[0]).trim();
       const volume = String(row[1]).trim();
       const key = `${titleId}|${volume}`;
-      if(!titleNames.has(titleId) || ownedKeys.has(key)) return;
+      if(!titleMap.has(titleId) || ownedKeys.has(key)) return;
+      const title = titleMap.get(titleId);
 
       const salesDate = toSalesDateText(row[5]);
       const date = parseRakutenSalesDate(salesDate);
@@ -621,7 +669,8 @@ function getReleaseViewWeb(){
       if(!isReleased(date, today)){
         upcoming.push({
           titleId,
-          titleName: titleNames.get(titleId),
+          titleName: title.name,
+          titleType: title.type,
           volume,
           edition: String(row[2] || ''),
           title: String(row[3] || ''),
@@ -638,7 +687,8 @@ function getReleaseViewWeb(){
         const check = checks.get(titleId);
         unownedByTitle.set(titleId, {
           titleId,
-          titleName: titleNames.get(titleId),
+          titleName: title.name,
+          titleType: title.type,
           stale: !!check && check[5] === true,
           latestVolume: check ? String(check[3]) : '',
           latestSalesDate: check ? toSalesDateText(check[4]) : '',
@@ -659,7 +709,8 @@ function getReleaseViewWeb(){
       .filter(row => String(row[2]).trim() !== RELEASE_RESULTS.OK)
       .map(row => ({
         titleId: String(row[0]).trim(),
-        titleName: titleNames.get(String(row[0]).trim()),
+        titleName: titleMap.get(String(row[0]).trim()).name,
+        titleType: titleMap.get(String(row[0]).trim()).type,
         result: String(row[2]).trim(),
         message: String(row[6] || ''),
         fetchedAt: formatDateCell(row[1], 'yyyy/MM/dd HH:mm')
@@ -673,6 +724,7 @@ function getReleaseViewWeb(){
       success: true,
       configured: !!getRakutenCredentials(),
       titleCount: titles.length,
+      typeCounts: Object.keys(RELEASE_GENRES).map(type => ({ type, count: titles.filter(title => title.type === type).length })),
       fetchedCount: checks.size,
       lastFetchedAt: lastFetched ? formatDateCell(lastFetched, 'yyyy/MM/dd HH:mm') : '',
       upcoming,

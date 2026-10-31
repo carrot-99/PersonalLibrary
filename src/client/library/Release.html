@@ -117,7 +117,8 @@ function renderReleaseView(){
   const data = releaseState.data;
   if(!data) return;
 
-  const status = [`連載中の漫画 ${data.titleCount} 作品（取得済 ${data.fetchedCount}）`, `最終取得: ${data.lastFetchedAt || '未取得'}`];
+  const byType = (data.typeCounts || []).map(t => `${t.type} ${t.count}`).join('・');
+  const status = [`連載中 ${data.titleCount} 作品（${byType}。取得済 ${data.fetchedCount}）`, `最終取得: ${data.lastFetchedAt || '未取得'}`];
   if(!data.configured) status.push('楽天のアプリ ID が未設定です');
   document.getElementById('releaseStatus').textContent = status.join('・');
 
@@ -128,6 +129,12 @@ function renderReleaseView(){
 
 function createReleaseTitleLink(item){
   return createCellLink(item.titleName || item.titleId, function(){ openTitleDetail(item.titleId); });
+}
+
+// 種別（漫画・ラノベ）のバッジ。同じ作品名の漫画とラノベを見分ける
+function createReleaseTypeBadge(item){
+  const type = item.titleType || '';
+  return createReleaseBadge(type, type === 'ラノベ' ? 'is-type is-novel' : 'is-type');
 }
 
 function createReleaseWishButton(label, onClick){
@@ -190,6 +197,7 @@ function renderReleaseUpcoming(items){
 
       const text = document.createElement('span');
       text.className = 'release-title';
+      text.appendChild(createReleaseTypeBadge(item));
       text.appendChild(createReleaseTitleLink(item));
       text.appendChild(document.createTextNode(` ${item.volume}巻`));
       if(item.edition) text.appendChild(createReleaseBadge('特装版など'));
@@ -226,6 +234,7 @@ function renderReleaseUnowned(groups){
 
     const head = document.createElement('div');
     head.className = 'wish-group-head';
+    head.appendChild(createReleaseTypeBadge(group));
     head.appendChild(createReleaseTitleLink(group));
     const numbers = group.volumes.map(v => Number(v.volume)).filter(n => Number.isFinite(n));
     const volumes = document.createElement('span');
@@ -272,6 +281,7 @@ function renderReleaseProblems(items){
 
     const text = document.createElement('span');
     text.className = 'release-title';
+    text.appendChild(createReleaseTypeBadge(item));
     text.appendChild(createReleaseTitleLink(item));
     text.appendChild(createReleaseBadge(item.result, 'is-stale'));
     const message = document.createElement('small');
