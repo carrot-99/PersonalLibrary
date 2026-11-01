@@ -48,11 +48,32 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 |---|---|---|
 | `A-B`（A, B は 1 以上の整数、A < B） | A〜B の各巻 | `1-3` → `1, 2, 3` |
 | 整数（`0` 含む、先頭ゼロ不可） | その巻 | `5` → `5` |
-| 上記以外の文字列 | そのまま 1 巻として扱う | `上`, `外伝`, `05` |
+| 上記以外の文字列 | そのまま 1 巻として扱う（「=」始まり・20 文字超えは不可。3.1.4） | `上`, `外伝`, `05` |
 
 - トークン前後の空白は除去。空トークンは無視。
-- エラー: 未入力 / 有効トークンなし / `A-B` で `B <= A` / 同一入力内での巻数重複。
+- エラー: 未入力 / 有効トークンなし / `A-B` で `B <= A` / 同一入力内での巻数重複 / 数字以外の巻が「=」始まり・20 文字超え。
 - 結果: `{ valid: true, values: ['1','2',...], text: '1, 2, ...' }` または `{ valid: false, message }`。
+
+### 3.1.4 入力の検証（`checkText` / `checkTitleOptions`）
+
+文字の入力は登録・更新の API で `checkText(value, label, { required, max })`（`server/Commons.js`）を通します。画面の `checkTextInput`（`client/Common.html`）も**同じ規則**で、送る前に確かめます（規則を変えるときは両方直す）。
+
+| 規則 | 内容 |
+|---|---|
+| 空白 | 前後の空白を除いて保存 |
+| 必須 | `required` の項目は空欄なら `<項目>は必須です` |
+| 「=」始まり | `<項目>は「=」で始められません`（スプレッドシートに書くと数式として扱われるため。途中の「=」や「+」始まりはよい） |
+| 文字数 | `<項目>は<上限>文字以内で入力してください（<文字数>文字）`。上限は名前など 100（`TEXT_MAX_LENGTH`）、欲しい巻のメモ 200（`MEMO_MAX_LENGTH`）、BoxID と数字以外の巻 20（`SHORT_MAX_LENGTH`） |
+
+| 対象 | 項目 |
+|---|---|
+| 作品 | 作品名（必須）。種別は `漫画` / `ラノベ`、完結状態は `連載中` / `完結済` / `未完結`（どちらも空欄は未設定として可。`checkTitleOptions`）。追加時のシリーズは存在する ID |
+| シリーズ | シリーズ名（必須） |
+| Box | BoxID（必須・20 文字）・保管場所（必須。更新でも空欄不可） |
+| 書籍 | 巻数式（3.1.3）。書籍一覧の更新の巻数は 1 巻だけ |
+| 欲しい巻 | メモ（200 文字） |
+| アニメ | 作品名・期名（必須）・シリーズ名 |
+| 写真から登録の作品追加 | 作品名・新規シリーズ名・種別・完結状態 |
 
 ---
 
@@ -130,7 +151,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 処理:
 
 1. `id` 空 → `failure('IDが指定されていません')`、`values` 要素数 < 3 → `failure('更新値が不正です')`
-2. いずれか空 → `failure('作品名・巻数・Boxは必須です')`、`id` の行がなければ `failure('該当データが見つかりません')`
+2. いずれか空 → `failure('作品名・巻数・Boxは必須です')`。巻数は巻数式（3.1.3）で 1 巻だけ（`1-3` などは `巻数は 1 巻だけ入力してください`）。`id` の行がなければ `failure('該当データが見つかりません')`
 3. `resolveMasterId` で作品（ID or 作品名）→ TitleID、Box（ID or 保管場所）→ BoxID に変換。同名が複数ある場合は現在の紐付け先を優先。見つからなければ `failure('作品「…」が見つかりません')` / `failure('Box「…」が見つかりません')`
 4. 自分以外に同一 (TitleID, 巻数) があれば `failure('同じ作品・巻数のデータが既に存在します')`
 5. `updateRowById` で 2 列目（TitleID）・3 列目（BoxID）・4 列目（巻数）を更新
@@ -220,7 +241,7 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 
 | 項目 | 内容 |
 |---|---|
-| 必須 | `name`（空なら `failure('作品名は必須です')`） |
+| 必須 | `name`（空なら `failure('作品名は必須です')`）。名前・種別・完結状態は 3.1.4 で検証し、`seriesId` を指定したときは `M_Series` にあること（なければ `シリーズが存在しません`） |
 | 重複 | 同じ名前（正規化して比較）**かつ同じ種別**の作品があれば `failure('同じ名前・種別の作品が既に登録されています（…）')`。種別が違えば登録可 |
 | 処理 | スクリプトロック内で（`addTitleMasterCore`）`T` で採番し `[ID, name, seriesId, type, completed, 0]` を追加。未指定項目は空文字 |
 | 成功 | `success('<name> を追加しました（<ID>）')` |
@@ -269,8 +290,8 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 | `getBoxListWithCounts()` | 箱一覧用。`[{ id, place, bookCount, titleCount }]`（その Box の書籍の冊数・作品数。書籍のない Box は 0） |
 | `getBoxOverview(boxId)` | Box の詳細。`{ items, summary }`。`items` は `getBoxDetail(boxId)`、`summary` はその Box の書籍の `summarizeLibraryRows`（3.4） |
 | `getBoxes()` | `getBoxMaster()` の別名。写真から登録画面の Box 選択肢に使用 |
-| `addBoxMasterWeb(id, place)` | 両方必須。BoxID 重複は `failure('既に同じBoxIDが存在します')`。try/catch なし |
-| `updateBoxMaster(id, values)` | `values[0]` で 2 列目（保管場所）を更新 |
+| `addBoxMasterWeb(id, place)` | 両方必須（BoxID は 20 文字まで。3.1.4）。前後の空白を除いて保存。BoxID 重複（空白を除いて比較）は `failure('既に同じBoxIDが存在します')` |
+| `updateBoxMaster(id, values)` | `values[0]` で 2 列目（保管場所）を更新。空欄は不可（3.1.4） |
 | `deleteBoxMaster(id)` | 削除（ロック内、`deleteBoxMasterCore`）。`M_Library` にその Box の書籍があれば `failure('「<保管場所>」（<ID>）には書籍が n冊あるため削除できません（先に書籍一覧で別の Box に移すか削除してください）')`。成功は `success('「<保管場所>」（<ID>）を削除しました')`。ID 空・該当なしはエラー |
 
 
@@ -419,7 +440,7 @@ Apps Script エディタから実行します。外部通信の権限承認と�
 | `getWishSheet()` | `M_Wish` を取得。なければヘッダー付きで作成 |
 | `getWishList()` | `[{ id, titleId, titleName, volume, memo, date }]`（シートが無ければ空配列） |
 | `getWishKeys()` | `["TitleID|巻数", ...]`。写真解析の戻り値 `wishKeys`・作品表示の欲しい巻表示に使用 |
-| `addWishes(titleId, volume, memo)` | 巻数式で複数追加。作品の存在を検証し、所持済み・追加済みの巻はスキップ。`LockService` で排他し `setValues` で一括書き込み。戻り値 `{ success, message, added, addedKeys }`（追加 0 件は `success: false`） |
+| `addWishes(titleId, volume, memo)` | 巻数式で複数追加。作品の存在とメモ（200 文字まで。3.1.4）を検証し、所持済み・追加済みの巻はスキップ。`LockService` で排他し `setValues` で一括書き込み。戻り値 `{ success, message, added, addedKeys }`（追加 0 件は `success: false`） |
 | `deleteWish(id)` | 1 件削除（排他あり） |
 | `removeWishesForLibrary(entries)` | `[{ titleId, volume }]` に一致する行を削除し、削除件数を返す。書籍登録処理から呼ぶ（排他は呼び出し側） |
 

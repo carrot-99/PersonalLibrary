@@ -35,21 +35,29 @@ function addBoxMasterWeb(id, place){
 
 function addBoxMasterCore(id, place){
 
-  if(!id || !place){
+  if(!String(id ?? '').trim() || !String(place ?? '').trim()){
     return failure('BoxIDと保管場所は必須です');
   }
+  const checkedId = checkText(id, 'BoxID', { required: true, max: SHORT_MAX_LENGTH });
+  if(!checkedId.valid) return failure(checkedId.message);
+  const checkedPlace = checkText(place, '保管場所', { required: true });
+  if(!checkedPlace.valid) return failure(checkedPlace.message);
+  id = checkedId.value;
+  place = checkedPlace.value;
 
-  const sheet = getSheet(SHEETS.BOX);
-  const data  = getData(SHEETS.BOX);
+  try{
+    // 重複チェック（前後の空白は除いて比べる）
+    if(getData(SHEETS.BOX).some(row => String(row[0]).trim() === id)){
+      return failure('既に同じBoxIDが存在します');
+    }
 
-  // 重複チェック
-  if(data.some(row => String(row[0]) === String(id))){
-    return failure('既に同じBoxIDが存在します');
+    getSheet(SHEETS.BOX).appendRow([id, place]);
+
+    return success(`Box ${id} を追加しました`);
+
+  } catch(e){
+    return failure(e.message);
   }
-
-  sheet.appendRow([id, place]);
-
-  return success(`Box ${id} を追加しました`);
 }
 
 
@@ -71,13 +79,18 @@ function updateBoxMasterCore(id, values){
     return failure('更新値が不正です');
   }
 
+  const checkedPlace = checkText(values[0], '保管場所', { required: true });
+  if(!checkedPlace.valid){
+    return failure(checkedPlace.message);
+  }
+
   try{
 
     const updated = updateRowById(
       SHEETS.BOX,
       id,
       {
-        2: values[0]  // 2列目 = place
+        2: checkedPlace.value  // 2列目 = place
       }
     );
 

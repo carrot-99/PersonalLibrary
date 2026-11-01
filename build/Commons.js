@@ -242,6 +242,47 @@ function resolveMasterId(rows, input, currentId){
 }
 
 // ----------------------
+// 文字の入力の検証（画面の checkTextInput（Common.html）と同じ規則）
+// ・前後の空白を除く ・required なら空欄は不可 ・max 文字まで
+// ・「=」で始まる値は不可（スプレッドシートに書くと数式として扱われるため）
+// 戻り値: { valid: true, value: 除いた後の文字 } / { valid: false, message }
+// ----------------------
+const TEXT_MAX_LENGTH = 100;   // 作品名・シリーズ名・保管場所・アニメの名前など
+const MEMO_MAX_LENGTH = 200;   // 欲しい巻のメモ
+const SHORT_MAX_LENGTH = 20;   // BoxID・数字以外の巻（「上」「外伝」など）
+
+function checkText(value, label, options = {}){
+  const text = String(value ?? '').trim();
+  const max = options.max || TEXT_MAX_LENGTH;
+  if(!text){
+    return options.required ? { valid: false, message: `${label}は必須です` } : { valid: true, value: '' };
+  }
+  if(text.startsWith('=')){
+    return { valid: false, message: `${label}は「=」で始められません` };
+  }
+  if(text.length > max){
+    return { valid: false, message: `${label}は${max}文字以内で入力してください（${text.length}文字）` };
+  }
+  return { valid: true, value: text };
+}
+
+// 作品の種別・完結状態（空欄は未設定として許す）
+const TITLE_TYPES = ['漫画', 'ラノベ'];
+const TITLE_COMPLETED_VALUES = ['連載中', '完結済', '未完結'];
+
+function checkTitleOptions(type, completed){
+  const typeText = String(type ?? '').trim();
+  const completedText = String(completed ?? '').trim();
+  if(typeText && !TITLE_TYPES.includes(typeText)){
+    return { valid: false, message: `種別は ${TITLE_TYPES.join(' / ')} から選んでください` };
+  }
+  if(completedText && !TITLE_COMPLETED_VALUES.includes(completedText)){
+    return { valid: false, message: `完結状態は ${TITLE_COMPLETED_VALUES.join(' / ')} から選んでください` };
+  }
+  return { valid: true, type: typeText, completed: completedText };
+}
+
+// ----------------------
 // 共通レスポンス
 // ----------------------
 function success(message){

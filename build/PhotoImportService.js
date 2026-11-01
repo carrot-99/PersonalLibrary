@@ -361,6 +361,14 @@ function addTitleFromPhotoImport(input){
   if(!seriesId && !newSeriesName){
     return failure('シリーズを選択するか、新規シリーズ名を入力してください');
   }
+  for(const [value, label] of [[name, '作品名'], [newSeriesName, '新規シリーズ名']]){
+    const checked = checkText(value, label);
+    if(!checked.valid) return failure(checked.message);
+  }
+  const options = checkTitleOptions(type, completed);
+  if(!options.valid){
+    return failure(options.message);
+  }
 
   const lock = LockService.getScriptLock();
   if(!lock.tryLock(10000)){

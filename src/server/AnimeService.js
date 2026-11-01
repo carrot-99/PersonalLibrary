@@ -160,6 +160,10 @@ function addAnimeSeasonCore(form){
   const status     = String(form.status || '').trim();
 
   if(!animeName) return failure('作品名は必須です');
+  for(const [value, label] of [[animeName, '作品名'], [seasonName, '期名'], [form.seriesName, 'シリーズ名']]){
+    const checked = checkText(value, label);
+    if(!checked.valid) return failure(checked.message);
+  }
   if(!validateAnimeType(type)) return failure(`種別は ${ANIME_TYPES.join(' / ')} から選んでください`);
   if(!validateAnimeStatus(status)) return failure(`状況は ${ANIME_STATUSES.join(' / ')} から選んでください`);
 
@@ -240,8 +244,9 @@ function updateAnimeMaster(id, values){
     if(!id) return failure('IDが指定されていません');
     if(!values || values.length < 2) return failure('更新値が不正です');
 
-    const name = String(values[0] ?? '').trim();
-    if(!name) return failure('作品名は必須です');
+    const checkedName = checkText(values[0], '作品名', { required: true });
+    if(!checkedName.valid) return failure(checkedName.message);
+    const name = checkedName.value;
 
     try{
 
@@ -280,11 +285,12 @@ function updateAnimeSeasonMaster(id, values){
     if(!id) return failure('IDが指定されていません');
     if(!values || values.length < 5) return failure('更新値が不正です');
 
-    const name   = String(values[1] ?? '').trim();
+    const checkedName = checkText(values[1], '期名', { required: true });
+    if(!checkedName.valid) return failure(checkedName.message);
+    const name   = checkedName.value;
     const type   = String(values[2] ?? '').trim();
     const status = String(values[4] ?? '').trim();
 
-    if(!name) return failure('期名は必須です');
     if(!validateAnimeType(type)) return failure(`種別は ${ANIME_TYPES.join(' / ')} から入力してください`);
     if(!validateAnimeStatus(status)) return failure(`状況は ${ANIME_STATUSES.join(' / ')} から入力してください`);
 

@@ -96,7 +96,7 @@ function loadSeriesList(options = {}){
       pageSize: 20,
       columns: [
         { key: 'id' },
-        { key: 'name', edit: true, link: row => openSeriesDetail(row.id) },
+        { key: 'name', edit: true, required: true, link: row => openSeriesDetail(row.id) },
         { key: 'titleCount' },
         { key: 'bookCount' },
         { key: 'seasonCount' }
@@ -191,7 +191,8 @@ function mergeSeriesFromForm(){
 function addSeriesMaster(){
 
   const name = document.getElementById('newSeriesName').value.trim();
-  if(!name) return showError("シリーズ名は必須です");
+  const message = checkTextInput(name, 'シリーズ名', { required: true });
+  if(message) return showError(message);
 
   callGAS('addSeriesMasterWeb', function(res){
     if(res.success){

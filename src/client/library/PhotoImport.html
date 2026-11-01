@@ -689,6 +689,11 @@ function buildPhotoTitleAddPanel(row){
     if(!name) return showError('作品名を入力してください');
     if(!isNew && !series) return showError('既存シリーズを一覧から選択してください');
     if(isNew && !newSeriesInput.value.trim()) return showError('新規シリーズ名を入力してください');
+    const message = checkTextInputs([
+      ['作品名', name],
+      ['新規シリーズ名', isNew ? newSeriesInput.value : '']
+    ]);
+    if(message) return showError(message);
 
     submit.disabled = true;
     google.script.run

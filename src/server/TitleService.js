@@ -67,12 +67,24 @@ function addTitleMasterWeb(name, seriesId, type, completed){
 // ロックなし版（ロック取得済みの処理から呼ぶ）
 function addTitleMasterCore(name, seriesId, type, completed){
 
-  name = String(name || '').trim();
-  if(!name){
-    return failure('作品名は必須です');
+  const checkedName = checkText(name, '作品名', { required: true });
+  if(!checkedName.valid){
+    return failure(checkedName.message);
   }
+  name = checkedName.value;
+  const options = checkTitleOptions(type, completed);
+  if(!options.valid){
+    return failure(options.message);
+  }
+  type = options.type;
+  completed = options.completed;
+  seriesId = String(seriesId || '').trim();
 
   try{
+
+    if(seriesId && !getData(SHEETS.SERIES).some(row => String(row[0]).trim() === seriesId)){
+      return failure('シリーズが存在しません');
+    }
 
     const duplicate = findDuplicateTitle(getData(SHEETS.TITLE), name, type);
     if(duplicate){
@@ -124,9 +136,14 @@ function updateTitleMasterCore(id, values){
     return failure('更新値が不正です');
   }
 
-  const name = String(values[0] ?? '').trim();
-  if(!name){
-    return failure('作品名は必須です');
+  const checkedName = checkText(values[0], '作品名', { required: true });
+  if(!checkedName.valid){
+    return failure(checkedName.message);
+  }
+  const name = checkedName.value;
+  const options = checkTitleOptions(values[2], values[3]);
+  if(!options.valid){
+    return failure(options.message);
   }
 
   try{
@@ -137,7 +154,7 @@ function updateTitleMasterCore(id, values){
       return failure('該当データが見つかりません');
     }
 
-    const duplicate = findDuplicateTitle(titleRows, name, values[2], id);
+    const duplicate = findDuplicateTitle(titleRows, name, options.type, id);
     if(duplicate){
       return failure(`同じ名前・種別の作品が既に登録されています（${duplicate[1]}・${duplicate[3] || '種別未設定'}）`);
     }
@@ -158,8 +175,8 @@ function updateTitleMasterCore(id, values){
       {
         2: name,
         3: seriesId,
-        4: values[2], // type
-        5: values[3]  // completed
+        4: options.type,
+        5: options.completed
       }
     );
 

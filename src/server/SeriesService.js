@@ -102,10 +102,11 @@ function addSeriesMasterWeb(name){
 // ロックなし版（ロック取得済みの処理から呼ぶ）
 function addSeriesMasterCore(name){
 
-  name = String(name || '').trim();
-  if(!name){
-    return failure('シリーズ名は必須です');
+  const checkedName = checkText(name, 'シリーズ名', { required: true });
+  if(!checkedName.valid){
+    return failure(checkedName.message);
   }
+  name = checkedName.value;
 
   try{
 
@@ -147,10 +148,11 @@ function updateSeriesMasterCore(id, values){
     return failure('更新値が不正です');
   }
 
-  const name = String(values[0] ?? '').trim();
-  if(!name){
-    return failure('シリーズ名は必須です');
+  const checkedName = checkText(values[0], 'シリーズ名', { required: true });
+  if(!checkedName.valid){
+    return failure(checkedName.message);
   }
+  const name = checkedName.value;
 
   try{
 

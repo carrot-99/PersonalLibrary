@@ -49,6 +49,11 @@ function parseVolumeExpression(volumeExpression){
       continue;
     }
 
+    // 数字以外の巻（「上」「外伝」など）
+    const checked = checkText(token, `巻数「${token}」`, { max: SHORT_MAX_LENGTH });
+    if(!checked.valid){
+      return { valid: false, message: checked.message };
+    }
     if(seen.has(token)){
       return { valid: false, message: `巻数 ${token} が重複しています` };
     }
@@ -288,14 +293,23 @@ function updateLibraryMasterCore(id, values){
     const boxRows = getData(SHEETS.BOX);
 
     const titleInput = String(values[0] ?? '').trim();
-    const newVolume = String(values[1] ?? '').trim();
+    const volumeInput = String(values[1] ?? '').trim();
     const boxInput = String(values[2] ?? '').trim();
     // 読書状況（書籍一覧の編集。省略可）
     const readInput = values.length > 3 ? String(values[3] ?? '').trim() : '';
 
-    if(!titleInput || !newVolume || !boxInput){
+    if(!titleInput || !volumeInput || !boxInput){
       return failure('作品名・巻数・Boxは必須です');
     }
+    // 巻数は 1 巻だけ（巻数式で検証する）
+    const parsedVolume = parseVolumeExpression(volumeInput);
+    if(!parsedVolume.valid){
+      return failure(parsedVolume.message);
+    }
+    if(parsedVolume.values.length !== 1){
+      return failure('巻数は 1 巻だけ入力してください');
+    }
+    const newVolume = parsedVolume.values[0];
     if(readInput && !READ_STATUSES.includes(readInput)){
       return failure(`読書状況は ${READ_STATUSES.join(' / ')} のいずれかを指定してください`);
     }

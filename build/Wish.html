@@ -62,6 +62,10 @@ function addWishFromForm(){
   const memo = document.getElementById('wishMemoInput').value.trim();
   if(!wishState.selectedTitleId) return showError('作品を候補から選択してください');
   if(!volume) return showError('巻数を入力してください');
+  const parsed = parseVolumeInput(volume);
+  if(!parsed.valid) return showError(parsed.message);
+  const message = checkTextInput(memo, 'メモ', { max: MEMO_MAX_LENGTH });
+  if(message) return showError(message);
 
   const button = document.getElementById('wishAddButton');
   button.disabled = true;
