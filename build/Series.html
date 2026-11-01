@@ -13,7 +13,7 @@ function showSeries(seriesId){
   google.script.run
     .withSuccessHandler(function(data){
       hideInlineLoading('SeriesView');
-      renderSeriesBooks((data && data.titles) || []);
+      renderSeriesBooks((data && data.titles) || [], data && data.bookSummary);
       renderSeriesAnime((data && data.seasons) || []);
     })
     .withFailureHandler(function(error){
@@ -23,8 +23,15 @@ function showSeries(seriesId){
     .getSeriesOverview(id);
 }
 
-// 書籍: 作品ごとの所持巻（作品名から作品の詳細へ）
-function renderSeriesBooks(titles){
+// 書籍: 集計（冊数・作品・積読・抜けのある作品）と作品ごとの所持巻（作品名から作品の詳細へ）
+function renderSeriesBooks(titles, bookSummary){
+  const lines = formatGroupSummaryLines(bookSummary);
+  if(bookSummary && bookSummary.books){
+    const missing = titles.filter(item => summarizeOwnedVolumes(item.volumes).missing.length > 0).length;
+    lines.splice(2, 0, ['抜け', missing > 0 ? `抜けのある作品 ${missing}件` : 'なし', missing > 0 ? 'is-warning' : 'is-ok']);
+  }
+  renderSummaryLines('seriesBookSummary', lines);
+
   const rows = titles.map(item => ({
     id: item.id,
     name: item.name,
@@ -91,6 +98,7 @@ function loadSeriesList(options = {}){
         { key: 'id' },
         { key: 'name', edit: true, link: row => openSeriesDetail(row.id) },
         { key: 'titleCount' },
+        { key: 'bookCount' },
         { key: 'seasonCount' }
       ],
       keywordKeys: ['id', 'name'],
@@ -113,6 +121,7 @@ function loadSeriesList(options = {}){
         id: item.id,
         name: item.name,
         titleCount: item.titleCount,
+        bookCount: item.bookCount,
         seasonCount: item.seasonCount,
         hasBooks: item.titleCount > 0 ? 'あり' : 'なし',
         hasAnime: item.seasonCount > 0 ? 'あり' : 'なし'

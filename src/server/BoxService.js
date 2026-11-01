@@ -125,3 +125,42 @@ function deleteBoxMasterCore(id){
     return failure(e.message);
   }
 }
+
+// ----------------------
+// 箱一覧用（冊数・作品数付き）
+// 戻り値: [{ id, place, bookCount, titleCount }]
+// ----------------------
+function getBoxListWithCounts(){
+  const books = new Map();
+  const titles = new Map();
+  getData(SHEETS.LIBRARY).forEach(row => {
+    const boxId = String(row[2]).trim();
+    books.set(boxId, (books.get(boxId) || 0) + 1);
+    if(!titles.has(boxId)) titles.set(boxId, new Set());
+    titles.get(boxId).add(String(row[1]).trim());
+  });
+
+  return getBoxMaster().map(box => {
+    const key = String(box.id).trim();
+    return {
+      id: box.id,
+      place: box.place,
+      bookCount: books.get(key) || 0,
+      titleCount: titles.has(key) ? titles.get(key).size : 0
+    };
+  });
+}
+
+
+// ----------------------
+// Box の詳細（中身と集計）
+// 戻り値: { items: getBoxDetail() の配列, summary: summarizeLibraryRows() の結果 }
+// ----------------------
+function getBoxOverview(boxId){
+  const id = String(boxId ?? '').trim();
+  const libs = getData(SHEETS.LIBRARY).filter(row => String(row[2]).trim() === id);
+  return {
+    items: getBoxDetail(id),
+    summary: summarizeLibraryRows(libs, getTitleTypeMap(), getReadStatusMap())
+  };
+}

@@ -99,15 +99,15 @@ test('mergeSeries: 同じシリーズ・存在しないシリーズはエラー'
   assert.match(gas.mergeSeries('', 'S000001').message, /選んでください/);
 });
 
-test('getSeriesListWithCounts: 作品数とアニメの期数を数える', () => {
+test('getSeriesListWithCounts: 作品数・冊数とアニメの期数を数える', () => {
   const { gas } = loadServer(baseSheets({
     M_Anime: [['A000001', '日常アニメ', 'S000002']],
     M_AnimeSeason: [['AS000001', 'A000001', '1期', 'TV'], ['AS000002', 'A000001', '2期', 'TV']],
     M_AnimeWatch: []
   }));
   assert.deepEqual(plain(gas.getSeriesListWithCounts()), [
-    { id: 'S000001', name: '進撃シリーズ', titleCount: 1, seasonCount: 0 },
-    { id: 'S000002', name: '日常シリーズ', titleCount: 2, seasonCount: 2 }
+    { id: 'S000001', name: '進撃シリーズ', titleCount: 1, bookCount: 2, seasonCount: 0 },
+    { id: 'S000002', name: '日常シリーズ', titleCount: 2, bookCount: 1, seasonCount: 2 }
   ]);
 });
 

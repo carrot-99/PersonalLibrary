@@ -19,14 +19,22 @@ function getSeriesMaster(){
 
 
 // ----------------------
-// シリーズ一覧用（書籍の作品数・アニメの期数付き）
-// 戻り値: [{ id, name, titleCount, seasonCount }]
+// シリーズ一覧用（書籍の作品数・冊数・アニメの期数付き）
+// 戻り値: [{ id, name, titleCount, bookCount, seasonCount }]
 // ----------------------
 function getSeriesListWithCounts(){
   const titleCounts = new Map();
+  const seriesOfTitle = new Map();
   getData(SHEETS.TITLE).forEach(row => {
     const key = String(row[2] ?? '').trim();
     titleCounts.set(key, (titleCounts.get(key) || 0) + 1);
+    seriesOfTitle.set(String(row[0]).trim(), key);
+  });
+
+  const bookCounts = new Map();
+  getData(SHEETS.LIBRARY).forEach(row => {
+    const key = seriesOfTitle.get(String(row[1]).trim());
+    if(key !== undefined) bookCounts.set(key, (bookCounts.get(key) || 0) + 1);
   });
 
   const seasonCounts = new Map();
@@ -40,6 +48,7 @@ function getSeriesListWithCounts(){
       id: series.id,
       name: series.name,
       titleCount: titleCounts.get(key) || 0,
+      bookCount: bookCounts.get(key) || 0,
       seasonCount: seasonCounts.get(key) || 0
     };
   });
@@ -48,7 +57,10 @@ function getSeriesListWithCounts(){
 
 // ----------------------
 // シリーズの詳細（書籍・アニメ共通）
-// 戻り値: { titles: getSeriesDetail() の配列, seasons: getAnimeData() の期の配列（作品の登録順→期の登録順） }
+// 戻り値: {
+//   titles: getSeriesDetail() の配列, seasons: getAnimeData() の期の配列（作品の登録順→期の登録順）,
+//   bookSummary: シリーズの書籍の summarizeLibraryRows() の結果
+// }
 // ----------------------
 function getSeriesOverview(seriesId){
   const id = String(seriesId ?? '').trim();
@@ -59,9 +71,15 @@ function getSeriesOverview(seriesId){
     .sort((a, b) => ((animeOrder.get(a.animeId) ?? 0) - (animeOrder.get(b.animeId) ?? 0))
       || a.id.localeCompare(b.id, 'ja', { numeric: true }));
 
+  const titleIds = new Set(getData(SHEETS.TITLE)
+    .filter(row => String(row[2] ?? '').trim() === id)
+    .map(row => String(row[0]).trim()));
+  const libs = getData(SHEETS.LIBRARY).filter(row => titleIds.has(String(row[1]).trim()));
+
   return {
     titles: getSeriesDetail(id),
-    seasons
+    seasons,
+    bookSummary: summarizeLibraryRows(libs, getTitleTypeMap(), getReadStatusMap())
   };
 }
 
