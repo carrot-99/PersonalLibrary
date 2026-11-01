@@ -225,3 +225,41 @@ function replaceSeriesIdInSheet(sheetName, fromId, toId){
   if(count > 0) range.setValues(values);
   return count;
 }
+
+// ----------------------
+// 削除
+// 作品（M_Title）・アニメ作品（M_Anime）が使っているシリーズは削除しない（統合でまとめられる）
+// ----------------------
+function deleteSeriesMaster(id){
+  return withScriptLock(() => deleteSeriesMasterCore(id));
+}
+
+function deleteSeriesMasterCore(id){
+  const targetId = String(id || '').trim();
+  if(!targetId){
+    return failure('IDが指定されていません');
+  }
+
+  try{
+    const series = getData(SHEETS.SERIES).find(row => String(row[0]).trim() === targetId);
+    if(!series){
+      return failure('該当データが見つかりません');
+    }
+
+    const bySeries = row => String(row[2] || '').trim() === targetId;
+    const titles = getData(SHEETS.TITLE).filter(bySeries).length;
+    const anime = getData(SHEETS.ANIME).filter(bySeries).length;
+    if(titles > 0 || anime > 0){
+      const used = [];
+      if(titles > 0) used.push(`作品 ${titles}件`);
+      if(anime > 0) used.push(`アニメ作品 ${anime}件`);
+      return failure(`「${series[1]}」は${used.join('・')}で使われているため削除できません（統合で別のシリーズにまとめられます）`);
+    }
+
+    deleteRowsWhere(SHEETS.SERIES, row => String(row[0]).trim() === targetId);
+    return success(`「${series[1]}」（${targetId}）を削除しました`);
+
+  } catch(e){
+    return failure(e.message);
+  }
+}

@@ -194,9 +194,9 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 
 | テーブル ID（画面） | 編集する列（values の順） | 更新 API | 削除 API | 保存後 |
 |---|---|---|---|---|
-| `seriesListTable`（シリーズ一覧） | シリーズ名 | `updateSeriesMaster` | — | 一覧を取り直す＋選択肢再構築 |
-| `titleListTable`（作品一覧） | 作品名, シリーズ, 種別（選択）, 完結（選択） | `updateTitleMaster` | — | 一覧を取り直す＋選択肢再構築 |
-| `boxListTable`（箱一覧） | 保管場所 | `updateBoxMaster` | — | 一覧を取り直す＋選択肢再構築 |
+| `seriesListTable`（シリーズ一覧） | シリーズ名 | `updateSeriesMaster` | `deleteSeriesMaster` | 一覧を取り直す＋選択肢再構築 |
+| `titleListTable`（作品一覧） | 作品名, シリーズ, 種別（選択）, 完結（選択） | `updateTitleMaster` | `deleteTitleMaster` | 一覧を取り直す＋選択肢再構築 |
+| `boxListTable`（箱一覧） | 保管場所 | `updateBoxMaster` | `deleteBoxMaster` | 一覧を取り直す＋選択肢再構築 |
 | `libraryListTable`（書籍一覧） | 作品名, 巻数, Box, 読書（選択） | `updateLibraryMaster` | `deleteLibraryMaster` | 一覧を取り直す・最近追加・サマリーを再読込 |
 | `animeListTable`（アニメ一覧・期ごと） | 作品, 期名, 種別（選択）, 話数, 状況（選択） | `updateAnimeSeasonMaster` | `deleteAnimeSeason` | アニメ一覧を取り直す |
 | `animeWorkListTable`（アニメ一覧・作品ごと） | 作品名, シリーズ | `updateAnimeMaster` | — | アニメ一覧を取り直す |

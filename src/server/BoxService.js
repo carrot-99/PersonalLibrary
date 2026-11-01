@@ -92,3 +92,36 @@ function updateBoxMasterCore(id, values){
     return failure(e.message);
   }
 }
+
+// ----------------------
+// 削除
+// 書籍（M_Library）が入っている Box は削除しない
+// ----------------------
+function deleteBoxMaster(id){
+  return withScriptLock(() => deleteBoxMasterCore(id));
+}
+
+function deleteBoxMasterCore(id){
+  const targetId = String(id || '').trim();
+  if(!targetId){
+    return failure('IDが指定されていません');
+  }
+
+  try{
+    const box = getData(SHEETS.BOX).find(row => String(row[0]).trim() === targetId);
+    if(!box){
+      return failure('該当データが見つかりません');
+    }
+
+    const books = getData(SHEETS.LIBRARY).filter(row => String(row[2]).trim() === targetId).length;
+    if(books > 0){
+      return failure(`「${box[1]}」（${targetId}）には書籍が ${books}冊あるため削除できません（先に書籍一覧で別の Box に移すか削除してください）`);
+    }
+
+    deleteRowsWhere(SHEETS.BOX, row => String(row[0]).trim() === targetId);
+    return success(`「${box[1]}」（${targetId}）を削除しました`);
+
+  } catch(e){
+    return failure(e.message);
+  }
+}

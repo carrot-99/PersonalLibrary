@@ -166,6 +166,7 @@ function loadTitleList(options = {}){
       defaultSort: { key: 'name', dir: 'asc' },
       edit: {
         update: 'updateTitleMaster',
+        remove: 'deleteTitleMaster',
         onSaved: function(){ loadTitleList({ refresh: true }); refreshMasterData(); }
       }
     });

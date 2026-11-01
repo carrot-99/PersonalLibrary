@@ -223,3 +223,47 @@ function buildTitleLabelMap(titleRows){
     return [String(row[0]).trim(), shared ? `${name}（${String(row[3] || '').trim() || '種別未設定'}）` : name];
   }));
 }
+
+// ----------------------
+// 削除
+// 書籍（M_Library）がある作品は削除しない。書籍がなければ、作品に付いた欲しい巻・発売情報も一緒に消す
+// （書籍がないので読書状況 M_Read の行もない）
+// ----------------------
+function deleteTitleMaster(id){
+  return withScriptLock(() => deleteTitleMasterCore(id));
+}
+
+function deleteTitleMasterCore(id){
+  const targetId = String(id || '').trim();
+  if(!targetId){
+    return failure('IDが指定されていません');
+  }
+
+  try{
+    const titleRows = getData(SHEETS.TITLE);
+    const title = titleRows.find(row => String(row[0]).trim() === targetId);
+    if(!title){
+      return failure('該当データが見つかりません');
+    }
+    const label = buildTitleLabelMap(titleRows).get(targetId) || title[1];
+
+    const books = getData(SHEETS.LIBRARY).filter(row => String(row[1]).trim() === targetId).length;
+    if(books > 0){
+      return failure(`「${label}」は書籍 ${books}冊で使われているため削除できません（先に書籍一覧で書籍を削除してください）`);
+    }
+
+    const byTitle = row => String(row[0]).trim() === targetId;
+    const wishes = deleteRowsWhere(SHEETS.WISH, row => String(row[1]).trim() === targetId);
+    const releases = deleteRowsWhere(SHEETS.RELEASE, byTitle);
+    deleteRowsWhere(SHEETS.RELEASE_CHECK, byTitle);
+    deleteRowsWhere(SHEETS.TITLE, byTitle);
+
+    const extras = [];
+    if(wishes > 0) extras.push(`欲しい巻 ${wishes}件`);
+    if(releases > 0) extras.push(`発売情報 ${releases}件`);
+    return success(`「${label}」（${targetId}）を削除しました${extras.length > 0 ? `（${extras.join('・')}も削除）` : ''}`);
+
+  } catch(e){
+    return failure(e.message);
+  }
+}

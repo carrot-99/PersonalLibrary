@@ -101,6 +101,7 @@ function loadSeriesList(options = {}){
       defaultSort: { key: 'name', dir: 'asc' },
       edit: {
         update: 'updateSeriesMaster',
+        remove: 'deleteSeriesMaster',
         onSaved: function(){ loadSeriesList({ refresh: true }); refreshMasterData(); }
       }
     });
