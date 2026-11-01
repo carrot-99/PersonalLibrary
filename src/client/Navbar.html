@@ -4,6 +4,13 @@
   <button type="button" data-mode="anime" onclick="setAppMode('anime');">📺 アニメ</button>
 </div>
 
+<!-- ホーム（書籍・アニメ共通。起動時に開く） -->
+<div class="tab-group common-group">
+  <div class="tabs common-tabs">
+    <button data-tab="HomeView" onclick="showTab('HomeView'); closeSidebar();">🏠 ホーム</button>
+  </div>
+</div>
+
 <div class="tab-group entry-group book-only">
   <div class="tab-title">登録</div>
   <div class="tabs entry-tabs">

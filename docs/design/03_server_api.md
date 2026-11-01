@@ -486,13 +486,25 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 
 ---
 
+## 3.9.4 ホーム画面（`server/HomeService.js`）
+
+既存の取得処理をまとめて 1 回で返します（画面を開いたときの通信を 1 回にする）。
+
+| 関数 | 内容 |
+|---|---|
+| `getHomeDataWeb()` | 画面用。戻り値 `{ success, release, wishes, watching, plannedCount }`。`release` は `getReleaseViewWeb` の結果を分けたもの `{ success, configured, lastFetchedAt, thisWeek, thisMonth, laterCount, unowned }`（`thisWeek` / `thisMonth` の要素は `upcoming`、`unowned` は「完結済みかも」を除いた `unowned`。発売予定の取得に失敗したときは `{ success: false, message }` で、他の欄は返す）。`wishes` は `getWishList()`、`watching` は `getAnimeData()` の `seasons` のうち状況が `視聴中` のもの（最近更新した順）、`plannedCount` は `視聴予定` の件数 |
+| `splitHomeReleases(upcoming, today)` | 発売予定（発売日順）を分ける。戻り値 `{ thisWeek, thisMonth, laterCount }`。今週: 日付まで分かっていて今日から 7 日以内（今日を含む。`HOME_WEEK_DAYS`、月をまたいでもよい）。今月: 今週以外で今月中（「11月下旬」「11月頃」など日付のないものを含む）。それ以外は件数だけ |
+
+---
+
 ## 3.10 API 呼び出し元一覧
 
 | API | 呼び出し元（クライアント関数） |
 |---|---|
 | `getTitleMaster` | `refreshMasterData`, `loadLibraryAddForm`, `loadPhotoImportView` |
 | `getTitleListWithOwnership` | `loadTitleList` |
-| `getWishList` / `addWishes` / `deleteWish` | `loadWishListView`・`reloadWishList` / `addWishFromForm`・`addPhotoRowToWishList`・`addReleaseToWish`（発売予定）/ `deleteWishItem` |
+| `getWishList` / `addWishes` / `deleteWish` | `loadWishListView`・`reloadWishList` / `addWishFromForm`・`addPhotoRowToWishList`・`addReleaseToWish`（発売予定・ホーム）/ `deleteWishItem` |
+| `getHomeDataWeb` | `loadHomeView`（ホームを開いたとき・起動時・欲しい巻への追加の後） |
 | `getReleaseViewWeb` / `updateReleasesWeb` | `loadReleaseView`（発売予定を開いたとき・取得や欲しい巻への追加の後）/ `fetchReleases`（[発売情報を取得]・[続きを取得]・作品ごとの [再取得]） |
 | `updateReleasesByTrigger` | 毎日 5 時台の時間主導トリガー（`setupReleaseTrigger` で設定） |
 | `setupReleaseTrigger` | Apps Script エディタから手動実行（1 回だけ） |
