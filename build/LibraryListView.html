@@ -18,6 +18,17 @@
     <button onclick="addLibraryMaster()">保存</button>
   </div>
 
+  <!-- 絞り込み中（全ページ分）の書籍の読書状況をまとめて変更（applyLibraryReadBulk） -->
+  <div class="read-bulk">
+    <span>表示中の書籍を</span>
+    <select id="libraryReadBulkStatus" onchange="resetLibraryReadBulkButton(document.getElementById('libraryReadBulkButton'))">
+      <option value="読了">読了</option>
+      <option value="読書中">読書中</option>
+      <option value="未読">未読</option>
+    </select>
+    <button id="libraryReadBulkButton" type="button" onclick="applyLibraryReadBulk(this)">にする</button>
+  </div>
+
   <table class="table table-striped" id="libraryListTable">
     <thead>
       <tr>
@@ -25,6 +36,7 @@
         <th>作品名</th>
         <th>巻数</th>
         <th>Box</th>
+        <th>読書</th>
         <th>追加日</th>
         <th>操作</th>
       </tr>

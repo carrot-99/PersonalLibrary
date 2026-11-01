@@ -80,7 +80,8 @@ PersonalLibrary/
     │   ├── AnimeService.js      M_Anime / M_AnimeSeason / M_AnimeWatch（アニメ）関連 API
     │   ├── AnimeSeasonService.js 今期のアニメ一覧（Annict API から取得・登録状況の照合）
     │   ├── ReleaseService.js    連載中の漫画・ラノベの発売日（楽天ブックス API から取得・所持巻との照合）
-    │   ├── HomeService.js       ホーム画面（発売予定・欲しい巻・視聴中のアニメをまとめて取得）
+    │   ├── HomeService.js       ホーム画面（積読・発売予定・欲しい巻・視聴中のアニメをまとめて取得）
+    │   ├── ReadService.js       M_Read（書籍の読書状況）関連 API
     │   └── Code.js              旧実装（全行コメントアウト済み）
     └── client/              クライアントサイド（HTML テンプレート）
         ├── Index.html           ベースレイアウト

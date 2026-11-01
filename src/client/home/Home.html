@@ -94,6 +94,7 @@ function renderHome(data){
     status.textContent = `発売情報の最終取得: ${release.lastFetchedAt || '未取得'}${release.configured ? '' : '・楽天のアプリ ID が未設定です'}`;
   }
 
+  renderHomeReading(data.reading || { unreadCount: 0, readingCount: 0, titles: [] });
   renderHomeReleases('homeWeek', 'homeWeekCount', release.thisWeek || [], '今週発売の巻はありません');
   const later = release.laterCount ? `（来月以降 ${release.laterCount}冊）` : '';
   renderHomeReleases('homeMonth', 'homeMonthCount', release.thisMonth || [], '今月発売の巻はありません', later);
@@ -121,6 +122,44 @@ function renderHomeEmpty(container, text){
   empty.className = 'anime-empty';
   empty.textContent = text;
   container.appendChild(empty);
+}
+
+// 積読（未読・読書中の巻がある作品。読書中の作品が先）。[n巻を読了] で次に読む巻を読了にする
+function renderHomeReading(reading){
+  const container = document.getElementById('homeReading');
+  container.innerHTML = '';
+  document.getElementById('homeReadingCount').textContent =
+    `未読 ${reading.unreadCount}冊${reading.readingCount ? `・読書中 ${reading.readingCount}冊` : ''}`;
+  const titles = reading.titles || [];
+  if(titles.length === 0) return renderHomeEmpty(container, '積読はありません');
+
+  const lines = titles.slice(0, HOME_LIST_LIMIT).map(group => {
+    const line = document.createElement('div');
+    line.className = 'wish-item release-item';
+
+    const text = document.createElement('span');
+    text.className = 'release-title';
+    text.appendChild(createReleaseTypeBadge(group));
+    text.appendChild(createReleaseTitleLink(group));
+    const volumes = group.readingVolumes.concat(group.unreadVolumes).sort(compareVolumes);
+    text.appendChild(document.createTextNode(` ${formatHomeVolumes(volumes)}`));
+    if(group.readingVolumes.length > 0) text.appendChild(createReleaseBadge('読書中'));
+    line.appendChild(text);
+
+    if(group.next){
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'read-action';
+      button.textContent = `${group.next.volume}巻を読了`;
+      button.addEventListener('click', function(){
+        setReadStatus([group.next.id], '読了', refreshHomeView, button);
+      });
+      line.appendChild(button);
+    }
+    return line;
+  });
+  const rest = titles.length - HOME_LIST_LIMIT;
+  container.appendChild(createHomeCard('release-group is-reading', lines, rest > 0 ? `ほか ${rest}作品` : ''));
 }
 
 function renderHomeReleases(containerId, countId, items, emptyText, suffix = ''){

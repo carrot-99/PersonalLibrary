@@ -197,7 +197,7 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | `seriesListTable`（シリーズ一覧） | シリーズ名 | `updateSeriesMaster` | — | 一覧を取り直す＋選択肢再構築 |
 | `titleListTable`（作品一覧） | 作品名, シリーズ, 種別（選択）, 完結（選択） | `updateTitleMaster` | — | 一覧を取り直す＋選択肢再構築 |
 | `boxListTable`（箱一覧） | 保管場所 | `updateBoxMaster` | — | 一覧を取り直す＋選択肢再構築 |
-| `libraryListTable`（書籍一覧） | 作品名, 巻数, Box | `updateLibraryMaster` | `deleteLibraryMaster` | 一覧を取り直す・最近追加・サマリーを再読込 |
+| `libraryListTable`（書籍一覧） | 作品名, 巻数, Box, 読書（選択） | `updateLibraryMaster` | `deleteLibraryMaster` | 一覧を取り直す・最近追加・サマリーを再読込 |
 | `animeListTable`（アニメ一覧・期ごと） | 作品, 期名, 種別（選択）, 話数, 状況（選択） | `updateAnimeSeasonMaster` | `deleteAnimeSeason` | アニメ一覧を取り直す |
 | `animeWorkListTable`（アニメ一覧・作品ごと） | 作品名, シリーズ | `updateAnimeMaster` | — | アニメ一覧を取り直す |
 
@@ -232,6 +232,7 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | `messageTimeout` | `Common.html` | 通知自動消去タイマー |
 | `photoImportState` | `PhotoImport.html` | 写真で確認・登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `wishKeys`, `mode`（`check` / `register`）, `busy`） |
 | `wishState` | `Wish.html` | 欲しい巻リストの状態（`list`, `selectedTitleId`, `nextVolume`） |
+| `READ_STATUS_OPTIONS` | `Common.html` | 読書状況の選択肢（`未読` / `読書中` / `読了`。サーバーの `READ_STATUSES` と同じ）。`pickNextReadVolume(rows)` は次に読む巻（サーバーの `getNextReadVolume` と同じ判定）、`setReadStatus(ids, status, onDone, btn)` は `setReadStatusWeb` を呼んでサマリーを取り直す |
 | `releaseState` | `Release.html` | 発売予定の状態（`data`: `getReleaseViewWeb` の戻り値、`busy`: 取得中） |
 | `photoImportImagesPromise` | `PhotoImport.html` | 選択写真の縮小処理（長辺 1568px・JPEG 品質 0.9）の Promise。解析時に完了を待つ |
 
@@ -271,4 +272,4 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | `idKey` | 行の ID のキー（既定 `id`）。編集・削除でサーバーに渡す |
 | `edit` | `{ update, remove?, onSaved }`。指定すると各行に操作列を付ける（表の最後に操作列の見出しを置く。[5.7](#57-インライン編集)） |
 
-戻り値 `{ setRows(rows), updateRow(id, patch), removeRow(id) }`。`setRows` は行を入れ替えて再描画します（条件・並び順・ページは保持。編集中の行があれば描き直さない）。`updateRow` は ID の行に `patch` を上書き、`removeRow` は ID の行を消して再描画します（インライン編集の保存・削除の直後）。描画は `renderPagedTableDOM`、見出しにはクラス `sortable` / `sort-asc` / `sort-desc` を付けます。
+戻り値 `{ setRows(rows), updateRow(id, patch), updateRows(ids, patch), removeRow(id), getFilteredRows() }`。`updateRows` は複数の行に同じ `patch` を上書き（書籍一覧の読書状況のまとめて変更）、`getFilteredRows` はキーワード・絞り込みに合う行（全ページ分）を返します。`setRows` は行を入れ替えて再描画します（条件・並び順・ページは保持。編集中の行があれば描き直さない）。`updateRow` は ID の行に `patch` を上書き、`removeRow` は ID の行を消して再描画します（インライン編集の保存・削除の直後）。描画は `renderPagedTableDOM`、見出しにはクラス `sortable` / `sort-asc` / `sort-desc` を付けます。

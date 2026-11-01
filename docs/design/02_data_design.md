@@ -17,13 +17,14 @@
 | `SHEETS.ANIME_WATCH` | `M_AnimeWatch` | アニメの視聴状況（期と 1 対 1。**初回登録時に自動作成**） |
 | `SHEETS.RELEASE` | `M_Release` | 連載中の漫画・ラノベの、所持巻より先の巻と発売日（楽天ブックスから取得。**初回取得時に自動作成**） |
 | `SHEETS.RELEASE_CHECK` | `M_ReleaseCheck` | 発売情報の作品ごとの取得状況（**初回取得時に自動作成**） |
+| `SHEETS.READ` | `M_Read` | 書籍の読書状況（**初回登録・変更時に自動作成**。行のない書籍は読了） |
 
 共通ルール:
 
 - **1 行目はヘッダー行**、データは 2 行目以降（`getData(sheetName, startRow = 2)`）。
 - **1 列目が主キー（ID）**。行の特定は 1 列目の文字列一致で行う（`updateRowById`）。
 - 削除機能は**書籍（`M_Library`）とアニメの期（`M_AnimeSeason`・`M_AnimeWatch`）のみ**（行の物理削除。`deleteLibraryMaster` / `deleteAnimeSeason`）。作品・シリーズ・Box は他シートから参照されるため削除機能はなく、必要ならスプレッドシートを直接操作します。
-- 書籍の最終行を削除すると、ID 採番（最終行 + 1）により次の登録で同じ LibraryID が再利用されます（LibraryID は他シートから参照されないため影響なし）。
+- 書籍の最終行を削除すると、ID 採番（最終行 + 1）により次の登録で同じ LibraryID が再利用されます（`M_Read` の行は書籍の削除と同時に消すため、再利用された ID に前の本の読書状況は残らない）。
 
 ## 2.2 ER 図
 
@@ -157,6 +158,20 @@ M_Series 1 ──── 0..* M_Anime 1 ──── 0..* M_AnimeSeason 1 ──�
 | F (6) | 完結済みかも | 真偽値 | 未発売の巻がなく、最新巻が 1 年以上前 |
 | G (7) | メッセージ | 文字列 | 該当なし・エラーの内容 |
 
+### 2.3.11 M_Read（書籍の読書状況）
+
+`getReadSheet()`（`server/ReadService.js`）がシートの有無を確認し、なければヘッダー行（1 行目、固定表示）付きで作成します。`M_Library` の列順を変えないよう、書籍 1 冊につき最大 1 行を別シートに持ちます。
+
+| 列 | 項目 | 型 | 説明 |
+|---|---|---|---|
+| A (1) | LibraryID | 文字列 | `M_Library.LibraryID` |
+| B (2) | 状況 | 文字列 | `未読` / `読書中` / `読了`（`READ_STATUSES`） |
+| C (3) | 更新日 | 日付 | `getToday()` |
+
+- **行のない書籍は `読了`**（`READ_DEFAULT_STATUS`）。読書状況の記録を始める前（2026-11-01 より前）に登録した本は読了として扱う。
+- 新しく登録した本（`addNewVolumeWeb` / `bulkAddLibraryFromPhoto`）は `未読` の行を作る（写真から登録で「読了として登録」にしたときは `読了`）。
+- 書籍を削除すると（`deleteLibraryMaster`）その行も消す。
+
 ## 2.4 ID 採番
 
 `M_Library` / `M_Title` / `M_Series` / `M_Wish` / `M_Anime` / `M_AnimeSeason` は `generateNextId(prefix, lastId)`（`server/Commons.js`）で採番します。
@@ -191,6 +206,7 @@ M_Series 1 ──── 0..* M_Anime 1 ──── 0..* M_AnimeSeason 1 ──�
 | シリーズ（作品一覧など） | `M_Title.SeriesID` → `M_Series.シリーズ名` |
 | 所持巻数（シリーズの詳細） | `M_Library` を TitleID ごとに件数集計 |
 | 漫画/ラノベ所蔵冊数 | `M_Library` × `M_Title.種別` で件数集計 |
+| 積読・読書状況（サマリー・書籍一覧・作品の詳細・ホーム） | `M_Library.LibraryID` → `M_Read.状況`（行がなければ読了） |
 | アニメの作品名・シリーズ（期の一覧） | `M_AnimeSeason.AnimeID` → `M_Anime.作品名` → `M_Anime.SeriesID` → `M_Series.シリーズ名` |
 | アニメの話数・状況 | `M_AnimeSeason.SeasonID` → `M_AnimeWatch` |
 | 発売予定・発売済未所持（発売予定画面） | `M_Release`（`M_Library` に同じ (TitleID, 巻数) があれば除く。欲しい巻は `M_Wish` と照合）→ `M_Title.作品名` |

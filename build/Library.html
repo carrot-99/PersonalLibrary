@@ -93,7 +93,8 @@ function updateLibrarySummary(summary, prefix) {
 
   const extraIds = {
     mangaTotal: `${prefix}MangaTotal`,
-    novelTotal: `${prefix}NovelTotal`
+    novelTotal: `${prefix}NovelTotal`,
+    unread: `${prefix}Unread`
   };
 
   Object.keys(extraIds).forEach(key => {
@@ -220,10 +221,13 @@ function loadLibraryList(options = {}){
         { key: 'title', edit: true, link: row => openTitleDetail(row.titleId), compare: (a, b) => a.title.localeCompare(b.title, 'ja') || compareVolumes(a.volume, b.volume) },
         { key: 'volume', edit: true, compare: (a, b) => compareVolumes(a.volume, b.volume) },
         { key: 'box', edit: true, link: row => openBoxDetail(row.boxId) },
+        // 読書状況（未読・読書中・読了。編集の 4 つ目の値として updateLibraryMaster に渡す）
+        { key: 'read', edit: true, editOptions: READ_STATUS_OPTIONS },
         { key: 'date', compare: (a, b) => (a.dateValue - b.dateValue) || a.id.localeCompare(b.id) }
       ],
       keywordKeys: ['id', 'title', 'volume', 'box', 'date'],
       filters: [
+        { key: 'read', label: '読書', options: READ_STATUS_OPTIONS },
         { key: 'type', label: '種別' },
         { key: 'box', label: 'Box' },
         { key: 'month', label: '追加月' }
@@ -244,6 +248,39 @@ function loadLibraryList(options = {}){
   callGASCached('libraryList', 'getLibraryListAll', function(rows){
     libraryListFilter.setRows((rows || []).map(row => Object.assign({}, row, { id: String(row.id) })));
   }, { viewId: 'LibraryListView', errorMessage: '書籍一覧の読み込みに失敗しました', refresh: options.refresh });
+}
+
+//////////////////////////////
+// 書籍一覧: 絞り込み中の書籍の読書状況をまとめて変更（誤操作防止のため 2 回押しで確定）
+//////////////////////////////
+function applyLibraryReadBulk(btn){
+  if(!libraryListFilter) return;
+  const status = document.getElementById('libraryReadBulkStatus').value;
+  const targets = libraryListFilter.getFilteredRows().filter(row => row.read !== status);
+  if(targets.length === 0) return showError(`表示中の書籍はすべて「${status}」です`);
+
+  if(btn.dataset.confirm !== 'true'){
+    btn.dataset.confirm = 'true';
+    btn.textContent = `${targets.length}冊を「${status}」にする（もう一度押して確定）`;
+    btn.classList.add('is-confirm');
+    clearTimeout(btn._resetTimer);
+    btn._resetTimer = setTimeout(() => resetLibraryReadBulkButton(btn), 4000);
+    return;
+  }
+
+  resetLibraryReadBulkButton(btn);
+  const ids = targets.map(row => row.id);
+  setReadStatus(ids, status, function(){
+    libraryListFilter.updateRows(ids, { read: status });
+    loadLibraryList({ refresh: true });
+  }, btn);
+}
+
+function resetLibraryReadBulkButton(btn){
+  clearTimeout(btn._resetTimer);
+  btn.dataset.confirm = '';
+  btn.textContent = 'にする';
+  btn.classList.remove('is-confirm');
 }
 
 window.addLibraryMaster = addLibraryMaster;
