@@ -107,7 +107,7 @@ callGASCached(cacheKey, funcName, onData, { viewId?, errorMessage?, refresh? })
 | 関数 | 用途 | 特徴 |
 |---|---|---|
 | `renderTableReadOnly(tableId, data, columns, links)` | 詳細画面の結果 | 0 件ならテーブル非表示。`links: { 列キー: row => 処理 }` の列はリンク |
-| `renderPagedTableDOM(options)` | 一覧画面 | ページネーション付き。`editable` で操作列（[編集]・[削除]）を付加 |
+| `renderPagedTableDOM(options)` | 一覧画面 | ページネーション付き。`editable` で操作列（[編集]・[削除]。クラス `row-actions`）を付加。各セルの `data-label` に見出しの文字（スマホ幅のカード表示で項目名に使う） |
 
 共通の表示ルール:
 
@@ -272,4 +272,4 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | `idKey` | 行の ID のキー（既定 `id`）。編集・削除でサーバーに渡す |
 | `edit` | `{ update, remove?, onSaved }`。指定すると各行に操作列を付ける（表の最後に操作列の見出しを置く。[5.7](#57-インライン編集)） |
 
-戻り値 `{ setRows(rows), updateRow(id, patch), updateRows(ids, patch), removeRow(id), getFilteredRows() }`。`updateRows` は複数の行に同じ `patch` を上書き（書籍一覧の読書状況のまとめて変更）、`getFilteredRows` はキーワード・絞り込みに合う行（全ページ分）を返します。`setRows` は行を入れ替えて再描画します（条件・並び順・ページは保持。編集中の行があれば描き直さない）。`updateRow` は ID の行に `patch` を上書き、`removeRow` は ID の行を消して再描画します（インライン編集の保存・削除の直後）。描画は `renderPagedTableDOM`、見出しにはクラス `sortable` / `sort-asc` / `sort-desc` を付けます。
+戻り値 `{ setRows(rows), updateRow(id, patch), updateRows(ids, patch), removeRow(id), getFilteredRows() }`。`updateRows` は複数の行に同じ `patch` を上書き（書籍一覧の読書状況のまとめて変更）、`getFilteredRows` はキーワード・絞り込みに合う行（全ページ分）を返します。`setRows` は行を入れ替えて再描画します（条件・並び順・ページは保持。編集中の行があれば描き直さない）。`updateRow` は ID の行に `patch` を上書き、`removeRow` は ID の行を消して再描画します（インライン編集の保存・削除の直後）。描画は `renderPagedTableDOM`、見出しにはクラス `sortable` / `sort-asc` / `sort-desc` を付けます。表にはクラス `card-list` を付け、スマホ幅（720px 以下）では 1 行を 1 枚のカードで表示します（[04 章 4.1](04_screen_design.md#レスポンシブ)。CSS のみ）。
