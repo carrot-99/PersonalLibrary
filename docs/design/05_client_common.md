@@ -233,7 +233,7 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | `photoImportState` | `PhotoImport.html` | 写真で確認・登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `wishKeys`, `mode`（`check` / `register`）, `busy`） |
 | `wishState` | `Wish.html` | 欲しい巻リストの状態（`list`, `selectedTitleId`, `nextVolume`） |
 | `READ_STATUS_OPTIONS` | `Common.html` | 読書状況の選択肢（`未読` / `読書中` / `読了`。サーバーの `READ_STATUSES` と同じ）。`pickNextReadVolume(rows)` は次に読む巻（サーバーの `getNextReadVolume` と同じ判定）、`setReadStatus(ids, status, onDone, btn)` は `setReadStatusWeb` を呼んでサマリーを取り直す |
-| `releaseState` | `Release.html` | 発売予定の状態（`data`: `getReleaseViewWeb` の戻り値、`busy`: 取得中） |
+| `releaseState` | `Release.html` | 発売予定の状態（`data`: `getReleaseViewWeb` の戻り値、`busy`: 取得中、`view`: `calendar`（既定）/ `list`（`localStorage` の `personalLibrary.releaseView` に保存）、`month`: カレンダーで表示中の月 `yyyyMM`、`day`: カレンダーで選んだ日の `sortKey`（`others` はその月の日付のない巻）。月・日は画面を開き直しても保持） |
 | `photoImportImagesPromise` | `PhotoImport.html` | 選択写真の縮小処理（長辺 1568px・JPEG 品質 0.9）の Promise。解析時に完了を待つ |
 
 ## 5.10 所持巻の集計

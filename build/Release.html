@@ -5,8 +5,27 @@
 //////////////////////////////
 const releaseState = {
   data: null,
-  busy: false
+  busy: false,
+  view: null, // 'calendar'（既定）/ 'list'（月ごとの一覧）。このブラウザに保存（RELEASE_VIEW_STORAGE_KEY）
+  month: 0,   // カレンダーで表示中の月（yyyyMM。0 は未選択 → 今月か発売予定のある月）
+  day: 0      // カレンダーで選んだ日（sortKey）。'others' はその月の日付のない巻。0 は未選択 → pickReleaseCalendarDay
 };
+const RELEASE_VIEW_STORAGE_KEY = 'personalLibrary.releaseView';
+
+function loadReleaseViewMode(){
+  try {
+    const saved = localStorage.getItem(RELEASE_VIEW_STORAGE_KEY);
+    if(saved === 'list' || saved === 'calendar') return saved;
+  } catch(e) {}
+  return 'calendar';
+}
+
+// [一覧] / [カレンダー] の切り替え
+function setReleaseViewMode(view){
+  releaseState.view = view;
+  try { localStorage.setItem(RELEASE_VIEW_STORAGE_KEY, view); } catch(e) {}
+  if(releaseState.data) renderReleaseUpcoming(releaseState.data.upcoming || []);
+}
 
 function loadReleaseView(){
   showInlineLoading('ReleaseView', '読み込み中...');
@@ -95,6 +114,64 @@ function formatReleaseDay(item){
   return item.salesDate || '未定';
 }
 
+// 発売日の並べ替えキー → カレンダーの月（yyyyMM）。月が分からない（年だけ・未定）なら 0
+function getReleaseMonthKey(sortKey){
+  const key = Number(sortKey) || 0;
+  const month = Math.floor(key / 100) % 100;
+  if(key <= 0 || key >= 99999999 || month < 1 || month > 12) return 0;
+  return Math.floor(key / 100);
+}
+
+// 月（yyyyMM）を offset か月ずらす
+function shiftReleaseMonth(monthKey, offset){
+  const index = Math.floor(monthKey / 100) * 12 + (monthKey % 100 - 1) + offset;
+  return Math.floor(index / 12) * 100 + (index % 12) + 1;
+}
+
+// 発売予定のある月（昇順。月の分からない巻は含めない）
+function getReleaseCalendarMonths(items){
+  return Array.from(new Set((items || []).map(item => getReleaseMonthKey(item.sortKey)).filter(Boolean))).sort((a, b) => a - b);
+}
+
+// 最初に開く月: 今月に発売予定があれば今月、なければ今月より後で最初の月、それもなければ最後の月（発売予定がなければ今月）
+function pickReleaseCalendarMonth(months, currentMonth){
+  if(months.length === 0 || months.includes(currentMonth)) return currentMonth;
+  return months.find(month => month > currentMonth) || months[months.length - 1];
+}
+
+// 月のカレンダー（日曜始まり）
+// 戻り値: { year, month, weeks: [[{ day, sortKey, items } または null（月の外）] × 7], days: その月で日付の分かる巻, others: 日付のない巻（上旬・下旬など） }
+function buildReleaseCalendar(monthKey, items){
+  const year = Math.floor(monthKey / 100);
+  const month = monthKey % 100;
+  const inMonth = (items || []).filter(item => getReleaseMonthKey(item.sortKey) === monthKey);
+  const days = inMonth.filter(item => item.precision === 'day');
+  const others = inMonth.filter(item => item.precision !== 'day');
+
+  const firstWeekday = new Date(year, month - 1, 1).getDay();
+  const lastDay = new Date(year, month, 0).getDate();
+  const cells = [];
+  for(let i = 0; i < firstWeekday; i++) cells.push(null);
+  for(let day = 1; day <= lastDay; day++){
+    const sortKey = monthKey * 100 + day;
+    cells.push({ day, sortKey, items: days.filter(item => Number(item.sortKey) === sortKey) });
+  }
+  while(cells.length % 7 !== 0) cells.push(null);
+
+  const weeks = [];
+  for(let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return { year, month, weeks, days, others };
+}
+
+// カレンダーで最初に選ぶ日: 今日に発売予定があれば今日、なければ月の中で最初に発売予定のある日、
+// どの日にもなければ日付のない巻（'others'）、それもなければ 0
+function pickReleaseCalendarDay(calendar, todayKey){
+  const keys = calendar.days.map(item => Number(item.sortKey));
+  if(keys.includes(todayKey)) return todayKey;
+  if(keys.length > 0) return Math.min(...keys);
+  return calendar.others.length > 0 ? 'others' : 0;
+}
+
 // 発売日順の配列 → 月ごとのまとまり [{ label, items }]
 function groupReleasesByMonth(items){
   const groups = [];
@@ -163,10 +240,48 @@ function createReleaseShopLink(url){
   return link;
 }
 
+// 発売予定: [一覧]（月ごとの一覧）と [カレンダー]（月のカレンダーと、選んだ日の巻）を切り替える
 function renderReleaseUpcoming(items){
+  document.getElementById('releaseUpcomingCount').textContent = `${items.length}冊`;
+  if(!releaseState.view) releaseState.view = loadReleaseViewMode();
+  const isCalendar = releaseState.view === 'calendar';
+  document.querySelectorAll('#ReleaseView .release-view-switch button').forEach(button => {
+    button.classList.toggle('active', button.dataset.view === releaseState.view);
+  });
+  document.getElementById('releaseCalendarArea').style.display = isCalendar ? '' : 'none';
+  // 発売済・未所持は一覧のときだけ（カレンダーは発売予定を見る表示）
+  document.getElementById('releaseUnownedSection').style.display = isCalendar ? 'none' : '';
+
+  if(!isCalendar){
+    document.getElementById('releaseUndatedSection').style.display = 'none';
+    renderReleaseMonthGroups(items);
+    return;
+  }
+
+  const now = new Date();
+  const currentMonth = now.getFullYear() * 100 + now.getMonth() + 1;
+  const months = getReleaseCalendarMonths(items);
+  if(!releaseState.month) releaseState.month = pickReleaseCalendarMonth(months, currentMonth);
+
+  renderReleaseCalendar(items, months, currentMonth, now);
+  renderReleaseUndated(items.filter(item => !getReleaseMonthKey(item.sortKey)));
+}
+
+function moveReleaseMonth(offset){
+  releaseState.month = shiftReleaseMonth(releaseState.month, offset);
+  releaseState.day = 0;
+  if(releaseState.data) renderReleaseUpcoming(releaseState.data.upcoming || []);
+}
+
+function selectReleaseDay(day){
+  releaseState.day = day;
+  if(releaseState.data) renderReleaseUpcoming(releaseState.data.upcoming || []);
+}
+
+// 一覧: 発売日順に月でまとめたカード（月の分からない巻は「2027年（月未定）」「発売日未定」のカード）
+function renderReleaseMonthGroups(items){
   const container = document.getElementById('releaseUpcoming');
   container.innerHTML = '';
-  document.getElementById('releaseUpcomingCount').textContent = `${items.length}冊`;
   if(items.length === 0){
     container.textContent = '発売予定の巻はありません';
     return;
@@ -187,35 +302,166 @@ function renderReleaseUpcoming(items){
     head.appendChild(count);
     card.appendChild(head);
 
-    group.items.forEach(item => {
-      const line = document.createElement('div');
-      line.className = 'wish-item release-item';
-
-      const day = document.createElement('span');
-      day.className = 'release-day';
-      day.textContent = formatReleaseDay(item);
-
-      const text = document.createElement('span');
-      text.className = 'release-title';
-      text.appendChild(createReleaseTypeBadge(item));
-      text.appendChild(createReleaseTitleLink(item));
-      text.appendChild(document.createTextNode(` ${item.volume}巻`));
-      if(item.edition) text.appendChild(createReleaseBadge('特装版など'));
-
-      line.appendChild(day);
-      line.appendChild(text);
-      if(item.wished){
-        line.appendChild(createReleaseBadge('欲しい巻に追加済', 'is-wished'));
-      } else {
-        line.appendChild(createReleaseWishButton('欲しい巻に追加', btn =>
-          addReleaseToWish(item.titleId, [item.volume], `発売日 ${item.salesDate}`, btn)));
-      }
-      if(item.url) line.appendChild(createReleaseShopLink(item.url));
-      card.appendChild(line);
-    });
-
+    group.items.forEach(item => card.appendChild(createReleaseUpcomingLine(item)));
     container.appendChild(card);
   });
+}
+
+function renderReleaseCalendar(items, months, currentMonth, now){
+  const monthKey = releaseState.month;
+  const calendar = buildReleaseCalendar(monthKey, items);
+  const todayKey = currentMonth * 100 + now.getDate();
+  if(!releaseState.day) releaseState.day = pickReleaseCalendarDay(calendar, todayKey);
+  // 移動できる範囲: 発売予定のある最初の月〜最後の月（今月を含む）
+  const minMonth = Math.min(currentMonth, months[0] || currentMonth);
+  const maxMonth = Math.max(currentMonth, months[months.length - 1] || currentMonth);
+
+  document.getElementById('releaseMonthLabel').textContent = `${calendar.year}年${calendar.month}月`;
+  document.getElementById('releaseMonthCount').textContent = `${calendar.days.length + calendar.others.length}冊`;
+  document.getElementById('releasePrevMonth').disabled = monthKey <= minMonth;
+  document.getElementById('releaseNextMonth').disabled = monthKey >= maxMonth;
+
+  const grid = document.getElementById('releaseCalendar');
+  grid.innerHTML = '';
+  ['日', '月', '火', '水', '木', '金', '土'].forEach((name, index) => {
+    const head = document.createElement('div');
+    head.className = `release-cal-head${index === 0 ? ' is-sun' : index === 6 ? ' is-sat' : ''}`;
+    head.textContent = name;
+    grid.appendChild(head);
+  });
+
+  calendar.weeks.forEach(week => week.forEach((cell, index) => {
+    const box = document.createElement('div');
+    if(!cell){
+      box.className = 'release-cal-cell is-out';
+      grid.appendChild(box);
+      return;
+    }
+    box.className = 'release-cal-cell';
+    if(index === 0) box.classList.add('is-sun');
+    if(index === 6) box.classList.add('is-sat');
+    if(cell.sortKey === todayKey) box.classList.add('is-today');
+    if(cell.sortKey === releaseState.day) box.classList.add('is-selected');
+
+    const day = document.createElement('div');
+    day.className = 'release-cal-day';
+    day.textContent = cell.day;
+    box.appendChild(day);
+
+    if(cell.items.length > 0){
+      box.classList.add('has-items');
+      // スマホ幅では件数だけ（CSS で書名を隠す）
+      const count = document.createElement('div');
+      count.className = 'release-cal-count';
+      count.textContent = `${cell.items.length}冊`;
+      box.appendChild(count);
+      cell.items.forEach(item => {
+        const label = document.createElement('div');
+        label.className = `release-cal-item${item.titleType === 'ラノベ' ? ' is-novel' : ''}`;
+        label.textContent = `${item.titleName} ${item.volume}`;
+        label.title = `${item.titleName} ${item.volume}巻（${item.titleType || ''}）`;
+        box.appendChild(label);
+      });
+      // 押すとその日の巻を下に表示する
+      box.addEventListener('click', function(){ selectReleaseDay(cell.sortKey); });
+    }
+    grid.appendChild(box);
+  }));
+
+  // その月の日付のない巻（「11月下旬」など）はカレンダーの下のボタンで選ぶ
+  const others = document.getElementById('releaseMonthOthers');
+  others.innerHTML = '';
+  if(calendar.others.length > 0){
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `release-cal-others${releaseState.day === 'others' ? ' is-selected' : ''}`;
+    button.textContent = `${calendar.month}月中（日付未定） ${calendar.others.length}冊`;
+    button.addEventListener('click', function(){ selectReleaseDay('others'); });
+    others.appendChild(button);
+  }
+
+  renderReleaseDayList(calendar);
+}
+
+// カレンダーの下: 選んだ日（または日付のない巻）の巻だけ
+function renderReleaseDayList(calendar){
+  const container = document.getElementById('releaseUpcoming');
+  container.innerHTML = '';
+  const day = releaseState.day;
+  const items = day === 'others'
+    ? calendar.others
+    : calendar.days.filter(item => Number(item.sortKey) === day);
+  if(!day || items.length === 0){
+    container.textContent = `${calendar.year}年${calendar.month}月の発売予定はありません`;
+    if(day && calendar.days.length + calendar.others.length > 0) container.textContent = 'この日の発売予定はありません';
+    return;
+  }
+
+  const card = document.createElement('div');
+  card.className = 'wish-group release-group';
+  const head = document.createElement('div');
+  head.className = 'wish-group-head';
+  const label = document.createElement('strong');
+  label.textContent = day === 'others' ? `${calendar.month}月中（日付未定）` : `${calendar.month}月${day % 100}日`;
+  const count = document.createElement('span');
+  count.className = 'wish-group-volumes';
+  count.textContent = `${items.length}冊`;
+  head.appendChild(label);
+  head.appendChild(count);
+  card.appendChild(head);
+  items.forEach(item => card.appendChild(createReleaseUpcomingLine(item)));
+  container.appendChild(card);
+}
+
+// 月の分からない巻（年だけ・未定）
+function renderReleaseUndated(items){
+  const section = document.getElementById('releaseUndatedSection');
+  const container = document.getElementById('releaseUndated');
+  container.innerHTML = '';
+  section.style.display = items.length > 0 ? '' : 'none';
+  document.getElementById('releaseUndatedCount').textContent = `${items.length}冊`;
+  if(items.length === 0) return;
+
+  groupReleasesByMonth(items).forEach(group => {
+    const card = document.createElement('div');
+    card.className = 'wish-group release-group';
+    const head = document.createElement('div');
+    head.className = 'wish-group-head';
+    const label = document.createElement('strong');
+    label.textContent = group.label;
+    head.appendChild(label);
+    card.appendChild(head);
+    group.items.forEach(item => card.appendChild(createReleaseUpcomingLine(item)));
+    container.appendChild(card);
+  });
+}
+
+// 発売予定の 1 行（日付 / 種別＋作品名＋巻 / 欲しい巻に追加 / 楽天）
+function createReleaseUpcomingLine(item){
+  const line = document.createElement('div');
+  line.className = 'wish-item release-item';
+
+  const day = document.createElement('span');
+  day.className = 'release-day';
+  day.textContent = formatReleaseDay(item);
+
+  const text = document.createElement('span');
+  text.className = 'release-title';
+  text.appendChild(createReleaseTypeBadge(item));
+  text.appendChild(createReleaseTitleLink(item));
+  text.appendChild(document.createTextNode(` ${item.volume}巻`));
+  if(item.edition) text.appendChild(createReleaseBadge('特装版など'));
+
+  line.appendChild(day);
+  line.appendChild(text);
+  if(item.wished){
+    line.appendChild(createReleaseBadge('欲しい巻に追加済', 'is-wished'));
+  } else {
+    line.appendChild(createReleaseWishButton('欲しい巻に追加', btn =>
+      addReleaseToWish(item.titleId, [item.volume], `発売日 ${item.salesDate}`, btn)));
+  }
+  if(item.url) line.appendChild(createReleaseShopLink(item.url));
+  return line;
 }
 
 function renderReleaseUnowned(groups){
@@ -304,4 +550,6 @@ function renderReleaseProblems(items){
 
 window.loadReleaseView = loadReleaseView;
 window.fetchReleases = fetchReleases;
+window.moveReleaseMonth = moveReleaseMonth;
+window.setReleaseViewMode = setReleaseViewMode;
 </script>

@@ -426,3 +426,66 @@ test('Release.html: 発売日の並べ替えキーから月の見出しと日の
   const groups = plain(client.groupReleasesByMonth([{ sortKey: 20261104 }, { sortKey: 20261131 }, { sortKey: 20261205 }]));
   assert.deepEqual(groups.map(g => [g.label, g.items.length]), [['2026年11月', 2], ['2026年12月', 1]]);
 });
+test('Release.html: カレンダーの月（yyyyMM）の取り出し・移動と、最初に開く月', () => {
+  const client = loadClient(['library/Release.html']);
+  assert.equal(client.getReleaseMonthKey(20261104), 202611);
+  assert.equal(client.getReleaseMonthKey(20261131), 202611);  // 下旬
+  assert.equal(client.getReleaseMonthKey(20279999), 0);       // 年だけ
+  assert.equal(client.getReleaseMonthKey(99999999), 0);       // 未定
+
+  assert.equal(client.shiftReleaseMonth(202612, 1), 202701);
+  assert.equal(client.shiftReleaseMonth(202601, -1), 202512);
+  assert.equal(client.shiftReleaseMonth(202611, 0), 202611);
+
+  const months = plain(client.getReleaseCalendarMonths([{ sortKey: 20261205 }, { sortKey: 20261104 }, { sortKey: 20261131 }, { sortKey: 20279999 }]));
+  assert.deepEqual(months, [202611, 202612]);
+  assert.equal(client.pickReleaseCalendarMonth(months, 202611), 202611);  // 今月に発売予定がある
+  assert.equal(client.pickReleaseCalendarMonth(months, 202610), 202611);  // 今月より後で最初の月
+  assert.equal(client.pickReleaseCalendarMonth(months, 202701), 202612);  // 後がなければ最後の月
+  assert.equal(client.pickReleaseCalendarMonth([], 202611), 202611);
+});
+
+test('Release.html: 月のカレンダー（日曜始まり）に日付のある巻を置き、上旬・下旬などは別にする', () => {
+  const client = loadClient(['library/Release.html']);
+  // 2026年11月 は日曜始まり・30 日
+  const calendar = plain(client.buildReleaseCalendar(202611, [
+    { titleName: 'A', sortKey: 20261107, precision: 'day' },
+    { titleName: 'B', sortKey: 20261107, precision: 'day' },
+    { titleName: 'C', sortKey: 20261131, precision: 'month' },
+    { titleName: 'D', sortKey: 20261204, precision: 'day' }
+  ]));
+  assert.equal(calendar.year, 2026);
+  assert.equal(calendar.month, 11);
+  assert.equal(calendar.weeks.length, 5);
+  assert.equal(calendar.weeks[0][0].day, 1);
+  assert.deepEqual(calendar.weeks[0][6].items.map(i => i.titleName), ['A', 'B']);
+  assert.equal(calendar.weeks[0][6].sortKey, 20261107);
+  assert.deepEqual(calendar.weeks[4].map(c => c && c.day), [29, 30, null, null, null, null, null]);
+  assert.deepEqual(calendar.days.map(i => i.titleName), ['A', 'B']);
+  assert.deepEqual(calendar.others.map(i => i.titleName), ['C']);
+
+  // 2027年1月 は金曜始まり
+  const january = plain(client.buildReleaseCalendar(202701, []));
+  assert.deepEqual(january.weeks[0].map(c => c && c.day), [null, null, null, null, null, 1, 2]);
+});
+
+test('Release.html: カレンダーで最初に選ぶ日（今日→最初に発売予定のある日→日付のない巻）', () => {
+  const client = loadClient(['library/Release.html']);
+  const items = [
+    { sortKey: 20261110, precision: 'day' },
+    { sortKey: 20261107, precision: 'day' },
+    { sortKey: 20261131, precision: 'month' }
+  ];
+  const calendar = client.buildReleaseCalendar(202611, items);
+  assert.equal(client.pickReleaseCalendarDay(calendar, 20261110), 20261110);  // 今日に発売予定がある
+  assert.equal(client.pickReleaseCalendarDay(calendar, 20261101), 20261107);  // 月で最初の日
+  assert.equal(client.pickReleaseCalendarDay(client.buildReleaseCalendar(202611, [items[2]]), 20261101), 'others');
+  assert.equal(client.pickReleaseCalendarDay(client.buildReleaseCalendar(202612, items), 20261101), 0);
+});
+
+test('Release.html: 表示の既定はカレンダーで、保存した表示があればそれを使う', () => {
+  assert.equal(loadClient(['library/Release.html']).loadReleaseViewMode(), 'calendar');
+  const saved = value => ({ getItem: () => value, setItem: () => {} });
+  assert.equal(loadClient(['library/Release.html'], { localStorage: saved('list') }).loadReleaseViewMode(), 'list');
+  assert.equal(loadClient(['library/Release.html'], { localStorage: saved('table') }).loadReleaseViewMode(), 'calendar');
+});
