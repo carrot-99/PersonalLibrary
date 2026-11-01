@@ -21,7 +21,7 @@
 - 設計書中のソース参照は `src/` からの相対パス（例: `server/LibraryService.js`）で記載します。
 - 実装と設計書に差異を見つけた場合は、どちらが正しいかを判断のうえ、
   - 実装が正 → 設計書を修正
-  - 設計書が正 → 実装を修正し、[06_known_issues.md](06_known_issues.md) から該当項目を削除
+  - 設計書が正 → 実装を修正し、[06_known_issues.md](06_known_issues.md) から該当項目を削除（機能拡張候補（E）は「状況」を対応済にする）
 - 機能追加・仕様変更時は [07_change_history.md](07_change_history.md) に 1 行追記します。
 
 ## 用語
