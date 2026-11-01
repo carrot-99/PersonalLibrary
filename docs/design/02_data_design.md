@@ -23,7 +23,8 @@
 
 - **1 行目はヘッダー行**、データは 2 行目以降（`getData(sheetName, startRow = 2)`）。
 - **1 列目が主キー（ID）**。行の特定は 1 列目の文字列一致で行う（`updateRowById`）。
-- 削除機能は**書籍（`M_Library`）とアニメの期（`M_AnimeSeason`・`M_AnimeWatch`）のみ**（行の物理削除。`deleteLibraryMaster` / `deleteAnimeSeason`）。作品・シリーズ・Box は他シートから参照されるため削除機能はなく、必要ならスプレッドシートを直接操作します。
+- 削除は行の物理削除です。書籍（`deleteLibraryMaster`）・アニメの期（`deleteAnimeSeason`）に加え、作品・シリーズ・Box（`deleteTitleMaster` / `deleteSeriesMaster` / `deleteBoxMaster`）も削除できます。**ほかのシートから使われている作品・シリーズ・Box は削除できません**（作品は `M_Library`、シリーズは `M_Title`・`M_Anime`、Box は `M_Library` に行があるとき）。書籍のない作品を削除すると、その作品の `M_Wish`・`M_Release`・`M_ReleaseCheck` の行も消します。
+- 作品・シリーズの最大 ID の行を削除すると、ID 採番（最大 ID + 1）で次の登録に同じ ID が再利用されます。削除できるのは参照のない行だけなので、前の作品・シリーズのデータが新しい行に紐付くことはありません。
 - 書籍の最終行を削除すると、ID 採番（最終行 + 1）により次の登録で同じ LibraryID が再利用されます（`M_Read` の行は書籍の削除と同時に消すため、再利用された ID に前の本の読書状況は残らない）。
 
 ## 2.2 ER 図

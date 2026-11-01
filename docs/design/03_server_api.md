@@ -37,6 +37,8 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | `resolveMasterId(rows, input, currentId)` | 画面の表示値（ID または名前）からマスタ ID を解決。ID 一致を優先し、次に 2 列目の名前一致。同名が複数あれば `currentId` を優先。見つからなければ `null` |
 | `success(message)` / `failure(message)` | 共通レスポンス生成 |
 
+`deleteRowsWhere(sheetName, match)`: 条件 `match(row)` に合うデータ行を下の行から `deleteRow` で削除し、件数を返す（シートがなければ 0）。作品・シリーズ・Box の削除で使用。
+
 ### 3.1.3 巻数式（Volume Expression）
 
 書籍登録時の巻数は、カンマ区切りの複数指定・範囲指定が可能です。
@@ -227,6 +229,15 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 処理 | シリーズを `resolveMasterId` で SeriesID に変換（同名複数なら現在の紐付け先を優先、空欄は空のまま）し、2〜5 列目を更新 |
 | エラー | ID 空 / 値不正 / 作品名空 / 該当なし / シリーズが見つからない / 例外 |
 
+### `deleteTitleMaster(id)`
+
+| 項目 | 内容 |
+|---|---|
+| 排他 | スクリプトロック（`deleteTitleMasterCore`） |
+| 処理 | `M_Library` にその作品の書籍があれば削除しない。なければ `M_Wish`・`M_Release`・`M_ReleaseCheck` のその作品の行と、`M_Title` の行を削除（`deleteRowsWhere`） |
+| 成功 | `success('「<作品の表示ラベル>」（<ID>）を削除しました（欲しい巻 n件・発売情報 m件も削除）')`（付属の行がなければ括弧なし） |
+| エラー | ID 空 / 該当なし / `「…」は書籍 n冊で使われているため削除できません（先に書籍一覧で書籍を削除してください）` / 例外 |
+
 ---
 
 ## 3.6 シリーズ（`server/SeriesService.js`）
@@ -239,6 +250,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | `getSeries()` | `getSeriesMaster()` の別名。写真から登録画面のシリーズ候補に使用 |
 | `addSeriesMasterWeb(name)` | `name` 必須。同じ名前のシリーズがあればエラー。`S` で採番し追加（ロック内、`addSeriesMasterCore`）。`success('<name> を追加しました（<ID>）')` |
 | `updateSeriesMaster(id, values)` | `values[0]` で 2 列目（シリーズ名）を更新。自分以外に同じ名前があればエラー（ロック内） |
+| `deleteSeriesMaster(id)` | 削除（ロック内、`deleteSeriesMasterCore`）。`M_Title`・`M_Anime` の 3 列目（SeriesID）で使われていれば `failure('「<名前>」は作品 n件・アニメ作品 m件で使われているため削除できません（統合で別のシリーズにまとめられます）')`。成功は `success('「<名前>」（<ID>）を削除しました')`。ID 空・該当なしはエラー |
 | `mergeSeries(fromId, toId)` | シリーズの統合（ロック内、`mergeSeriesCore`）。`M_Title`・`M_Anime` の 3 列目（SeriesID）が `fromId` の行を `toId` に置き換え（`replaceSeriesIdInSheet`）、`M_Series` の `fromId` の行を削除。同じ ID・存在しない ID はエラー。`success("「<from>」を「<to>」に統合しました（作品 N 件、アニメ作品 M 件を付け替え）")` |
 
 ---
@@ -251,6 +263,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | `getBoxes()` | `getBoxMaster()` の別名。写真から登録画面の Box 選択肢に使用 |
 | `addBoxMasterWeb(id, place)` | 両方必須。BoxID 重複は `failure('既に同じBoxIDが存在します')`。try/catch なし |
 | `updateBoxMaster(id, values)` | `values[0]` で 2 列目（保管場所）を更新 |
+| `deleteBoxMaster(id)` | 削除（ロック内、`deleteBoxMasterCore`）。`M_Library` にその Box の書籍があれば `failure('「<保管場所>」（<ID>）には書籍が n冊あるため削除できません（先に書籍一覧で別の Box に移すか削除してください）')`。成功は `success('「<保管場所>」（<ID>）を削除しました')`。ID 空・該当なしはエラー |
 
 
 ---
@@ -542,6 +555,7 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 | `addTitleMasterWeb` / `addSeriesMasterWeb` / `addBoxMasterWeb` | `addTitleMaster` / `addSeriesMaster` / `addBoxMaster` |
 | `update*Master` | `saveEdit`（一覧の `createListFilter` の `edit.update` で指定） |
 | `deleteLibraryMaster` | `deleteListRow`（書籍一覧の [削除]） |
+| `deleteTitleMaster` / `deleteSeriesMaster` / `deleteBoxMaster` | `deleteListRow`（作品一覧・シリーズ一覧・箱一覧の [削除]） |
 | `getSeries` / `getBoxes` | `loadPhotoImportView` |
 | `analyzeBookSpines` | `analyzePhotoImport`（写真で確認・登録の [チェック]） |
 | `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | 作品追加パネルの「追加して選択」 / `registerPhotoImport` |

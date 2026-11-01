@@ -93,12 +93,18 @@
   }
   /* 一覧の操作列（編集・削除）は省略せず横並び */
   #libraryListTable td:last-child,
+  #titleListTable td:last-child,
+  #seriesListTable td:last-child,
+  #boxListTable td:last-child,
   #animeListTable td:last-child {
     white-space: nowrap;
     overflow: visible;
     text-overflow: clip;
   }
   #libraryListTable td:last-child .delete-action,
+  #titleListTable td:last-child .delete-action,
+  #seriesListTable td:last-child .delete-action,
+  #boxListTable td:last-child .delete-action,
   #animeListTable td:last-child .delete-action { margin-left: 8px; }
   /* 編集できる一覧の列幅（PC・タブレット）。applyColumnWidthHints の幅指定は合計が 100% を超え、
      操作列が 0 幅になるため、表ごとに合計 100% で指定する。

@@ -43,6 +43,7 @@ function loadBoxList(options = {}){
       defaultSort: { key: 'id', dir: 'asc' },
       edit: {
         update: 'updateBoxMaster',
+        remove: 'deleteBoxMaster',
         onSaved: function(){ loadBoxList({ refresh: true }); refreshMasterData(); }
       }
     });

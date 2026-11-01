@@ -83,6 +83,24 @@ function generateNextId(prefix, lastId){
 // 最大ID取得（1 列目で末尾の数字が最大の ID）
 // シートを並べ替えても採番が重複しないよう、最終行ではなく最大値を使う
 // ----------------------
+// ----------------------
+// 条件に合うデータ行を削除し、削除した件数を返す（シートがなければ 0）
+// match(row): getData と同じ 1 行分の配列を受け取る。下の行から消すので行番号はずれない
+// ----------------------
+function deleteRowsWhere(sheetName, match){
+  const sheet = getSheet(sheetName);
+  if(!sheet) return 0;
+  const rows = getData(sheetName);
+  let count = 0;
+  for(let i = rows.length - 1; i >= 0; i--){
+    if(match(rows[i])){
+      sheet.deleteRow(i + 2);
+      count++;
+    }
+  }
+  return count;
+}
+
 function getMaxId(sheetName){
 
   const sheet = getSheet(sheetName);
