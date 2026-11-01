@@ -117,3 +117,11 @@ test('formatHomeVolumes: 数字の巻は範囲にまとめ、それ以外はそ�
   assert.equal(client.formatHomeVolumes(['1', '2', '3', '5', '特装版']), '1〜3, 5巻, 特装版');
   assert.equal(client.formatHomeVolumes(['外伝']), '外伝');
 });
+
+test('toggleHomeClosedSections: たたんだ欄を足し、開いた欄を外す（重複しない）', () => {
+  const client = loadClient(['Common.html', 'home/Home.html']);
+  assert.deepEqual(plain(client.toggleHomeClosedSections([], 'week', false)), ['week']);
+  assert.deepEqual(plain(client.toggleHomeClosedSections(['week'], 'week', false)), ['week']);
+  assert.deepEqual(plain(client.toggleHomeClosedSections(['week', 'month'], 'week', true)), ['month']);
+  assert.deepEqual(plain(client.toggleHomeClosedSections(null, 'wishes', true)), []);
+});

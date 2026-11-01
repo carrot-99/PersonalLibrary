@@ -7,8 +7,13 @@
 // 欄ごとの表示件数（作品・期の数）。超えた分は「ほか n 作品」として各画面へ案内する
 const HOME_LIST_LIMIT = 8;
 
+// たたんだ欄（data-section の値の配列）の保存先（このブラウザの localStorage）
+const HOME_CLOSED_STORAGE_KEY = 'personalLibrary.homeClosedSections';
+let homeSectionsReady = false;
+
 // options.refresh: 欲しい巻に追加した後（表示中のまま取り直す）
 function loadHomeView(options = {}){
+  setupHomeSections();
   callGASCached('home', 'getHomeDataWeb', function(res){
     if(!res || !res.success) return showError(res && res.message ? res.message : 'ホームの読み込みに失敗しました');
     renderHome(res);
@@ -19,9 +24,39 @@ function refreshHomeView(){
   loadHomeView({ refresh: true });
 }
 
+// 各欄の開閉（見出しを押すとたためる）。前回たたんだ欄はたたんだまま開く
+function setupHomeSections(){
+  if(homeSectionsReady) return;
+  homeSectionsReady = true;
+
+  let closed = loadHomeClosedSections();
+  document.querySelectorAll('#HomeView .home-section').forEach(section => {
+    if(closed.includes(section.dataset.section)) section.open = false;
+    section.addEventListener('toggle', function(){
+      closed = toggleHomeClosedSections(closed, section.dataset.section, section.open);
+      try { localStorage.setItem(HOME_CLOSED_STORAGE_KEY, JSON.stringify(closed)); } catch(e) {}
+    });
+  });
+}
+
+function loadHomeClosedSections(){
+  try {
+    const saved = JSON.parse(localStorage.getItem(HOME_CLOSED_STORAGE_KEY) || '[]');
+    return Array.isArray(saved) ? saved : [];
+  } catch(e) {
+    return [];
+  }
+}
+
 //////////////////////////////
 // 表示用の整形（DOM を使わない）
 //////////////////////////////
+// たたんだ欄の一覧を更新（open: 開いたか）
+function toggleHomeClosedSections(closed, key, open){
+  const rest = (closed || []).filter(k => k !== key);
+  return open ? rest : [...rest, key];
+}
+
 // 欲しい巻を作品ごとにまとめる（最近追加した作品が先）
 // 戻り値: [{ titleId, titleName, volumes: ['3', '4', ...] }]
 function groupHomeWishes(wishes){
