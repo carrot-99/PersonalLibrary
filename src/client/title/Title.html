@@ -109,7 +109,8 @@ function appendTitleWishLine(titleId){
 //////////////////////////////
 let titleListFilter = null;
 
-function loadTitleList(){
+// options.refresh: 保存・追加の後（表示中の一覧のまま取り直す）
+function loadTitleList(options = {}){
   if(!titleListFilter){
     titleListFilter = createListFilter({
       tableId: 'titleListTable',
@@ -133,14 +134,13 @@ function loadTitleList(){
       defaultSort: { key: 'name', dir: 'asc' },
       edit: {
         update: 'updateTitleMaster',
-        onSaved: function(){ loadTitleList(); refreshMasterData(); }
+        onSaved: function(){ loadTitleList({ refresh: true }); refreshMasterData(); }
       }
     });
   }
 
-  google.script.run
-    .withSuccessHandler(function(res){
-      hideInlineLoading('TitleListView');
+  callGASCached('titleList', 'getTitleListWithOwnership', function(res){
+      res = res || {};
       const volumesMap = res.volumes || {};
       const rows = (res.titles || []).map(item => {
         const summary = summarizeOwnedVolumes(volumesMap[String(item.id).trim()]);
@@ -158,12 +158,7 @@ function loadTitleList(){
         };
       });
       titleListFilter.setRows(rows);
-    })
-    .withFailureHandler(function(error){
-      hideInlineLoading('TitleListView');
-      showError(error && error.message ? error.message : '作品一覧の読み込みに失敗しました');
-    })
-    .getTitleListWithOwnership();
+    }, { viewId: 'TitleListView', errorMessage: '作品一覧の読み込みに失敗しました', refresh: options.refresh });
 }
 
 //////////////////////////////
@@ -185,7 +180,7 @@ function addTitleMaster(){
       document.getElementById('newTitleName').value = '';
       document.getElementById('newTitleType').value = '';
       document.getElementById('newTitleCompleted').value = '連載中';
-      loadTitleList();
+      loadTitleList({ refresh: true });
       refreshMasterData();
     }else{
       showError(res.message);

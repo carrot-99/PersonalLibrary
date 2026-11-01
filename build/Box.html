@@ -29,7 +29,8 @@ function showBox(boxId) {
 //////////////////////////////
 let boxListFilter = null;
 
-function loadBoxList(){
+// options.refresh: 保存・追加の後（表示中の一覧のまま取り直す）
+function loadBoxList(options = {}){
   if(!boxListFilter){
     boxListFilter = createListFilter({
       tableId: 'boxListTable',
@@ -42,21 +43,14 @@ function loadBoxList(){
       defaultSort: { key: 'id', dir: 'asc' },
       edit: {
         update: 'updateBoxMaster',
-        onSaved: function(){ loadBoxList(); refreshMasterData(); }
+        onSaved: function(){ loadBoxList({ refresh: true }); refreshMasterData(); }
       }
     });
   }
 
-  google.script.run
-    .withSuccessHandler(function(data){
-      hideInlineLoading('BoxListView');
-      boxListFilter.setRows((data || []).map(item => ({ id: item.id, place: item.place })));
-    })
-    .withFailureHandler(function(error){
-      hideInlineLoading('BoxListView');
-      showError(error && error.message ? error.message : '箱一覧の読み込みに失敗しました');
-    })
-    .getBoxMaster();
+  callGASCached('boxList', 'getBoxMaster', function(data){
+    boxListFilter.setRows((data || []).map(item => ({ id: item.id, place: item.place })));
+  }, { viewId: 'BoxListView', errorMessage: '箱一覧の読み込みに失敗しました', refresh: options.refresh });
 }
 
 //////////////////////////////
@@ -75,7 +69,7 @@ function addBoxMaster(){
       showSuccess(res.message);
       document.getElementById('newBoxId').value = '';
       document.getElementById('newBoxPlace').value = '';
-      loadBoxList();
+      loadBoxList({ refresh: true });
       refreshMasterData();
     }else{
       showError(res.message);

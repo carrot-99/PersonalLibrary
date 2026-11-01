@@ -219,6 +219,22 @@
     font-weight: 600;
   }
 
+  /* キャッシュを表示したまま取り直している間（見出しの横） */
+  .refresh-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 10px;
+    vertical-align: middle;
+    color: #6b7280;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  .refresh-indicator .inline-spinner {
+    width: 12px;
+    height: 12px;
+  }
+
   .inline-spinner {
     display: inline-block;
     width: 16px;

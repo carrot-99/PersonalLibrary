@@ -11,7 +11,7 @@ const APP_MODE_STORAGE_KEY = 'personalLibrary.appMode';
 let appMode = null;
 
 function init(){
-  refreshMasterData();
+  refreshMasterData(true);
   showTab(APP_MODE_HOME[loadSavedAppMode()]);
   closeSidebar();
 }
@@ -69,10 +69,12 @@ function closeSidebar(){
 //////////////////////////////
 // マスタ選択肢再読み込み
 //////////////////////////////
-function refreshMasterData(){
-  callGAS('getTitleMaster', populateTitle);
-  callGAS('getBoxMaster', populateBoxes);
-  callGAS('getSeriesMaster', populateSeries);
+// useCache: true なら前回の結果をすぐ反映してから取り直す（起動時）。保存・削除の後は省略して取り直すだけにする
+function refreshMasterData(useCache){
+  const options = { refresh: !useCache };
+  callGASCached('master.titles', 'getTitleMaster', populateTitle, options);
+  callGASCached('master.boxes', 'getBoxMaster', populateBoxes, options);
+  callGASCached('master.series', 'getSeriesMaster', populateSeries, options);
 }
 
 //////////////////////////////
@@ -84,6 +86,98 @@ function callGAS(funcName, successHandler, ...args){
     .withFailureHandler(function(error){
       showError(error && error.message ? error.message : '通信に失敗しました');
     })[funcName](...args);
+}
+
+//////////////////////////////
+// 取得結果のキャッシュ（一覧を開いたときにすぐ表示する）
+// 前回の結果（このブラウザの localStorage に保存）をすぐ描画し、裏でサーバーから取り直して、
+// 内容が変わっていれば描画し直す。取り直している間は画面に「最新の情報を確認中」を出す。
+// 同じ cacheKey は最後に呼んだ取得の結果だけを使う（保存の前に始めた取得の結果で、保存後の表示を上書きしない）
+//   cacheKey: 保存先の名前（呼び出し元ごとに分ける） / funcName: サーバー関数（引数なし）
+//   onData(data): 描画。キャッシュとサーバーの結果で最大 2 回呼ばれる
+//   options: {
+//     viewId       … 読み込み中・確認中の表示を出す画面
+//     errorMessage … 取得に失敗したときのメッセージ
+//     refresh      … true: キャッシュは描画せず、表示中の内容のまま取り直す（保存・削除の後）
+//   }
+//////////////////////////////
+const SERVER_CACHE_PREFIX = 'personalLibrary.cache.v1.';
+const serverCacheMemory = {};
+const serverCacheSeq = {};
+
+function readServerCache(cacheKey){
+  if(cacheKey in serverCacheMemory) return serverCacheMemory[cacheKey];
+  try {
+    const json = localStorage.getItem(SERVER_CACHE_PREFIX + cacheKey);
+    if(json !== null) serverCacheMemory[cacheKey] = json;
+    return json;
+  } catch(e) {
+    return null;
+  }
+}
+
+function writeServerCache(cacheKey, json){
+  serverCacheMemory[cacheKey] = json;
+  try { localStorage.setItem(SERVER_CACHE_PREFIX + cacheKey, json); } catch(e) {}
+}
+
+function callGASCached(cacheKey, funcName, onData, options = {}){
+  const seq = (serverCacheSeq[cacheKey] || 0) + 1;
+  serverCacheSeq[cacheKey] = seq;
+
+  let shown = null;
+  if(!options.refresh){
+    const cached = readServerCache(cacheKey);
+    if(cached !== null){
+      try {
+        onData(JSON.parse(cached));
+        shown = cached;
+      } catch(e) {}
+    }
+  }
+
+  const viewId = options.viewId;
+  if(viewId){
+    if(shown !== null || options.refresh) showRefreshIndicator(viewId);
+    else showInlineLoading(viewId, '読み込み中...');
+  }
+  const done = function(){
+    if(!viewId) return;
+    hideInlineLoading(viewId);
+    hideRefreshIndicator(viewId);
+  };
+
+  google.script.run
+    .withSuccessHandler(function(data){
+      if(serverCacheSeq[cacheKey] !== seq) return;
+      done();
+      const json = JSON.stringify(data ?? null);
+      writeServerCache(cacheKey, json);
+      if(json !== shown) onData(data);
+    })
+    .withFailureHandler(function(error){
+      if(serverCacheSeq[cacheKey] !== seq) return;
+      done();
+      showError(error && error.message ? error.message : (options.errorMessage || '通信に失敗しました'));
+    })[funcName]();
+}
+
+// 「最新の情報を確認中」（画面の見出しの横。キャッシュを表示したまま取り直しているとき）
+function showRefreshIndicator(viewId){
+  const view = document.getElementById(viewId);
+  if(!view || view.querySelector('.refresh-indicator')) return;
+  const indicator = document.createElement('span');
+  indicator.className = 'refresh-indicator';
+  indicator.innerHTML = '<span class="inline-spinner"></span><span>最新の情報を確認中...</span>';
+  const heading = view.querySelector('h3');
+  if(heading) heading.appendChild(indicator);
+  else view.prepend(indicator);
+}
+
+function hideRefreshIndicator(viewId){
+  const view = document.getElementById(viewId);
+  const indicator = view && view.querySelector('.refresh-indicator');
+  if(indicator) indicator.remove();
 }
 
 //////////////////////////////
@@ -121,10 +215,10 @@ function showTab(tabId){
     PhotoImportView: loadPhotoImportView,
     WishListView: loadWishListView,
     ReleaseView: loadReleaseView,
-    SeriesListView: function(){ showInlineLoading('SeriesListView', '読み込み中...'); loadSeriesList(1); },
-    TitleListView: function(){ showInlineLoading('TitleListView', '読み込み中...'); loadTitleList(1); },
-    BoxListView: function(){ showInlineLoading('BoxListView', '読み込み中...'); loadBoxList(1); },
-    LibraryListView: function(){ showInlineLoading('LibraryListView', '読み込み中...'); loadLibraryList(1); loadLibraryAddForm(); },
+    SeriesListView: function(){ loadSeriesList(); },
+    TitleListView: function(){ loadTitleList(); },
+    BoxListView: function(){ loadBoxList(); },
+    LibraryListView: function(){ loadLibraryList(); loadLibraryAddForm(); },
     AnimeWatchingView: loadAnimeWatchingView,
     AnimeSeasonView: loadAnimeSeasonView,
     AnimeListView: loadAnimeListView
@@ -885,7 +979,8 @@ function populateBoxes(boxes){
 //   edit: {
 //     update: 'updateXxx',   … 保存時に呼ぶサーバー関数（id, values）。values は edit 指定の列の順
 //     remove: 'deleteXxx',   … 指定すると [削除] を表示（2 回押しで確定）
-//     onSaved()              … 保存・削除の成功後の処理（一覧の再読込など）
+//     onSaved()              … 保存・削除の成功後の処理（一覧の取り直しなど）。
+//                              その前に、入力した値で行を書き換え（削除なら行を消し）て再描画しておく
 //   }
 // 列定義の edit: true（列の値をそのまま編集）／関数（行から編集の初期値を返す）
 // editOptions: [...] を指定した列は選択式で編集する
@@ -997,6 +1092,8 @@ function saveEdit(btn){
     .withSuccessHandler(function(res){
       if(res && res.success){
         showSuccess(res.message);
+        // 取り直しを待たずに、入力した値で行を書き換えておく
+        if(config.filter) config.filter.updateRow(tr.dataset.id, buildEditPatch(config.columns, values));
         if(config.onSaved) config.onSaved();
       } else {
         btn.disabled = false;
@@ -1007,6 +1104,16 @@ function saveEdit(btn){
       btn.disabled = false;
       showError(error && error.message ? error.message : '更新に失敗しました');
     })[config.update](tr.dataset.id, values);
+}
+
+// 保存した値を行に反映するための差分（edit: true の列だけ。関数で初期値を作る列は表示の形が違うので取り直しを待つ）
+// values: 編集した列（edit 指定の列）の順の入力値
+function buildEditPatch(columns, values){
+  const patch = {};
+  columns.filter(column => column && column.edit).forEach((column, index) => {
+    if(column.edit === true) patch[column.key] = values[index];
+  });
+  return patch;
 }
 
 // 削除ボタン（誤操作防止のため 2 回押しで確定。4 秒で元に戻る）
@@ -1055,6 +1162,7 @@ function deleteListRow(btn){
     .withSuccessHandler(function(res){
       if(res && res.success){
         showSuccess(res.message);
+        if(config.filter) config.filter.removeRow(tr.dataset.id);
         if(config.onSaved) config.onSaved();
       } else {
         restore(res?.message || '削除に失敗しました');
@@ -1078,7 +1186,11 @@ function deleteListRow(btn){
 //   edit: { update, remove?, onSaved }               … 行の [編集]・[削除]（listEditConfigs 参照）。
 //                                                     列定義に edit / editOptions を指定し、表の最後に操作列の見出しを置く
 // }
-// 戻り値: { setRows(rows) } … 行を入れ替えて再描画（絞り込み条件は保持）
+// 戻り値: {
+//   setRows(rows)          … 行を入れ替えて再描画（絞り込み条件・ページは保持）
+//   updateRow(id, patch)   … ID の行に patch の値を上書きして再描画
+//   removeRow(id)          … ID の行を消して再描画
+// }
 //////////////////////////////
 function createListFilter(options){
   const table = document.getElementById(options.tableId);
@@ -1244,13 +1356,30 @@ function createListFilter(options){
     clear.style.display = (state.keyword || Object.values(state.values).some(Boolean)) ? '' : 'none';
   }
 
-  return {
+  const idKey = options.idKey || 'id';
+  const api = {
     setRows(rows){
       state.rows = rows || [];
+      // 編集中の行があるときは描き直さない（裏で取り直した結果で入力中の内容を消さない）
+      if(table.querySelector('tr.editing')) return;
+      fillSelectOptions();
+      render();
+    },
+    updateRow(id, patch){
+      const row = state.rows.find(r => String(r[idKey]) === String(id));
+      if(!row) return;
+      Object.assign(row, patch);
+      fillSelectOptions();
+      render();
+    },
+    removeRow(id){
+      state.rows = state.rows.filter(r => String(r[idKey]) !== String(id));
       fillSelectOptions();
       render();
     }
   };
+  if(listEditConfigs[options.tableId]) listEditConfigs[options.tableId].filter = api;
+  return api;
 }
 
 //////////////////////////////
