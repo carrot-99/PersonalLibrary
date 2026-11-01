@@ -1123,6 +1123,48 @@
   .release-message { display: block; color: #9ca3af; }
   .release-shop { font-size: 0.85rem; color: #f9a8d4; }
   .release-retry { padding: 4px 12px; background: #374151; }
+  /* 発売予定のカレンダー */
+  .release-cal-nav { display: flex; align-items: center; gap: 8px; margin: 6px 0 8px; }
+  .release-cal-nav button:disabled { opacity: 0.35; }
+  .release-cal-title { min-width: 7.5em; text-align: center; font-size: 1.1rem; }
+  .release-calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+  .release-cal-head { padding: 2px 0; text-align: center; font-size: 0.8rem; color: #9ca3af; }
+  .release-cal-head.is-sun, .release-cal-cell.is-sun .release-cal-day { color: #f87171; }
+  .release-cal-head.is-sat, .release-cal-cell.is-sat .release-cal-day { color: #60a5fa; }
+  .release-cal-cell {
+    min-height: 84px;
+    min-width: 0;
+    padding: 3px 4px;
+    border: 1px solid #1f2937;
+    border-radius: 6px;
+    background: #0b1220;
+    overflow: hidden;
+  }
+  .release-cal-cell.is-out { background: transparent; border-color: transparent; }
+  .release-cal-cell.is-today { border-color: #fbbf24; }
+  .release-cal-cell.has-items { cursor: pointer; border-color: #155e75; }
+  .release-cal-cell.has-items:hover { background: #102033; }
+  .release-cal-day { font-size: 0.8rem; font-weight: bold; color: #cbd5e1; }
+  .release-cal-count { display: none; }
+  .release-cal-item {
+    margin-top: 2px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: #164e63;
+    color: #e0f2fe;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .release-cal-item.is-novel { background: #1e3a8a; color: #bfdbfe; }
+  .release-cal-cell.is-selected { border-color: #67e8f9; background: #123047; box-shadow: inset 0 0 0 1px #67e8f9; }
+  .release-cal-others { margin: 8px 0 0; padding: 6px 12px; font-size: 0.85rem; background: #374151; box-shadow: none; }
+  .release-cal-others.is-selected { background: #0e7490; }
+  .release-view-switch { display: inline-flex; margin: 4px 0 8px; border: 1px solid #374151; border-radius: 8px; overflow: hidden; }
+  .release-view-switch button { margin: 0; padding: 6px 16px; border-radius: 0; background: #111827; color: #cbd5e1; box-shadow: none; }
+  .release-view-switch button.active { background: #0e7490; color: #fff; }
   /* 読書状況 */
   .read-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; font-size: 0.9rem; }
   .read-bulk select { width: auto; margin: 0; }
@@ -1317,6 +1359,20 @@
     /* インライン編集中は入力欄の幅を確保し、はみ出す分は横スクロール */
     tr.editing td input { min-width: 9em; }
     .view:not(#PhotoImportView) { overflow-x: auto; }
+
+    /* 発売予定のカレンダー: 日付と件数だけ（書名は下の一覧で見る） */
+    .release-cal-cell { min-height: 52px; padding: 2px; }
+    .release-cal-item { display: none; }
+    .release-cal-count {
+      display: block;
+      margin-top: 4px;
+      padding: 1px 0;
+      border-radius: 4px;
+      background: #164e63;
+      color: #e0f2fe;
+      font-size: 0.7rem;
+      text-align: center;
+    }
 
     /* 一覧のカード表示（createListFilter の表。1 行 = 1 枚、セルは「列名: 値」）
        見出し行は並べ替えボタンの帯にする（並べ替えできない列・操作列の見出しは隠す） */

@@ -10,10 +10,35 @@
   <p class="photo-import-note">完結状態が「連載中」の漫画・ラノベについて、持っている巻より先の巻を楽天ブックスから取得します。毎日 5 時台に自動で取得します（楽天に載るのは予約が始まる発売の 1〜2 か月前から）。</p>
 
   <h4 class="release-heading">発売予定 <span id="releaseUpcomingCount" class="release-count"></span></h4>
+  <!-- [一覧] / [カレンダー] の切り替え（setReleaseViewMode。このブラウザに保存） -->
+  <div class="release-view-switch" role="group" aria-label="発売予定の表示">
+    <button type="button" data-view="list" onclick="setReleaseViewMode('list')">一覧</button>
+    <button type="button" data-view="calendar" onclick="setReleaseViewMode('calendar')">カレンダー</button>
+  </div>
+  <!-- カレンダー（renderReleaseCalendar）。日付のある巻を日に表示し、押した日の巻だけを下に表示する -->
+  <div id="releaseCalendarArea" style="display:none;">
+    <div class="release-cal-nav">
+      <button type="button" id="releasePrevMonth" class="anime-season-button" onclick="moveReleaseMonth(-1)">◀</button>
+      <strong id="releaseMonthLabel" class="release-cal-title"></strong>
+      <button type="button" id="releaseNextMonth" class="anime-season-button" onclick="moveReleaseMonth(1)">▶</button>
+      <span id="releaseMonthCount" class="release-count"></span>
+    </div>
+    <div id="releaseCalendar" class="release-calendar"></div>
+    <div id="releaseMonthOthers"></div>
+  </div>
+  <!-- 一覧: 月ごとの一覧 / カレンダー: 選んだ日の巻 -->
   <div id="releaseUpcoming" class="wish-groups"></div>
 
-  <h4 class="release-heading">発売済・未所持 <span id="releaseUnownedCount" class="release-count"></span></h4>
-  <div id="releaseUnowned" class="wish-groups"></div>
+  <div id="releaseUndatedSection" style="display:none;">
+    <h4 class="release-heading">発売日未定 <span id="releaseUndatedCount" class="release-count"></span></h4>
+    <div id="releaseUndated" class="wish-groups"></div>
+  </div>
+
+  <!-- 一覧表示のときだけ（カレンダー表示では隠す） -->
+  <div id="releaseUnownedSection">
+    <h4 class="release-heading">発売済・未所持 <span id="releaseUnownedCount" class="release-count"></span></h4>
+    <div id="releaseUnowned" class="wish-groups"></div>
+  </div>
 
   <h4 class="release-heading">見つからなかった作品 <span id="releaseProblemsCount" class="release-count"></span></h4>
   <p class="photo-import-note">作品名が楽天ブックスの書名と違うと見つかりません。作品一覧で作品名を書名に合わせてから [再取得] してください。</p>
