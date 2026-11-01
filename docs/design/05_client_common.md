@@ -185,6 +185,8 @@ callGASCached(cacheKey, funcName, onData, { viewId?, errorMessage?, refresh? })
 [保存] → saveEdit(btn)
    id     = 行の data-id（idKey の値）
    values = edit がある列の入力値（列の順）
+   送る前に選択式以外の列を確かめる: checkTextInput（「=」始まり・文字数。列の required: true で空欄不可、maxLength で上限）と列の validate(value)
+   （書籍の巻数は checkSingleVolumeInput で 1 巻だけ）。エラーなら通知して送らない
    edit.update のサーバー関数を呼ぶ → 成功時は入力値で行を書き換えて再描画（buildEditPatch → updateRow）してから edit.onSaved()（一覧の取り直しなど）
    buildEditPatch は edit: true の列だけ反映する（edit に関数を指定した列は表示の形が違うので、取り直しを待つ）
 [削除] → 1 回目: 「本当に削除」に変更（4 秒で元に戻る）／2 回目: deleteListRow(btn)
@@ -210,6 +212,10 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 - アニメの話数は表示が「12話」、編集の初期値は数値です（列定義の `edit` に関数を指定）。
 - 編集中にページ移動・並べ替えをすると、編集は取り消されます（再描画のため）。
 - 編集中の行がある間は、裏で取り直した結果（`setRows`）で描き直しません（入力中の内容を消さない。次の操作で反映）。
+
+## 5.7.1 入力の検証（画面）
+
+`checkTextInput(value, label, { required, max })` / `checkTextInputs([[label, value, options], ...])`（`Common.html`）は、サーバーの `checkText`（[03 章 3.1.4](03_server_api.md#314-入力の検証checktext--checktitleoptions)）と同じ規則でエラーメッセージを返します（問題なければ `''`）。作品・シリーズ・Box・欲しい巻・アニメ・写真から登録の作品追加の各フォームと、インライン編集の保存（5.7）で送る前に使います。巻数式の `parseVolumeInput` も数字以外の巻に同じ規則を当てます。サーバーでも同じ検証をするので、画面の確認は早く知らせるためのものです。
 
 ## 5.8 追加フォームの制御
 

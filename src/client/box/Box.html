@@ -38,7 +38,7 @@ function loadBoxList(options = {}){
       pageSize: 20,
       columns: [
         { key: 'id', link: row => openBoxDetail(row.id) },
-        { key: 'place', edit: true, link: row => openBoxDetail(row.id) },
+        { key: 'place', edit: true, required: true, link: row => openBoxDetail(row.id) },
         { key: 'bookCount' },
         { key: 'titleCount' }
       ],
@@ -67,6 +67,11 @@ function addBoxMaster(){
 
   if(!id || !place)
     return showError("BoxIDと保管場所は必須です");
+  const message = checkTextInputs([
+    ['BoxID', id, { max: SHORT_MAX_LENGTH }],
+    ['保管場所', place]
+  ]);
+  if(message) return showError(message);
 
   callGAS('addBoxMasterWeb', function(res){
     if(res.success){

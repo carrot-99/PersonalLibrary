@@ -991,6 +991,9 @@ function populateBoxes(boxes){
 //   }
 // 列定義の edit: true（列の値をそのまま編集）／関数（行から編集の初期値を返す）
 // editOptions: [...] を指定した列は選択式で編集する
+// 保存前の確認（選択式以外の列）: checkTextInput（「=」始まり・文字数）に加え、
+//   required: true … 空欄は不可 / maxLength … 文字数の上限（既定 TEXT_MAX_LENGTH）
+//   validate(value) … 独自の確認。エラーメッセージを返す（問題なければ ''）
 ///////////////////////////////
 const listEditConfigs = {};
 
@@ -1087,12 +1090,24 @@ function saveEdit(btn){
   const config = getListEditConfig(tr);
   if(!config) return;
 
-  const values = Array.from(tr.cells)
-    .filter((td, index) => config.columns[index] && config.columns[index].edit)
-    .map(td => {
-      const input = td.querySelector('input, select');
-      return input ? input.value : td.dataset.editValue;
-    });
+  const headers = tr.closest('table').querySelectorAll('thead th');
+  const edited = Array.from(tr.cells)
+    .map((td, index) => ({ td, index, column: config.columns[index] }))
+    .filter(cell => cell.column && cell.column.edit);
+  const values = edited.map(({ td }) => {
+    const input = td.querySelector('input, select');
+    return input ? input.value : td.dataset.editValue;
+  });
+
+  // 保存前の確認（選択式の列は選択肢の値なので確かめない）
+  for(let i = 0; i < edited.length; i++){
+    const { column, index } = edited[i];
+    if(column.editOptions) continue;
+    const label = headers[index] ? headers[index].textContent.trim() : column.key;
+    const message = checkTextInput(values[i], label, { required: column.required, max: column.maxLength })
+      || (column.validate ? column.validate(String(values[i] ?? '').trim()) : '');
+    if(message) return showError(message);
+  }
 
   btn.disabled = true;
   google.script.run
@@ -1404,6 +1419,34 @@ function createListFilter(options){
   };
   if(listEditConfigs[options.tableId]) listEditConfigs[options.tableId].filter = api;
   return api;
+}
+
+//////////////////////////////
+// 文字の入力の検証（サーバーの checkText（Commons.js）と同じ規則。規則を変えるときは両方直す）
+// ・前後の空白を除く ・required なら空欄は不可 ・max 文字まで
+// ・「=」で始まる値は不可（スプレッドシートに書くと数式として扱われるため）
+// 戻り値: エラーメッセージ（問題なければ ''）
+//////////////////////////////
+const TEXT_MAX_LENGTH = 100;
+const MEMO_MAX_LENGTH = 200;
+const SHORT_MAX_LENGTH = 20;
+
+function checkTextInput(value, label, options = {}){
+  const text = String(value ?? '').trim();
+  const max = options.max || TEXT_MAX_LENGTH;
+  if(!text) return options.required ? `${label}は必須です` : '';
+  if(text.startsWith('=')) return `${label}は「=」で始められません`;
+  if(text.length > max) return `${label}は${max}文字以内で入力してください（${text.length}文字）`;
+  return '';
+}
+
+// [label, value, options] の組を順に確かめ、最初のエラーを返す（なければ ''）
+function checkTextInputs(checks){
+  for(const [label, value, options] of checks){
+    const message = checkTextInput(value, label, options);
+    if(message) return message;
+  }
+  return '';
 }
 
 //////////////////////////////

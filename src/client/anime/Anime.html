@@ -324,8 +324,8 @@ function loadAnimeListView(options = {}){
       tableId: 'animeListTable',
       pageSize: 30,
       columns: [
-        { key: 'animeName', edit: true },
-        { key: 'name', edit: true },
+        { key: 'animeName', edit: true, required: true },
+        { key: 'name', edit: true, required: true },
         { key: 'type', edit: true, editOptions: ANIME_TYPE_OPTIONS },
         // 表示は「12話」、編集は数値のまま
         { key: 'episodes', edit: row => row.episodeCount, compare: (a, b) => (Number(a.episodeCount) || 0) - (Number(b.episodeCount) || 0) },
@@ -352,7 +352,7 @@ function loadAnimeListView(options = {}){
       tableId: 'animeWorkListTable',
       pageSize: 30,
       columns: [
-        { key: 'name', edit: true },
+        { key: 'name', edit: true, required: true },
         // シリーズ名からシリーズの詳細（書籍・アニメ共通）へ
         { key: 'seriesName', edit: true, link: row => openSeriesDetail(row.seriesId) },
         { key: 'seasonCount' },
@@ -481,6 +481,13 @@ function addAnimeSeasonFromForm(){
     episodes: document.getElementById('animeEntryEpisodesInput').value.trim(),
     status: document.getElementById('animeEntryStatus').value
   };
+
+  const message = checkTextInputs([
+    ['作品名', form.animeName],
+    ['シリーズ', form.seriesName],
+    ['期名', form.seasonName]
+  ]);
+  if(message) return showError(message);
 
   const button = document.getElementById('animeEntryButton');
   button.disabled = true;

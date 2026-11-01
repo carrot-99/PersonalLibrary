@@ -149,7 +149,7 @@ function loadTitleList(options = {}){
       pageSize: 20,
       columns: [
         { key: 'id' },
-        { key: 'name', edit: true, link: row => openTitleDetail(row.id) },
+        { key: 'name', edit: true, required: true, link: row => openTitleDetail(row.id) },
         { key: 'seriesName', edit: true, link: row => openSeriesDetail(row.seriesId) },
         { key: 'type', edit: true, editOptions: ['漫画', 'ラノベ'] },
         { key: 'completed', edit: true, editOptions: ['連載中', '完結済', '未完結'] },
@@ -206,6 +206,8 @@ function addTitleMaster(){
 
   if(!name || !seriesId)
     return showError("作品名とシリーズは必須です");
+  const message = checkTextInput(name, '作品名', { required: true });
+  if(message) return showError(message);
 
   callGAS('addTitleMasterWeb', function(res){
     if(res.success){

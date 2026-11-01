@@ -71,6 +71,10 @@ function addWishes(titleId, volume, memo){
   if(!parsedVolume.valid){
     return failure(parsedVolume.message);
   }
+  const checkedMemo = checkText(memo, 'メモ', { max: MEMO_MAX_LENGTH });
+  if(!checkedMemo.valid){
+    return failure(checkedMemo.message);
+  }
 
   const lock = LockService.getScriptLock();
   if(!lock.tryLock(10000)){
@@ -100,7 +104,7 @@ function addWishes(titleId, volume, memo){
         return;
       }
       lastId = generateNextId('W', lastId);
-      rows.push([lastId, targetTitleId, String(value), String(memo || '').trim(), today]);
+      rows.push([lastId, targetTitleId, String(value), checkedMemo.value, today]);
       wishKeys.add(key);
     });
 
