@@ -13,7 +13,8 @@ function showBox(boxId) {
   google.script.run
     .withSuccessHandler(function(data){
       hideInlineLoading('BoxView');
-      renderTableReadOnly('boxTable', data, ['name','volume'], {
+      renderSummaryLines('boxSummary', formatGroupSummaryLines(data && data.summary));
+      renderTableReadOnly('boxTable', (data && data.items) || [], ['name','volume'], {
         name: row => openTitleDetail(row.titleId)
       });
     })
@@ -21,7 +22,7 @@ function showBox(boxId) {
       hideInlineLoading('BoxView');
       showError(error && error.message ? error.message : '検索に失敗しました');
     })
-    .getBoxDetail(id);
+    .getBoxOverview(id);
 }
 
 //////////////////////////////
@@ -37,7 +38,9 @@ function loadBoxList(options = {}){
       pageSize: 20,
       columns: [
         { key: 'id', link: row => openBoxDetail(row.id) },
-        { key: 'place', edit: true, link: row => openBoxDetail(row.id) }
+        { key: 'place', edit: true, link: row => openBoxDetail(row.id) },
+        { key: 'bookCount' },
+        { key: 'titleCount' }
       ],
       keywordKeys: ['id', 'place'],
       defaultSort: { key: 'id', dir: 'asc' },
@@ -49,8 +52,8 @@ function loadBoxList(options = {}){
     });
   }
 
-  callGASCached('boxList', 'getBoxMaster', function(data){
-    boxListFilter.setRows((data || []).map(item => ({ id: item.id, place: item.place })));
+  callGASCached('boxListWithCounts', 'getBoxListWithCounts', function(data){
+    boxListFilter.setRows((data || []).map(item => ({ id: item.id, place: item.place, bookCount: item.bookCount, titleCount: item.titleCount })));
   }, { viewId: 'BoxListView', errorMessage: '箱一覧の読み込みに失敗しました', refresh: options.refresh });
 }
 

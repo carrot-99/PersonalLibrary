@@ -168,7 +168,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 ### `getBoxDetail(boxId)` — 箱別検索
 
-戻り値 `[{ titleId, name, volume }]`。指定 Box に保管されている書籍の TitleID・作品名と巻数。行順。
+戻り値 `[{ titleId, name, volume }]`。指定 Box に保管されている書籍の TitleID・作品名と巻数。行順。画面（Box 表示）は集計付きの `getBoxOverview`（3.7）を使います。
 
 ---
 
@@ -185,6 +185,12 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | `uniqueBoxes` | `M_Library` に登場する BoxID の種類数（使用中 Box 数。`M_Box` の件数ではない） |
 | `lastAdded` | 最終行の追加日（`yyyy/MM/dd`）。データなしは `null` |
 | `unread` / `reading` | 読書状況が `未読`（積読）/ `読書中` の冊数（`M_Read` に行のない書籍は読了） |
+
+### `summarizeLibraryRows(libs, titleTypeMap, readMap)` — 書籍のまとまりの集計
+
+Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSeriesOverview`）。`libs` は `M_Library` の行、`titleTypeMap` は TitleID → 種別（`getTitleTypeMap()`）、`readMap` は `getReadStatusMap()`。
+
+戻り値 `{ books, titles, manga, novel, unread, reading, lastAdded }`（冊数・作品数・漫画とラノベの冊数・未読（積読）と読書中の冊数・最後に登録した日 `yyyy/MM/dd`。書籍がなければ `''`）。
 
 ---
 
@@ -245,8 +251,8 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 関数 | 仕様 |
 |---|---|
 | `getSeriesMaster()` | `[{ id, name }]` |
-| `getSeriesListWithCounts()` | シリーズ一覧用。`[{ id, name, titleCount, seasonCount }]`。`titleCount` はシリーズに属する作品数（`M_Title`）、`seasonCount` はアニメの期数（`getAnimeData` の期を集計） |
-| `getSeriesOverview(seriesId)` | シリーズの詳細（書籍・アニメ共通）。`{ titles, seasons }`。`titles` は `getSeriesDetail(seriesId)`、`seasons` は `getAnimeData()` の期のうちそのシリーズのもの（作品の登録順→期の ID 順） |
+| `getSeriesListWithCounts()` | シリーズ一覧用。`[{ id, name, titleCount, bookCount, seasonCount }]`。`titleCount` はシリーズに属する作品数（`M_Title`）、`bookCount` はその作品の書籍の冊数（`M_Library`）、`seasonCount` はアニメの期数（`getAnimeData` の期を集計） |
+| `getSeriesOverview(seriesId)` | シリーズの詳細（書籍・アニメ共通）。`{ titles, seasons, bookSummary }`。`titles` は `getSeriesDetail(seriesId)`、`seasons` は `getAnimeData()` の期のうちそのシリーズのもの（作品の登録順→期の ID 順）、`bookSummary` はシリーズの作品の書籍の `summarizeLibraryRows`（3.4） |
 | `getSeries()` | `getSeriesMaster()` の別名。写真から登録画面のシリーズ候補に使用 |
 | `addSeriesMasterWeb(name)` | `name` 必須。同じ名前のシリーズがあればエラー。`S` で採番し追加（ロック内、`addSeriesMasterCore`）。`success('<name> を追加しました（<ID>）')` |
 | `updateSeriesMaster(id, values)` | `values[0]` で 2 列目（シリーズ名）を更新。自分以外に同じ名前があればエラー（ロック内） |
@@ -260,6 +266,8 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 関数 | 仕様 |
 |---|---|
 | `getBoxMaster()` | `[{ id, place }]` |
+| `getBoxListWithCounts()` | 箱一覧用。`[{ id, place, bookCount, titleCount }]`（その Box の書籍の冊数・作品数。書籍のない Box は 0） |
+| `getBoxOverview(boxId)` | Box の詳細。`{ items, summary }`。`items` は `getBoxDetail(boxId)`、`summary` はその Box の書籍の `summarizeLibraryRows`（3.4） |
 | `getBoxes()` | `getBoxMaster()` の別名。写真から登録画面の Box 選択肢に使用 |
 | `addBoxMasterWeb(id, place)` | 両方必須。BoxID 重複は `failure('既に同じBoxIDが存在します')`。try/catch なし |
 | `updateBoxMaster(id, values)` | `values[0]` で 2 列目（保管場所）を更新 |
@@ -549,8 +557,9 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 | `getRecentLibrary` | `loadRecentLibrary`（初期化時・タブ切替毎・書籍追加後） |
 | `getLibraryListAll` | `loadLibraryList` |
 | `getLibraryPage` | なし（未使用。U-7） |
-| `getTitleDetail` / `getBoxDetail` | `showTitle` / `showBox`（一覧・詳細のリンクからは `openTitleDetail` / `openBoxDetail` 経由。シリーズは `openSeriesDetail` → `showSeries` → `getSeriesOverview`） |
-| `getSeriesDetail` | サーバー内部から使用（`getSeriesOverview`） |
+| `getTitleDetail` / `getBoxOverview` | `showTitle` / `showBox`（一覧・詳細のリンクからは `openTitleDetail` / `openBoxDetail` 経由。シリーズは `openSeriesDetail` → `showSeries` → `getSeriesOverview`） |
+| `getSeriesDetail` / `getBoxDetail` | サーバー内部から使用（`getSeriesOverview` / `getBoxOverview`） |
+| `getBoxListWithCounts` | `loadBoxList` |
 | `addNewVolumeWeb` | `addLibraryMaster`（書籍一覧の [追加]） |
 | `addTitleMasterWeb` / `addSeriesMasterWeb` / `addBoxMasterWeb` | `addTitleMaster` / `addSeriesMaster` / `addBoxMaster` |
 | `update*Master` | `saveEdit`（一覧の `createListFilter` の `edit.update` で指定） |

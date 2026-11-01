@@ -109,9 +109,10 @@
 |---|---|---|---|---|
 | シリーズ表示 | `SeriesView` / `series/SeriesView.html` | シリーズ名 `#seriesSelectInput` | 書籍の欄とアニメの欄（下記） | `getSeriesOverview` |
 | 作品表示 | `TitleView` / `title/TitleView.html` | 作品名 `#titleViewSelectInput` | 所持状況（下記）＋ 巻, BoxID, 読書（巻数順） | `getTitleDetail` |
-| Box 表示 | `BoxView` / `box/BoxView.html` | Box（`<ID> : <場所>`） `#boxViewSelectInput` | 作品名, 巻 | `getBoxDetail` |
+| Box 表示 | `BoxView` / `box/BoxView.html` | Box（`<ID> : <場所>`） `#boxViewSelectInput` | 集計（下記）＋ 作品名, 巻 | `getBoxOverview` |
 
-- **シリーズの詳細**（書籍・アニメ共通）: 「📚 書籍」欄（`#seriesBookSection`。作品名・種別・所持巻数・所持巻の表。作品がなければ「このシリーズの書籍は登録されていません」）と「📺 アニメ」欄（`#seriesAnimeSection`。まとめ＝期の件数と種別内訳・状況内訳・視聴話数の合計、期の表＝作品 / 期 / 種別 / 視聴済話数 / 状況。作品の登録順→期の順）。アニメモードではアニメの欄を先に表示します（旧アニメのシリーズ別検索 `AnimeSeriesView` は統合して廃止）。
+- **Box・シリーズの集計**（`formatGroupSummaryLines` / `renderSummaryLines`。所持状況と同じ見た目）: 冊数（漫画・ラノベの内訳）、作品数、積読（未読の冊数。読書中があれば併記）、最終追加日。書籍がなければ「書籍は登録されていません」。Box 表示は表の上（`#boxSummary`）、シリーズの詳細は「📚 書籍」欄の先頭（`#seriesBookSummary`。作品数の後に「抜け」＝抜けのある作品の件数を追加）。
+- **シリーズの詳細**（書籍・アニメ共通）: 「📚 書籍」欄（`#seriesBookSection`。集計と、作品名・種別・所持巻数・所持巻の表。作品がなければ「このシリーズの書籍は登録されていません」）と「📺 アニメ」欄（`#seriesAnimeSection`。まとめ＝期の件数と種別内訳・状況内訳・視聴話数の合計、期の表＝作品 / 期 / 種別 / 視聴済話数 / 状況。作品の登録順→期の順）。アニメモードではアニメの欄を先に表示します（旧アニメのシリーズ別検索 `AnimeSeriesView` は統合して廃止）。
 - 画面を開き直すと、入力欄・結果テーブル・所持状況はクリアされます（リンク・[← 戻る] で開いたときは続けて表示）。
 - 未選択（入力値に一致する候補なし）の場合: 「シリーズを選択してください」等のエラー通知。
 - **作品表示の所持状況**（`#titleOwnershipSummary`）: シリーズ（シリーズの詳細へのリンク。シリーズ未設定なら行なし）、所持（冊数と巻の範囲）、抜け（1 巻から最大巻までの未所持巻。あれば強調表示）、次の巻（最大巻＋1）を表示。完結済の作品は「次の巻」の代わりに「抜けなく所持しています／抜けている巻があります」。本を登録している作品は読書状況「次は n巻（読書中）・積読 n冊」と [n巻を読了]（次に読む巻を読了にして表示し直す）、すべて読了なら「すべて読了」を追記（`appendTitleReadLine`。次に読む巻は `pickNextReadVolume`）。欲しい巻リストに登録がある場合は「欲しい巻 ★ 104, 107〜108巻」を追記（`appendTitleWishLine`）。
@@ -138,9 +139,9 @@
 
 | 画面 | View / ファイル | 列 | API | 絞り込み（選択式） | キーワード対象 | 初期の並び |
 |---|---|---|---|---|---|---|
-| シリーズ一覧（書籍・アニメ共通） | `SeriesListView` | SeriesID, シリーズ名, 書籍（作品数）, アニメ（期数）, 操作 | `getSeriesListWithCounts` | 書籍（あり・なし）/ アニメ（あり・なし） | ID・シリーズ名 | シリーズ名 昇順 |
+| シリーズ一覧（書籍・アニメ共通） | `SeriesListView` | SeriesID, シリーズ名, 書籍（作品数）, 冊数, アニメ（期数）, 操作 | `getSeriesListWithCounts` | 書籍（あり・なし）/ アニメ（あり・なし） | ID・シリーズ名 | シリーズ名 昇順 |
 | 作品一覧 | `TitleListView` | TitleID, 作品名, シリーズ, 種別, 完結, 所持巻（抜けを含む）, 操作 | `getTitleListWithOwnership` | 種別 / 完結 / 所持（抜けあり・抜けなし・未所持）/ シリーズ | 作品名・シリーズ名・所持巻 | 作品名 昇順 |
-| 箱一覧 | `BoxListView` | BoxID, 保管場所, 操作 | `getBoxMaster` | — | ID・保管場所 | BoxID 昇順 |
+| 箱一覧 | `BoxListView` | BoxID, 保管場所, 冊数, 作品数, 操作 | `getBoxListWithCounts` | — | ID・保管場所 | BoxID 昇順 |
 | 書籍一覧 | `LibraryListView` | ID, 作品名, 巻数, Box, 読書, 追加日, 操作 | `getLibraryListAll` | 読書（未読・読書中・読了）/ 種別 / Box / 追加月 | ID・作品名・巻数・Box・追加日 | 追加日 新しい順 |
 
 - 表の上の絞り込み欄: キーワード（部分一致・大文字小文字無視）、選択式の絞り込み（選択肢は「すべて」＋データ中の値）、件数「n件 ／ 全m件」、[クリア]（条件があるときだけ表示）。

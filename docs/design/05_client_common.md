@@ -54,7 +54,7 @@ callGASCached(cacheKey, funcName, onData, { viewId?, errorMessage?, refresh? })
 | cacheKey | サーバー関数 | 使う場所 |
 |---|---|---|
 | `master.titles` / `master.boxes` / `master.series` | `getTitleMaster` / `getBoxMaster` / `getSeriesMaster` | `refreshMasterData`（各画面の選択肢） |
-| `seriesList` / `titleList` / `boxList` / `libraryList` | `getSeriesListWithCounts` / `getTitleListWithOwnership` / `getBoxMaster` / `getLibraryListAll` | 各一覧 |
+| `seriesList` / `titleList` / `boxListWithCounts` / `libraryList` | `getSeriesListWithCounts` / `getTitleListWithOwnership` / `getBoxListWithCounts` / `getLibraryListAll` | 各一覧 |
 | `libraryAdd.titles` / `libraryAdd.boxes` | `getTitleMaster` / `getBoxMaster` | 書籍一覧の追加フォームの候補 |
 | `librarySummary.<prefix>` / `recentLibrary.<tableId>` | `getLibrarySummary` / `getRecentLibrary` | サマリーパネル・最近追加 |
 | `animeData.<viewId>` | `getAnimeData` | 視聴中の一覧・アニメ一覧 |

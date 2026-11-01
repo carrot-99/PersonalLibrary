@@ -35,3 +35,28 @@ function getLibrarySummary(){
     reading
   };
 }
+
+// ----------------------
+// 書籍のまとまり（Box・シリーズなど）の集計
+// libs: M_Library の行の配列 / titleTypeMap: TitleID → 種別 / readMap: getReadStatusMap()
+// 戻り値: { books, titles, manga, novel, unread, reading, lastAdded }
+//   books: 冊数 / titles: 作品数 / manga・novel: 種別ごとの冊数 / unread・reading: 未読（積読）・読書中の冊数
+//   lastAdded: 最後に登録した日（yyyy/MM/dd。書籍がなければ ''）
+// ----------------------
+function summarizeLibraryRows(libs, titleTypeMap, readMap){
+  const typeOf = row => titleTypeMap.get(String(row[1]).trim()) || '';
+  const readOf = row => getReadStatus(readMap, row[0]);
+  return {
+    books: libs.length,
+    titles: new Set(libs.map(row => String(row[1]).trim())).size,
+    manga: libs.filter(row => typeOf(row) === '漫画').length,
+    novel: libs.filter(row => typeOf(row) === 'ラノベ').length,
+    unread: libs.filter(row => readOf(row) === '未読').length,
+    reading: libs.filter(row => readOf(row) === '読書中').length,
+    lastAdded: libs.length === 0 ? '' : formatDateCell(sortLibraryRowsByNewest(libs)[0][4])
+  };
+}
+
+function getTitleTypeMap(){
+  return new Map(getData(SHEETS.TITLE).map(row => [String(row[0]).trim(), String(row[3] || '').trim()]));
+}

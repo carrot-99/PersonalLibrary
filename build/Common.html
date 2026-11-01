@@ -1407,6 +1407,41 @@ function createListFilter(options){
 }
 
 //////////////////////////////
+// 書籍のまとまり（Box・シリーズ）の集計の表示
+//////////////////////////////
+// summary: サーバーの summarizeLibraryRows の結果 → [[見出し, 値], ...]（DOM を使わない）
+function formatGroupSummaryLines(summary){
+  const s = summary || {};
+  if(!s.books) return [['冊数', '書籍は登録されていません']];
+  const types = [s.manga ? `漫画 ${s.manga}` : '', s.novel ? `ラノベ ${s.novel}` : ''].filter(Boolean).join('・');
+  return [
+    ['冊数', `${s.books}冊${types ? `（${types}）` : ''}`],
+    ['作品', `${s.titles}作品`],
+    ['積読', `${s.unread || 0}冊${s.reading ? `（読書中 ${s.reading}冊）` : ''}`],
+    ['最終追加', s.lastAdded || '-']
+  ];
+}
+
+// lines: [[見出し, 値, className?], ...] を所持状況と同じ形（.ownership-line）で表示
+function renderSummaryLines(containerId, lines){
+  const box = document.getElementById(containerId);
+  if(!box) return;
+  box.innerHTML = '';
+  lines.forEach(([label, value, className]) => {
+    const line = document.createElement('div');
+    line.className = `ownership-line ${className || ''}`.trim();
+    const strong = document.createElement('strong');
+    strong.textContent = label;
+    const span = document.createElement('span');
+    span.textContent = value;
+    line.appendChild(strong);
+    line.appendChild(span);
+    box.appendChild(line);
+  });
+  box.style.display = 'block';
+}
+
+//////////////////////////////
 // 読書状況（サーバーの ReadService.js と同じ値）
 //////////////////////////////
 const READ_STATUS_OPTIONS = ['未読', '読書中', '読了'];
