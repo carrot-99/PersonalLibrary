@@ -1,0 +1,39 @@
+<!-- HomeView.html -->
+<!-- ホーム（書籍・アニメ共通。起動時に開く）。発売予定・未所持の巻・欲しい巻・視聴中のアニメをまとめて表示 -->
+<!-- 各欄は見出しを押すとたためる（<details>。開閉はこのブラウザに保存。setupHomeSections） -->
+<div id="HomeView" class="view" style="display:none;">
+  <h3>ホーム</h3>
+  <div id="homeReleaseStatus" class="release-status"></div>
+
+  <div class="home-sections">
+    <details class="home-section" data-section="week" open>
+      <summary><h4 class="release-heading">今週の発売 <span id="homeWeekCount" class="release-count"></span>
+        <a href="#" class="home-more" onclick="event.preventDefault(); showTab('ReleaseView');">発売予定 →</a></h4></summary>
+      <div id="homeWeek" class="wish-groups"></div>
+    </details>
+
+    <details class="home-section" data-section="month" open>
+      <summary><h4 class="release-heading">今月の発売 <span id="homeMonthCount" class="release-count"></span>
+        <a href="#" class="home-more" onclick="event.preventDefault(); showTab('ReleaseView');">発売予定 →</a></h4></summary>
+      <div id="homeMonth" class="wish-groups"></div>
+    </details>
+
+    <details class="home-section" data-section="unowned" open>
+      <summary><h4 class="release-heading">発売済・未所持 <span id="homeUnownedCount" class="release-count"></span>
+        <a href="#" class="home-more" onclick="event.preventDefault(); showTab('ReleaseView');">発売予定 →</a></h4></summary>
+      <div id="homeUnowned" class="wish-groups"></div>
+    </details>
+
+    <details class="home-section" data-section="wishes" open>
+      <summary><h4 class="release-heading">欲しい巻リスト <span id="homeWishCount" class="release-count"></span>
+        <a href="#" class="home-more" onclick="event.preventDefault(); showTab('WishListView');">欲しい巻リスト →</a></h4></summary>
+      <div id="homeWishes" class="wish-groups"></div>
+    </details>
+
+    <details class="home-section" data-section="watching" open>
+      <summary><h4 class="release-heading">視聴中のアニメ <span id="homeWatchingCount" class="release-count"></span>
+        <a href="#" class="home-more" onclick="event.preventDefault(); showTab('AnimeWatchingView');">視聴中の一覧 →</a></h4></summary>
+      <div id="homeWatching" class="wish-groups"></div>
+    </details>
+  </div>
+</div>

@@ -1,0 +1,237 @@
+<!-- Home.html -->
+<script>
+//////////////////////////////
+// ホーム（書籍・アニメ共通。起動時に開く）
+// getHomeDataWeb の結果を callGASCached で表示する（前回の結果をすぐ表示して取り直す）
+//////////////////////////////
+// 欄ごとの表示件数（作品・期の数）。超えた分は「ほか n 作品」として各画面へ案内する
+const HOME_LIST_LIMIT = 8;
+
+// たたんだ欄（data-section の値の配列）の保存先（このブラウザの localStorage）
+const HOME_CLOSED_STORAGE_KEY = 'personalLibrary.homeClosedSections';
+let homeSectionsReady = false;
+
+// options.refresh: 欲しい巻に追加した後（表示中のまま取り直す）
+function loadHomeView(options = {}){
+  setupHomeSections();
+  callGASCached('home', 'getHomeDataWeb', function(res){
+    if(!res || !res.success) return showError(res && res.message ? res.message : 'ホームの読み込みに失敗しました');
+    renderHome(res);
+  }, { viewId: 'HomeView', errorMessage: 'ホームの読み込みに失敗しました', refresh: options.refresh });
+}
+
+function refreshHomeView(){
+  loadHomeView({ refresh: true });
+}
+
+// 各欄の開閉（見出しを押すとたためる）。前回たたんだ欄はたたんだまま開く
+function setupHomeSections(){
+  if(homeSectionsReady) return;
+  homeSectionsReady = true;
+
+  let closed = loadHomeClosedSections();
+  document.querySelectorAll('#HomeView .home-section').forEach(section => {
+    if(closed.includes(section.dataset.section)) section.open = false;
+    section.addEventListener('toggle', function(){
+      closed = toggleHomeClosedSections(closed, section.dataset.section, section.open);
+      try { localStorage.setItem(HOME_CLOSED_STORAGE_KEY, JSON.stringify(closed)); } catch(e) {}
+    });
+  });
+}
+
+function loadHomeClosedSections(){
+  try {
+    const saved = JSON.parse(localStorage.getItem(HOME_CLOSED_STORAGE_KEY) || '[]');
+    return Array.isArray(saved) ? saved : [];
+  } catch(e) {
+    return [];
+  }
+}
+
+//////////////////////////////
+// 表示用の整形（DOM を使わない）
+//////////////////////////////
+// たたんだ欄の一覧を更新（open: 開いたか）
+function toggleHomeClosedSections(closed, key, open){
+  const rest = (closed || []).filter(k => k !== key);
+  return open ? rest : [...rest, key];
+}
+
+// 欲しい巻を作品ごとにまとめる（最近追加した作品が先）
+// 戻り値: [{ titleId, titleName, volumes: ['3', '4', ...] }]
+function groupHomeWishes(wishes){
+  const groups = new Map();
+  (wishes || []).forEach(item => {
+    if(!groups.has(item.titleId)) groups.set(item.titleId, { titleId: item.titleId, titleName: item.titleName || item.titleId, volumes: [], latest: '' });
+    const group = groups.get(item.titleId);
+    group.volumes.push(item.volume);
+    if(String(item.date || '') > group.latest) group.latest = String(item.date || '');
+  });
+  return Array.from(groups.values())
+    .sort((a, b) => b.latest.localeCompare(a.latest) || a.titleName.localeCompare(b.titleName, 'ja'))
+    .map(group => {
+      group.volumes.sort(compareVolumes);
+      return { titleId: group.titleId, titleName: group.titleName, volumes: group.volumes };
+    });
+}
+
+// 巻の表示（数字は範囲にまとめる。例: ['1','2','3','5','特装版'] → 1〜3, 5巻, 特装版）
+function formatHomeVolumes(volumes){
+  const numbers = volumes.filter(v => /^\d+$/.test(v)).map(Number);
+  const others = volumes.filter(v => !/^\d+$/.test(v));
+  return [numbers.length ? `${formatVolumeRanges(numbers)}巻` : '', ...others].filter(Boolean).join(', ');
+}
+
+//////////////////////////////
+// 描画
+//////////////////////////////
+function renderHome(data){
+  const release = data.release || {};
+  const status = document.getElementById('homeReleaseStatus');
+  if(!release.success){
+    status.textContent = release.message || '発売予定を読み込めませんでした';
+  } else {
+    status.textContent = `発売情報の最終取得: ${release.lastFetchedAt || '未取得'}${release.configured ? '' : '・楽天のアプリ ID が未設定です'}`;
+  }
+
+  renderHomeReleases('homeWeek', 'homeWeekCount', release.thisWeek || [], '今週発売の巻はありません');
+  const later = release.laterCount ? `（来月以降 ${release.laterCount}冊）` : '';
+  renderHomeReleases('homeMonth', 'homeMonthCount', release.thisMonth || [], '今月発売の巻はありません', later);
+  renderHomeUnowned(release.unowned || []);
+  renderHomeWishes(data.wishes || []);
+  renderHomeWatching(data.watching || [], data.plannedCount || 0);
+}
+
+// 1 枚のカードに行を並べる。limit を超えた分は「ほか n 件」
+function createHomeCard(className, lines, moreText){
+  const card = document.createElement('div');
+  card.className = `wish-group ${className}`;
+  lines.forEach(line => card.appendChild(line));
+  if(moreText){
+    const more = document.createElement('div');
+    more.className = 'wish-item home-rest';
+    more.textContent = moreText;
+    card.appendChild(more);
+  }
+  return card;
+}
+
+function renderHomeEmpty(container, text){
+  const empty = document.createElement('div');
+  empty.className = 'anime-empty';
+  empty.textContent = text;
+  container.appendChild(empty);
+}
+
+function renderHomeReleases(containerId, countId, items, emptyText, suffix = ''){
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  document.getElementById(countId).textContent = `${items.length}冊${suffix}`;
+  if(items.length === 0) return renderHomeEmpty(container, emptyText);
+
+  const lines = items.map(item => {
+    const line = document.createElement('div');
+    line.className = 'wish-item release-item';
+
+    const day = document.createElement('span');
+    day.className = 'release-day';
+    day.textContent = formatReleaseDay(item);
+
+    const text = document.createElement('span');
+    text.className = 'release-title';
+    text.appendChild(createReleaseTypeBadge(item));
+    text.appendChild(createReleaseTitleLink(item));
+    text.appendChild(document.createTextNode(` ${item.volume}巻`));
+    if(item.edition) text.appendChild(createReleaseBadge('特装版など'));
+
+    line.appendChild(day);
+    line.appendChild(text);
+    if(item.wished){
+      line.appendChild(createReleaseBadge('欲しい巻に追加済', 'is-wished'));
+    } else {
+      line.appendChild(createReleaseWishButton('欲しい巻に追加', btn =>
+        addReleaseToWish(item.titleId, [item.volume], `発売日 ${item.salesDate}`, btn, refreshHomeView)));
+    }
+    return line;
+  });
+  container.appendChild(createHomeCard('release-group', lines));
+}
+
+function renderHomeUnowned(groups){
+  const container = document.getElementById('homeUnowned');
+  container.innerHTML = '';
+  const total = groups.reduce((sum, group) => sum + group.volumes.length, 0);
+  document.getElementById('homeUnownedCount').textContent = `${groups.length}作品・${total}冊`;
+  if(groups.length === 0) return renderHomeEmpty(container, '発売済みで持っていない巻はありません');
+
+  const lines = groups.slice(0, HOME_LIST_LIMIT).map(group => {
+    const line = document.createElement('div');
+    line.className = 'wish-item release-item';
+
+    const text = document.createElement('span');
+    text.className = 'release-title';
+    text.appendChild(createReleaseTypeBadge(group));
+    text.appendChild(createReleaseTitleLink(group));
+    text.appendChild(document.createTextNode(` ${formatHomeVolumes(group.volumes.map(v => v.volume))}`));
+    line.appendChild(text);
+
+    const notWished = group.volumes.filter(v => !v.wished).map(v => v.volume);
+    if(notWished.length === 0){
+      line.appendChild(createReleaseBadge('欲しい巻に追加済', 'is-wished'));
+    } else {
+      const label = notWished.length === 1 ? '欲しい巻に追加' : `${notWished.length}冊を欲しい巻に追加`;
+      line.appendChild(createReleaseWishButton(label, btn => addReleaseToWish(group.titleId, notWished, '', btn, refreshHomeView)));
+    }
+    return line;
+  });
+  const rest = groups.length - HOME_LIST_LIMIT;
+  container.appendChild(createHomeCard('release-group is-unowned', lines, rest > 0 ? `ほか ${rest}作品` : ''));
+}
+
+function renderHomeWishes(wishes){
+  const container = document.getElementById('homeWishes');
+  container.innerHTML = '';
+  const groups = groupHomeWishes(wishes);
+  document.getElementById('homeWishCount').textContent = `${groups.length}作品・${wishes.length}冊`;
+  if(groups.length === 0) return renderHomeEmpty(container, '欲しい巻はまだありません');
+
+  const lines = groups.slice(0, HOME_LIST_LIMIT).map(group => {
+    const line = document.createElement('div');
+    line.className = 'wish-item';
+    const text = document.createElement('span');
+    text.appendChild(createCellLink(group.titleName, function(){ openTitleDetail(group.titleId); }));
+    const volumes = document.createElement('span');
+    volumes.className = 'wish-group-volumes';
+    volumes.textContent = formatHomeVolumes(group.volumes);
+    line.appendChild(text);
+    line.appendChild(volumes);
+    return line;
+  });
+  const rest = groups.length - HOME_LIST_LIMIT;
+  container.appendChild(createHomeCard('', lines, rest > 0 ? `ほか ${rest}作品` : ''));
+}
+
+function renderHomeWatching(seasons, plannedCount){
+  const container = document.getElementById('homeWatching');
+  container.innerHTML = '';
+  document.getElementById('homeWatchingCount').textContent = `${seasons.length}件${plannedCount ? `（視聴予定 ${plannedCount}件）` : ''}`;
+  if(seasons.length === 0) return renderHomeEmpty(container, '視聴中のアニメはありません');
+
+  const lines = seasons.slice(0, HOME_LIST_LIMIT).map(season => {
+    const line = document.createElement('div');
+    line.className = 'wish-item';
+    const name = document.createElement('span');
+    name.textContent = season.animeName && season.animeName !== season.name ? `${season.name}（${season.animeName}）` : season.name;
+    const episodes = document.createElement('span');
+    episodes.className = 'anime-card-episodes home-episodes';
+    episodes.textContent = season.episodes === '' ? '未視聴' : `${season.episodes}話まで`;
+    line.appendChild(name);
+    line.appendChild(episodes);
+    return line;
+  });
+  const rest = seasons.length - HOME_LIST_LIMIT;
+  container.appendChild(createHomeCard('anime-card home-anime', lines, rest > 0 ? `ほか ${rest}件` : ''));
+}
+
+window.loadHomeView = loadHomeView;
+</script>

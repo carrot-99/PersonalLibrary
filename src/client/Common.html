@@ -12,12 +12,14 @@ let appMode = null;
 
 function init(){
   refreshMasterData(true);
-  showTab(APP_MODE_HOME[loadSavedAppMode()]);
+  // 起動時はホーム（共通の画面でモードを決めないので、前回のモードを先に反映する）
+  applyAppMode(loadSavedAppMode());
+  showTab('HomeView');
   closeSidebar();
 }
 
 // 書籍・アニメ共通の画面（開いてもモードを切り替えない）
-const COMMON_VIEW_IDS = ['SeriesListView', 'SeriesView'];
+const COMMON_VIEW_IDS = ['HomeView', 'SeriesListView', 'SeriesView'];
 
 // 戻り値: 'anime' / 'book'、共通の画面は null
 function getModeOfView(viewId){
@@ -212,6 +214,7 @@ function showTab(tabId){
   clearGlobalMessage();
 
   const loaders = {
+    HomeView: function(){ loadHomeView(); },
     PhotoImportView: loadPhotoImportView,
     WishListView: loadWishListView,
     ReleaseView: loadReleaseView,

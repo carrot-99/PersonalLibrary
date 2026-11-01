@@ -56,13 +56,13 @@ function fetchReleases(titleId, btn){
     .updateReleasesWeb(titleId || '');
 }
 
-// 欲しい巻リストに追加（volumes: 巻の配列）
-function addReleaseToWish(titleId, volumes, memo, btn){
+// 欲しい巻リストに追加（volumes: 巻の配列）。onAdded: 追加後の再読込（省略時は発売予定。ホームからも使う）
+function addReleaseToWish(titleId, volumes, memo, btn, onAdded){
   btn.disabled = true;
   callGAS('addWishes', function(res){
     if(res && res.success){
       showSuccess(res.message);
-      loadReleaseView();
+      (onAdded || loadReleaseView)();
     } else {
       btn.disabled = false;
       showError(res && res.message ? res.message : '追加に失敗しました');

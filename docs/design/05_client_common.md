@@ -20,7 +20,8 @@ init()
  │   └ getSeriesMaster → populateSeries
  ├ loadLibrarySummary('libraryGlobal')     サマリーパネル
  ├ loadRecentLibrary('globalRecentLibraryTable')
- ├ showTab('PhotoImportView')              初期画面
+ ├ applyAppMode(loadSavedAppMode())       前回のモード（ホームはモードを決めないため先に反映）
+ ├ showTab('HomeView')                     初期画面（ホーム）
  └ closeSidebar()
 ```
 
@@ -57,6 +58,7 @@ callGASCached(cacheKey, funcName, onData, { viewId?, errorMessage?, refresh? })
 | `libraryAdd.titles` / `libraryAdd.boxes` | `getTitleMaster` / `getBoxMaster` | 書籍一覧の追加フォームの候補 |
 | `librarySummary.<prefix>` / `recentLibrary.<tableId>` | `getLibrarySummary` / `getRecentLibrary` | サマリーパネル・最近追加 |
 | `animeData.<viewId>` | `getAnimeData` | 視聴中の一覧・アニメ一覧 |
+| `home` | `getHomeDataWeb` | ホーム |
 
 注意:
 
@@ -90,6 +92,7 @@ callGASCached(cacheKey, funcName, onData, { viewId?, errorMessage?, refresh? })
 
 | View | ローダー |
 |---|---|
+| `HomeView` | `loadHomeView()`（`getHomeDataWeb` を `callGASCached` で取得し、発売予定・未所持・欲しい巻・視聴中のアニメを描画） |
 | `PhotoImportView` | `loadPhotoImportView()`（前回の写真・結果のクリアと、作品・シリーズ・Box の候補取得） |
 | `WishListView` | `loadWishListView()`（作品候補の設定と欲しい巻一覧の取得） |
 | `ReleaseView` | `loadReleaseView()`（`getReleaseViewWeb` で発売予定・発売済未所持・見つからなかった作品を取得） |

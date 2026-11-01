@@ -1113,6 +1113,24 @@
   .release-message { display: block; color: #9ca3af; }
   .release-shop { font-size: 0.85rem; color: #f9a8d4; }
   .release-retry { padding: 4px 12px; background: #374151; }
+  /* ホーム */
+  .home-sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); align-items: start; gap: 4px 16px; }
+  .home-section { min-width: 0; }
+  /* 見出しを押すとたためる（▾ 開いている / ▸ たたんでいる） */
+  .home-section > summary { list-style: none; cursor: pointer; user-select: none; }
+  .home-section > summary::-webkit-details-marker { display: none; }
+  .home-section > summary .release-heading::before {
+    content: '▸';
+    display: inline-block;
+    width: 1.1em;
+    color: #67e8f9;
+  }
+  .home-section[open] > summary .release-heading::before { content: '▾'; }
+  .home-section:not([open]) > summary .release-heading { margin-bottom: 8px; }
+  .home-more { float: right; font-size: 0.85rem; font-weight: normal; color: #67e8f9; }
+  .home-rest { color: #9ca3af; font-size: 0.85rem; }
+  .home-anime .wish-item:first-child { border-top: none; }
+  .wish-item > .home-episodes { flex: 0 0 auto; }
 
   .anime-season-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
   .anime-season-title { font-size: 1.1rem; min-width: 8em; text-align: center; }
