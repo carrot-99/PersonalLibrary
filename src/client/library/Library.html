@@ -63,15 +63,16 @@ function parseVolumeInput(rawVolume) {
 //////////////////////////////
 // 最近追加ライブラリ読み込み
 //////////////////////////////
+// 前回の結果をすぐ表示し、裏で取り直す（callGASCached）
 function loadRecentLibrary(tableId = 'globalRecentLibraryTable') {
-  callGAS('getRecentLibrary', function(data){
-    renderRecentLibrary(data, tableId);
+  callGASCached('recentLibrary.' + tableId, 'getRecentLibrary', function(data){
+    renderRecentLibrary(data || [], tableId);
   });
 }
 
 function loadLibrarySummary(prefix = 'libraryGlobal') {
-  callGAS('getLibrarySummary', function(summary){
-    updateLibrarySummary(summary, prefix);
+  callGASCached('librarySummary.' + prefix, 'getLibrarySummary', function(summary){
+    updateLibrarySummary(summary || {}, prefix);
   });
 }
 
@@ -134,7 +135,8 @@ function renderRecentLibrary(data, tableId = 'globalRecentLibraryTable') {
 // 書籍一覧の追加フォーム（作品・Box の候補）。画面を開いたときに呼ぶ
 //////////////////////////////
 function loadLibraryAddForm(){
-  callGAS('getTitleMaster', function(titles){
+  callGASCached('libraryAdd.titles', 'getTitleMaster', function(titles){
+    titles = titles || [];
     const input = document.getElementById('libraryAddTitleInput');
     const list = document.getElementById('libraryAddTitleList');
     if(!input || !list) return;
@@ -151,7 +153,8 @@ function loadLibraryAddForm(){
     };
   });
 
-  callGAS('getBoxMaster', function(boxes){
+  callGASCached('libraryAdd.boxes', 'getBoxMaster', function(boxes){
+    boxes = boxes || [];
     const input = document.getElementById('libraryAddBoxInput');
     const list = document.getElementById('libraryAddBoxList');
     if(!input || !list) return;
@@ -192,7 +195,7 @@ function addLibraryMaster(){
       document.getElementById('libraryAddBoxInput').dataset.selectedId = '';
       loadRecentLibrary('globalRecentLibraryTable');
       loadLibrarySummary('libraryGlobal');
-      loadLibraryList();
+      loadLibraryList({ refresh: true });
       refreshMasterData();
     } else {
       showError(res.message);
@@ -205,7 +208,8 @@ function addLibraryMaster(){
 //////////////////////////////
 let libraryListFilter = null;
 
-function loadLibraryList(){
+// options.refresh: 保存・追加・削除の後（表示中の一覧のまま取り直す）
+function loadLibraryList(options = {}){
   if(!libraryListFilter){
     libraryListFilter = createListFilter({
       tableId: 'libraryListTable',
@@ -229,7 +233,7 @@ function loadLibraryList(){
         update: 'updateLibraryMaster',
         remove: 'deleteLibraryMaster',
         onSaved: function(){
-          loadLibraryList();
+          loadLibraryList({ refresh: true });
           loadRecentLibrary('globalRecentLibraryTable');
           loadLibrarySummary('libraryGlobal');
         }
@@ -237,16 +241,9 @@ function loadLibraryList(){
     });
   }
 
-  google.script.run
-    .withSuccessHandler(function(rows){
-      hideInlineLoading('LibraryListView');
-      libraryListFilter.setRows((rows || []).map(row => Object.assign({}, row, { id: String(row.id) })));
-    })
-    .withFailureHandler(function(error){
-      hideInlineLoading('LibraryListView');
-      showError(error && error.message ? error.message : '書籍一覧の読み込みに失敗しました');
-    })
-    .getLibraryListAll();
+  callGASCached('libraryList', 'getLibraryListAll', function(rows){
+    libraryListFilter.setRows((rows || []).map(row => Object.assign({}, row, { id: String(row.id) })));
+  }, { viewId: 'LibraryListView', errorMessage: '書籍一覧の読み込みに失敗しました', refresh: options.refresh });
 }
 
 window.addLibraryMaster = addLibraryMaster;

@@ -211,8 +211,9 @@ function loadServer(sheets, options = {}){
 // ----------------------
 // クライアント HTML 内の <script> を読み込む（DOM を使わない関数のテスト用）
 // files: src/client からの相対パス
+// globals: 差し替えるグローバル（google・localStorage のフェイクなど）
 // ----------------------
-function loadClient(files){
+function loadClient(files, globals = {}){
   const noop = () => {};
   const element = new Proxy(noop, {
     get: (target, key) => key === Symbol.toPrimitive ? () => '' : element,
@@ -225,7 +226,8 @@ function loadClient(files){
     window: {},
     document: element,
     localStorage: { getItem: () => null, setItem: noop },
-    google: { script: { run: element } }
+    google: { script: { run: element } },
+    ...globals
   });
 
   files.forEach(file => {

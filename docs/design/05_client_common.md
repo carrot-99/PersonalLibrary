@@ -14,7 +14,7 @@
 
 ```
 init()
- ├ refreshMasterData()                     各画面のオートコンプリート候補を構築
+ ├ refreshMasterData(true)                 各画面のオートコンプリート候補を構築（前回の結果をすぐ反映して取り直す。5.2）
  │   ├ getTitleMaster  → populateTitle
  │   ├ getBoxMaster    → populateBoxes
  │   └ getSeriesMaster → populateSeries
@@ -32,7 +32,36 @@ callGAS(funcName, successHandler, ...args)
 
 `google.script.run` のラッパー。失敗時は `showError(error.message || '通信に失敗しました')` を表示します。
 
-例外: 検索画面・一覧画面（`showSeries` / `loadTitleList` 等）と写真から登録（解析・作品追加・登録確定）は、ローディング表示の解除が必要なため `google.script.run` を直接使用し、成功・失敗の両方で `hideInlineLoading()` を呼びます。
+例外: 検索画面（`showSeries` 等）と写真から登録（解析・作品追加・登録確定）は、ローディング表示の解除が必要なため `google.script.run` を直接使用し、成功・失敗の両方で `hideInlineLoading()` を呼びます。
+
+### 取得結果のキャッシュ — `callGASCached`
+
+```js
+callGASCached(cacheKey, funcName, onData, { viewId?, errorMessage?, refresh? })
+```
+
+一覧などを開いたときにすぐ表示するための、引数なしのサーバー関数の呼び出しです（R-14 の対応）。
+
+1. `cacheKey` の前回の結果（`localStorage` の `personalLibrary.cache.v1.<cacheKey>`。同じページ内ではメモリ）があれば、すぐ `onData` で描画し、`viewId` の見出しの横に「最新の情報を確認中...」（`.refresh-indicator`）を出す。なければ `viewId` に「読み込み中...」（`showInlineLoading`）
+2. サーバーから取り直し、結果を保存する。前回の結果と JSON が違うときだけもう一度 `onData` で描画する
+3. 同じ `cacheKey` で後から呼んだ取得があれば、先に呼んだ取得の結果は使わない（保存の前に始めた取得の古い結果で、保存後の表示を上書きしない）
+4. `refresh: true` はキャッシュを描画せず、表示中の内容のまま取り直す（保存・追加・削除の後。「確認中」を出し、結果は必ず描画する）
+5. 失敗時は `showError(error.message || errorMessage)`。`localStorage` が使えない環境でも動く（保存しないだけ）
+
+`cacheKey` は呼び出し元ごとに分けます（同じサーバー関数でも、描画先が違えば別の名前にする）。
+
+| cacheKey | サーバー関数 | 使う場所 |
+|---|---|---|
+| `master.titles` / `master.boxes` / `master.series` | `getTitleMaster` / `getBoxMaster` / `getSeriesMaster` | `refreshMasterData`（各画面の選択肢） |
+| `seriesList` / `titleList` / `boxList` / `libraryList` | `getSeriesListWithCounts` / `getTitleListWithOwnership` / `getBoxMaster` / `getLibraryListAll` | 各一覧 |
+| `libraryAdd.titles` / `libraryAdd.boxes` | `getTitleMaster` / `getBoxMaster` | 書籍一覧の追加フォームの候補 |
+| `librarySummary.<prefix>` / `recentLibrary.<tableId>` | `getLibrarySummary` / `getRecentLibrary` | サマリーパネル・最近追加 |
+| `animeData.<viewId>` | `getAnimeData` | 視聴中の一覧・アニメ一覧 |
+
+注意:
+
+- 別の画面で変えた内容は、開いた直後は前回の表示のままで、取り直しが終わると最新になります（「確認中」の表示が消えるまで）。
+- サーバー関数の戻り値の形を変えたときは、古いキャッシュで描画が崩れないよう `SERVER_CACHE_PREFIX` の `v1` を上げます。
 
 ## 5.3 タブ（画面）切替 — `showTab(tabId)`
 
@@ -44,7 +73,7 @@ callGAS(funcName, successHandler, ...args)
    - フォーム（`.master-form`）と一覧テーブルを閉じ、検索キーワード（`*SearchKeyword`）をクリア
    - 詳細画面（`SEARCH_VIEW_IDS` = `SeriesView` / `TitleView` / `BoxView`）は入力欄・結果テーブル・欄（`.detail-section`）もクリア
 5. 通知をクリア
-6. 書籍モードのときだけサマリー・最近追加を再取得
+6. 書籍モードのときだけサマリー・最近追加を再取得（前回の結果をすぐ表示して取り直す）
 7. View ごとのローダーを実行
 8. 詳細画面の [← 戻る] の表示を更新（`updateDetailBackButtons`）
 
@@ -64,11 +93,11 @@ callGAS(funcName, successHandler, ...args)
 | `PhotoImportView` | `loadPhotoImportView()`（前回の写真・結果のクリアと、作品・シリーズ・Box の候補取得） |
 | `WishListView` | `loadWishListView()`（作品候補の設定と欲しい巻一覧の取得） |
 | `ReleaseView` | `loadReleaseView()`（`getReleaseViewWeb` で発売予定・発売済未所持・見つからなかった作品を取得） |
-| `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | ローディング表示 → `load*List(1)`（書籍一覧は追加フォームの候補 `loadLibraryAddForm()` も） |
+| `SeriesListView` / `TitleListView` / `BoxListView` / `LibraryListView` | `load*List()`（`callGASCached` で前回の一覧をすぐ表示して取り直す。書籍一覧は追加フォームの候補 `loadLibraryAddForm()` も） |
 | 検索系 View | なし（候補は初期化時に構築済み） |
-| `AnimeWatchingView` | `loadAnimeWatchingView()`（`getAnimeData` で全件取得し、カードを描画して登録フォームの候補を設定 `setupAnimeEntryForm`） |
+| `AnimeWatchingView` | `loadAnimeWatchingView()`（`getAnimeData` で全件取得（`callGASCached`）し、カードを描画して登録フォームの候補を設定 `setupAnimeEntryForm`） |
 | `AnimeSeasonView` | `loadAnimeSeasonView()`（今期に戻して `getCurrentSeasonAnimeWeb` で Annict の作品と `getAnimeData` の結果を取得し、一覧と登録フォームの候補を設定） |
-| `AnimeListView` | `loadAnimeListView()`（`getAnimeData` で全件取得し、期ごと・作品ごとの 2 つの `createListFilter` に渡す） |
+| `AnimeListView` | `loadAnimeListView()`（`getAnimeData` で全件取得（`callGASCached`）し、期ごと・作品ごとの 2 つの `createListFilter` に渡す） |
 
 ## 5.4 テーブル描画
 
@@ -153,20 +182,23 @@ callGAS(funcName, successHandler, ...args)
 [保存] → saveEdit(btn)
    id     = 行の data-id（idKey の値）
    values = edit がある列の入力値（列の順）
-   edit.update のサーバー関数を呼ぶ → 成功時は edit.onSaved()（一覧の再読込など）
+   edit.update のサーバー関数を呼ぶ → 成功時は入力値で行を書き換えて再描画（buildEditPatch → updateRow）してから edit.onSaved()（一覧の取り直しなど）
+   buildEditPatch は edit: true の列だけ反映する（edit に関数を指定した列は表示の形が違うので、取り直しを待つ）
 [削除] → 1 回目: 「本当に削除」に変更（4 秒で元に戻る）／2 回目: deleteListRow(btn)
-   edit.remove のサーバー関数に data-id を渡す → 成功時は edit.onSaved()
+   edit.remove のサーバー関数に data-id を渡す → 成功時は行を消して再描画（removeRow）してから edit.onSaved()
 createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい巻リストでも使用）
 ```
 
 | テーブル ID（画面） | 編集する列（values の順） | 更新 API | 削除 API | 保存後 |
 |---|---|---|---|---|
-| `seriesListTable`（シリーズ一覧） | シリーズ名 | `updateSeriesMaster` | — | 一覧再読込＋選択肢再構築 |
-| `titleListTable`（作品一覧） | 作品名, シリーズ, 種別（選択）, 完結（選択） | `updateTitleMaster` | — | 一覧再読込＋選択肢再構築 |
-| `boxListTable`（箱一覧） | 保管場所 | `updateBoxMaster` | — | 一覧再読込＋選択肢再構築 |
-| `libraryListTable`（書籍一覧） | 作品名, 巻数, Box | `updateLibraryMaster` | `deleteLibraryMaster` | 一覧・最近追加・サマリーを再読込 |
-| `animeListTable`（アニメ一覧・期ごと） | 作品, 期名, 種別（選択）, 話数, 状況（選択） | `updateAnimeSeasonMaster` | `deleteAnimeSeason` | アニメ一覧を再読込 |
-| `animeWorkListTable`（アニメ一覧・作品ごと） | 作品名, シリーズ | `updateAnimeMaster` | — | アニメ一覧を再読込 |
+| `seriesListTable`（シリーズ一覧） | シリーズ名 | `updateSeriesMaster` | — | 一覧を取り直す＋選択肢再構築 |
+| `titleListTable`（作品一覧） | 作品名, シリーズ, 種別（選択）, 完結（選択） | `updateTitleMaster` | — | 一覧を取り直す＋選択肢再構築 |
+| `boxListTable`（箱一覧） | 保管場所 | `updateBoxMaster` | — | 一覧を取り直す＋選択肢再構築 |
+| `libraryListTable`（書籍一覧） | 作品名, 巻数, Box | `updateLibraryMaster` | `deleteLibraryMaster` | 一覧を取り直す・最近追加・サマリーを再読込 |
+| `animeListTable`（アニメ一覧・期ごと） | 作品, 期名, 種別（選択）, 話数, 状況（選択） | `updateAnimeSeasonMaster` | `deleteAnimeSeason` | アニメ一覧を取り直す |
+| `animeWorkListTable`（アニメ一覧・作品ごと） | 作品名, シリーズ | `updateAnimeMaster` | — | アニメ一覧を取り直す |
+
+「取り直す」は `load*List({ refresh: true })`（[5.2](#取得結果のキャッシュ--callgascached) の `refresh`）。書き換えた行を表示したまま取り直し、終わったら最新の内容で描き直します。
 
 注意:
 
@@ -174,6 +206,7 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 - 送信値は名称です（作品のシリーズ列はシリーズ名、書籍の作品・Box 列は作品名・保管場所）。名称 → ID 変換はサーバー側で行います（共通関数 `resolveMasterId`）。
 - アニメの話数は表示が「12話」、編集の初期値は数値です（列定義の `edit` に関数を指定）。
 - 編集中にページ移動・並べ替えをすると、編集は取り消されます（再描画のため）。
+- 編集中の行がある間は、裏で取り直した結果（`setRows`）で描き直しません（入力中の内容を消さない。次の操作で反映）。
 
 ## 5.8 追加フォームの制御
 
@@ -190,8 +223,9 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 |---|---|---|
 | `masterCache` | `Common.html` | `series` はシリーズ一覧の取得結果（統合フォームの候補に使用）。`titleOptions` は選択肢用の作品一覧（`populateTitle` で保持。作品表示の完結状態判定に使用） |
 | `titleListFilter` / `seriesListFilter` / `boxListFilter` / `libraryListFilter` / `animeListFilter` / `animeWorkListFilter` / `animeSeasonFilter` | `Title.html` / `Series.html` / `Box.html` / `Library.html` / `Anime.html` | 各一覧の `createListFilter` インスタンス（初回表示時に作成し、絞り込み条件・並び順を保持） |
-| `animeState` | `Anime.html` | `getAnimeData` の結果（`anime`, `seasons`, `series`）。アニメ画面を開くたびに再取得。`animeListMode` はアニメ一覧の表示単位（`season` / `work`） |
-| `listEditConfigs` | `Common.html` | 一覧のインライン編集の設定（テーブル ID → `{ columns, update, remove, onSaved }`） |
+| `animeState` | `Anime.html` | `getAnimeData` の結果（`anime`, `seasons`, `series`）。アニメ画面を開くたびに再取得（前回の結果をすぐ表示）。視聴中のカードの [+1話] 等は、成功したら取り直しを待たずにこの値を書き換えて描き直す。`animeListMode` はアニメ一覧の表示単位（`season` / `work`） |
+| `listEditConfigs` | `Common.html` | 一覧のインライン編集の設定（テーブル ID → `{ columns, update, remove, onSaved, filter }`。`filter` はその一覧の `createListFilter` の戻り値） |
+| `serverCacheMemory` / `serverCacheSeq` | `Common.html` | `callGASCached` の前回の結果（JSON。`localStorage` にも保存）と、`cacheKey` ごとの最後に呼んだ取得の番号 |
 | `messageTimeout` | `Common.html` | 通知自動消去タイマー |
 | `photoImportState` | `PhotoImport.html` | 写真で確認・登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `wishKeys`, `mode`（`check` / `register`）, `busy`） |
 | `wishState` | `Wish.html` | 欲しい巻リストの状態（`list`, `selectedTitleId`, `nextVolume`） |
@@ -234,4 +268,4 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | `idKey` | 行の ID のキー（既定 `id`）。編集・削除でサーバーに渡す |
 | `edit` | `{ update, remove?, onSaved }`。指定すると各行に操作列を付ける（表の最後に操作列の見出しを置く。[5.7](#57-インライン編集)） |
 
-戻り値 `{ setRows(rows) }`。行を入れ替えて再描画します（条件・並び順は保持）。描画は `renderPagedTableDOM`、見出しにはクラス `sortable` / `sort-asc` / `sort-desc` を付けます。
+戻り値 `{ setRows(rows), updateRow(id, patch), removeRow(id) }`。`setRows` は行を入れ替えて再描画します（条件・並び順・ページは保持。編集中の行があれば描き直さない）。`updateRow` は ID の行に `patch` を上書き、`removeRow` は ID の行を消して再描画します（インライン編集の保存・削除の直後）。描画は `renderPagedTableDOM`、見出しにはクラス `sortable` / `sort-asc` / `sort-desc` を付けます。

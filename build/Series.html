@@ -81,7 +81,8 @@ function renderSeriesAnime(seasons){
 //////////////////////////////
 let seriesListFilter = null;
 
-function loadSeriesList(){
+// options.refresh: 保存・追加の後（表示中の一覧のまま取り直す）
+function loadSeriesList(options = {}){
   if(!seriesListFilter){
     seriesListFilter = createListFilter({
       tableId: 'seriesListTable',
@@ -100,14 +101,12 @@ function loadSeriesList(){
       defaultSort: { key: 'name', dir: 'asc' },
       edit: {
         update: 'updateSeriesMaster',
-        onSaved: function(){ loadSeriesList(); refreshMasterData(); }
+        onSaved: function(){ loadSeriesList({ refresh: true }); refreshMasterData(); }
       }
     });
   }
 
-  google.script.run
-    .withSuccessHandler(function(data){
-      hideInlineLoading('SeriesListView');
+  callGASCached('seriesList', 'getSeriesListWithCounts', function(data){
       masterCache.series = data || [];
       seriesListFilter.setRows(masterCache.series.map(item => ({
         id: item.id,
@@ -117,12 +116,7 @@ function loadSeriesList(){
         hasBooks: item.titleCount > 0 ? 'あり' : 'なし',
         hasAnime: item.seasonCount > 0 ? 'あり' : 'なし'
       })));
-    })
-    .withFailureHandler(function(error){
-      hideInlineLoading('SeriesListView');
-      showError(error && error.message ? error.message : 'シリーズ一覧の読み込みに失敗しました');
-    })
-    .getSeriesListWithCounts();
+    }, { viewId: 'SeriesListView', errorMessage: 'シリーズ一覧の読み込みに失敗しました', refresh: options.refresh });
 }
 
 //////////////////////////////
@@ -173,7 +167,7 @@ function mergeSeriesFromForm(){
       showSuccess(res.message);
       document.getElementById('seriesMergeFromInput').value = '';
       document.getElementById('seriesMergeToInput').value = '';
-      loadSeriesList();
+      loadSeriesList({ refresh: true });
       refreshMasterData();
     } else {
       showError(res && res.message ? res.message : '統合に失敗しました');
@@ -193,7 +187,7 @@ function addSeriesMaster(){
     if(res.success){
       showSuccess(res.message);
       document.getElementById('newSeriesName').value = '';
-      loadSeriesList();
+      loadSeriesList({ refresh: true });
       refreshMasterData();
     }else{
       showError(res.message);

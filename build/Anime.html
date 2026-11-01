@@ -13,19 +13,12 @@ const animeState = {
 const ANIME_STATUS_OPTIONS = ['視聴中', '視聴予定', '視聴済', '視聴中断'];
 const ANIME_TYPE_OPTIONS = ['TV', 'OVA', '劇場版', 'その他'];
 
-function loadAnimeData(viewId, onLoaded){
-  showInlineLoading(viewId, '読み込み中...');
-  google.script.run
-    .withSuccessHandler(function(data){
-      hideInlineLoading(viewId);
-      setAnimeState(data);
-      onLoaded();
-    })
-    .withFailureHandler(function(error){
-      hideInlineLoading(viewId);
-      showError(error && error.message ? error.message : 'アニメの読み込みに失敗しました');
-    })
-    .getAnimeData();
+// 前回の結果をすぐ表示し、裏で取り直す（callGASCached）。refresh: 保存・登録の後（表示中のまま取り直す）
+function loadAnimeData(viewId, onLoaded, refresh){
+  callGASCached('animeData.' + viewId, 'getAnimeData', function(data){
+    setAnimeState(data);
+    onLoaded();
+  }, { viewId, errorMessage: 'アニメの読み込みに失敗しました', refresh });
 }
 
 function setAnimeState(data){
@@ -73,12 +66,17 @@ function toAnimeSeasonRow(season){
 //////////////////////////////
 // 視聴中の一覧（＋視聴予定）。登録フォームもこの画面に置く
 //////////////////////////////
-function loadAnimeWatchingView(){
-  placeAnimeEntryForm('animeEntryHost', loadAnimeWatchingView);
+// options.refresh: 更新・登録の後（表示中のまま取り直す）
+function loadAnimeWatchingView(options = {}){
+  placeAnimeEntryForm('animeEntryHost', refreshAnimeWatchingView);
   loadAnimeData('AnimeWatchingView', function(){
     renderAnimeWatching();
     setupAnimeEntryForm();
-  });
+  }, options.refresh);
+}
+
+function refreshAnimeWatchingView(){
+  loadAnimeWatchingView({ refresh: true });
 }
 
 function renderAnimeWatching(){
@@ -159,7 +157,11 @@ function updateAnimeWatchFromCard(btn, season, episodes, status){
     .withSuccessHandler(function(res){
       if(res && res.success){
         showSuccess(res.message);
-        loadAnimeWatchingView();
+        // 取り直しを待たずにカードへ反映しておく
+        season.episodes = episodes;
+        season.status = status;
+        renderAnimeWatching();
+        refreshAnimeWatchingView();
       } else {
         buttons.forEach(b => b.disabled = false);
         showError(res && res.message ? res.message : '更新に失敗しました');
@@ -311,7 +313,12 @@ let animeListFilter = null;
 let animeWorkListFilter = null;
 let animeListMode = 'season';
 
-function loadAnimeListView(){
+function refreshAnimeListView(){
+  loadAnimeListView({ refresh: true });
+}
+
+// options.refresh: 保存・削除の後（表示中の一覧のまま取り直す）
+function loadAnimeListView(options = {}){
   if(!animeListFilter){
     animeListFilter = createListFilter({
       tableId: 'animeListTable',
@@ -335,7 +342,7 @@ function loadAnimeListView(){
       edit: {
         update: 'updateAnimeSeasonMaster',
         remove: 'deleteAnimeSeason',
-        onSaved: loadAnimeListView
+        onSaved: refreshAnimeListView
       }
     });
   }
@@ -358,7 +365,7 @@ function loadAnimeListView(){
       defaultSort: { key: 'name', dir: 'asc' },
       edit: {
         update: 'updateAnimeMaster',
-        onSaved: loadAnimeListView
+        onSaved: refreshAnimeListView
       }
     });
   }
@@ -383,7 +390,7 @@ function loadAnimeListView(){
         episodeTotal: seasons.reduce((sum, s) => sum + (Number(s.episodes) || 0), 0)
       };
     }));
-  });
+  }, options.refresh);
 }
 
 function setAnimeListMode(mode){
@@ -488,7 +495,7 @@ function addAnimeSeasonFromForm(){
         document.getElementById('animeEntrySeriesInput').value = '';
         // 新しいシリーズを作った可能性があるので書籍側の選択肢も更新
         refreshMasterData();
-        (animeEntryOnSaved || loadAnimeWatchingView)();
+        (animeEntryOnSaved || refreshAnimeWatchingView)();
       } else {
         showError(res && res.message ? res.message : '登録に失敗しました');
       }
