@@ -517,14 +517,17 @@ function renderPagedTableDOM(options){
 
   const tbody = document.getElementById(tableId).querySelector('tbody');
   tbody.innerHTML = ''; // tbody は clear してもOK
+  // 列名（スマホ幅のカード表示でセルの見出しにする。CSS の td::before { content: attr(data-label) }）
+  const labels = Array.from(document.getElementById(tableId).querySelectorAll('thead th')).map(th => th.textContent.trim());
 
   data.forEach(row => {
     const tr = document.createElement('tr');
     if(idKey) tr.dataset.id = String(row[idKey] ?? '');
 
-    columns.forEach(column => {
+    columns.forEach((column, index) => {
       const col = typeof column === 'string' ? column : column.key;
       const td = document.createElement('td');
+      td.dataset.label = labels[index] || '';
       const rawValue = row[col] ?? '';
       const text = getDisplayTableValue(rawValue, col);
       // 列定義の button: row => { label, onClick(btn), className } または null（行ごとの操作ボタン）
@@ -559,6 +562,7 @@ function renderPagedTableDOM(options){
 
     if(editable){
       const actionTd = document.createElement('td');
+      actionTd.className = 'row-actions';
       appendRowActions(actionTd, tableId);
       tr.appendChild(actionTd);
     }
@@ -1259,6 +1263,9 @@ function createListFilter(options){
   panel.appendChild(footer);
 
   table.parentNode.insertBefore(panel, table);
+
+  // スマホ幅では 1 行を 1 枚のカードで表示する（Styles.html の table.card-list）
+  table.classList.add('card-list');
 
   // 見出しクリックで並べ替え（同じ列をもう一度押すと逆順）
   const headers = Array.from(table.querySelectorAll('thead th'));

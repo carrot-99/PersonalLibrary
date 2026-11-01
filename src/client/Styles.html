@@ -1315,6 +1315,71 @@
     tr.editing td input { min-width: 9em; }
     .view:not(#PhotoImportView) { overflow-x: auto; }
 
+    /* 一覧のカード表示（createListFilter の表。1 行 = 1 枚、セルは「列名: 値」）
+       見出し行は並べ替えボタンの帯にする（並べ替えできない列・操作列の見出しは隠す） */
+    table.card-list,
+    table.card-list > tbody,
+    table.card-list > tbody > tr,
+    table.card-list > tbody > tr > td { display: block; width: auto !important; max-width: none !important; }
+    table.card-list { margin-bottom: 0; border: none; }
+    table.card-list > thead,
+    table.card-list > thead > tr { display: block; }
+    table.card-list > thead > tr { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    table.card-list > thead th { display: none; }
+    table.card-list > thead th.sortable {
+      display: inline-flex;
+      align-items: center;
+      width: auto !important;
+      max-width: none !important;
+      min-width: 0;
+      padding: 6px 10px;
+      border: 1px solid #374151;
+      border-radius: 999px;
+      background: #111827;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+    table.card-list > tbody > tr {
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      border: 1px solid #374151;
+      border-left: 6px solid #67e8f9;
+      border-radius: 8px;
+      background: #0b1220;
+    }
+    table.card-list > tbody > tr > td {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 4px 0;
+      border: none;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+    table.card-list > tbody > tr > td::before {
+      content: attr(data-label);
+      flex: 0 0 5.5em;
+      color: #9ca3af;
+      font-size: 0.8rem;
+    }
+    /* 空のセルは出さない（編集中は入力欄があるので出る） */
+    table.card-list > tbody > tr > td:empty { display: none; }
+    /* 2 つ目の列（作品名・シリーズ名など）は名前として目立たせる */
+    table.card-list > tbody > tr > td:nth-child(2) { font-weight: 700; font-size: 1rem; }
+    /* 操作列はカードの下に右寄せ */
+    table.card-list > tbody > tr > td.row-actions {
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      margin-top: 4px;
+      padding-top: 8px;
+      border-top: 1px solid #1f2937;
+    }
+    table.card-list > tbody > tr > td.row-actions::before { content: none; }
+    /* 編集中は入力欄をカードの幅いっぱいに */
+    table.card-list > tbody > tr.editing td input,
+    table.card-list > tbody > tr.editing td select { flex: 1 1 auto; min-width: 0; width: 100%; }
+    table.card-list > tbody > tr.editing { border-left-color: #fbbf24; }
+
     /* ページング */
     .pagination-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
     .pagination-bar button {
