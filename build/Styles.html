@@ -105,11 +105,12 @@
      操作列は [保存] [取消]（書籍・アニメの期は [編集] [削除]）が並ぶ幅を確保 */
   @media (min-width: 721px) {
     #libraryListTable th:nth-child(1), #libraryListTable td:nth-child(1) { width: 9% !important; max-width: none !important; }
-    #libraryListTable th:nth-child(2), #libraryListTable td:nth-child(2) { width: 32% !important; max-width: none !important; }
+    #libraryListTable th:nth-child(2), #libraryListTable td:nth-child(2) { width: 27% !important; max-width: none !important; }
     #libraryListTable th:nth-child(3), #libraryListTable td:nth-child(3) { width: 8% !important; max-width: none !important; }
-    #libraryListTable th:nth-child(4), #libraryListTable td:nth-child(4) { width: 18% !important; max-width: none !important; }
-    #libraryListTable th:nth-child(5), #libraryListTable td:nth-child(5) { width: 13% !important; max-width: none !important; }
-    #libraryListTable th:nth-child(6), #libraryListTable td:nth-child(6) { width: 20% !important; max-width: none !important; }
+    #libraryListTable th:nth-child(4), #libraryListTable td:nth-child(4) { width: 15% !important; max-width: none !important; }
+    #libraryListTable th:nth-child(5), #libraryListTable td:nth-child(5) { width: 9% !important; max-width: none !important; }
+    #libraryListTable th:nth-child(6), #libraryListTable td:nth-child(6) { width: 12% !important; max-width: none !important; }
+    #libraryListTable th:nth-child(7), #libraryListTable td:nth-child(7) { width: 20% !important; max-width: none !important; }
     #titleListTable th:nth-child(1), #titleListTable td:nth-child(1) { width: 7% !important; max-width: none !important; }
     #titleListTable th:nth-child(2), #titleListTable td:nth-child(2) { width: 22% !important; max-width: none !important; }
     #titleListTable th:nth-child(3), #titleListTable td:nth-child(3) { width: 17% !important; max-width: none !important; }
@@ -1113,6 +1114,15 @@
   .release-message { display: block; color: #9ca3af; }
   .release-shop { font-size: 0.85rem; color: #f9a8d4; }
   .release-retry { padding: 4px 12px; background: #374151; }
+  /* 読書状況 */
+  .read-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; font-size: 0.9rem; }
+  .read-bulk select { width: auto; margin: 0; }
+  .read-bulk button { margin: 0; padding: 6px 12px; background: #374151; box-shadow: none; }
+  .read-bulk button.is-confirm { background: #16a34a; }
+  .read-action { margin: 0 0 0 6px; padding: 3px 10px; font-size: 0.8rem; background: #16a34a; box-shadow: none; }
+  .photo-import-read { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .photo-import-read input { width: auto; margin: 0; }
+  .release-group.is-reading { border-left-color: #4ade80; }
   /* ホーム */
   .home-sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); align-items: start; gap: 4px 16px; }
   .home-section { min-width: 0; }

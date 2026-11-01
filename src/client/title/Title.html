@@ -16,8 +16,9 @@ function showTitle(titleId){
       const rows = (data || []).slice().sort((a, b) => compareVolumes(a.volume, b.volume));
       const title = (masterCache.titleOptions || []).find(t => String(t.id) === String(id));
       renderTitleOwnershipSummary(rows.map(row => row.volume), title ? title.completed : '', title);
+      appendTitleReadLine(rows, id);
       appendTitleWishLine(id);
-      renderTableReadOnly('titleTable', rows, ['volume','box'], {
+      renderTableReadOnly('titleTable', rows, ['volume','box','read'], {
         box: row => openBoxDetail(row.box)
       });
     })
@@ -76,6 +77,37 @@ function renderTitleOwnershipSummary(volumes, completed, title){
   }
 
   box.style.display = 'block';
+}
+
+// 作品表示に読書状況を追記（積読の冊数と次に読む巻。[n巻を読了] で読了にして表示し直す）
+function appendTitleReadLine(rows, titleId){
+  const box = document.getElementById('titleOwnershipSummary');
+  if(!box || rows.length === 0) return;
+
+  const unread = rows.filter(row => row.read === '未読').length;
+  const next = pickNextReadVolume(rows);
+
+  const line = document.createElement('div');
+  line.className = `ownership-line ${next ? '' : 'is-ok'}`.trim();
+  const strong = document.createElement('strong');
+  strong.textContent = '読書';
+  const span = document.createElement('span');
+  span.textContent = next
+    ? `次は ${next.volume}巻${next.read === '読書中' ? '（読書中）' : ''}・積読 ${unread}冊 `
+    : 'すべて読了';
+  line.appendChild(strong);
+  line.appendChild(span);
+  if(next){
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'read-action';
+    button.textContent = `${next.volume}巻を読了`;
+    button.addEventListener('click', function(){
+      setReadStatus([next.id], '読了', function(){ showTitle(titleId); }, button);
+    });
+    span.appendChild(button);
+  }
+  box.appendChild(line);
 }
 
 // 作品表示に欲しい巻を追記（欲しい巻リストに登録がある場合のみ）

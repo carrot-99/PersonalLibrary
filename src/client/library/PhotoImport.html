@@ -901,7 +901,7 @@ function registerPhotoImport(){
       setPhotoImportBusy(false);
       showError(error && error.message ? error.message : '登録に失敗しました');
     })
-    .bulkAddLibraryFromPhoto(payload);
+    .bulkAddLibraryFromPhoto(payload, { read: document.getElementById('photoImportReadDone').checked });
 }
 
 function resetPhotoImport(){

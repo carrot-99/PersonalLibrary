@@ -154,7 +154,8 @@ test('getLibraryListAll: 一覧用の項目をそろえて返す', () => {
     box: '押入れ',
     date: '2026/02/01',
     month: '2026/02',
-    dateValue: new Date(2026, 1, 1).getTime()
+    dateValue: new Date(2026, 1, 1).getTime(),
+    read: '読了'  // M_Read に行のない書籍は読了
   });
 });
 
@@ -179,7 +180,9 @@ test('getLibrarySummary: 冊数・種別ごとの冊数・作品数・Box 数・
     novelTotal: 0,
     uniqueTitles: 2,
     uniqueBoxes: 2,
-    lastAdded: '2026/02/01'
+    lastAdded: '2026/02/01',
+    unread: 0,
+    reading: 0
   });
 });
 

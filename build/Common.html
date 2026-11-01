@@ -1192,6 +1192,8 @@ function deleteListRow(btn){
 // 戻り値: {
 //   setRows(rows)          … 行を入れ替えて再描画（絞り込み条件・ページは保持）
 //   updateRow(id, patch)   … ID の行に patch の値を上書きして再描画
+//   updateRows(ids, patch) … 複数の行に同じ patch を上書きして再描画
+//   getFilteredRows()      … キーワード・絞り込みに合う行（全ページ分。並べ替え前）
 //   removeRow(id)          … ID の行を消して再描画
 // }
 //////////////////////////////
@@ -1308,9 +1310,10 @@ function createListFilter(options){
     return textA.localeCompare(textB, 'ja', { numeric: true });
   }
 
-  function render(){
+  // キーワード・絞り込みに合う行（全ページ分）
+  function getFilteredRows(){
     const keys = options.keywordKeys || options.columns.map(c => c.key);
-    const filtered = state.rows.filter(row => {
+    return state.rows.filter(row => {
       if(state.keyword && !keys.some(key => String(row[key] ?? '').toLowerCase().includes(state.keyword))){
         return false;
       }
@@ -1319,6 +1322,10 @@ function createListFilter(options){
         return !value || String(row[filter.key] ?? '').trim() === value;
       });
     });
+  }
+
+  function render(){
+    const filtered = getFilteredRows();
 
     if(state.sort){
       const column = options.columns.find(c => c.key === state.sort.key) || { key: state.sort.key };
@@ -1369,11 +1376,18 @@ function createListFilter(options){
       render();
     },
     updateRow(id, patch){
-      const row = state.rows.find(r => String(r[idKey]) === String(id));
-      if(!row) return;
-      Object.assign(row, patch);
+      api.updateRows([id], patch);
+    },
+    updateRows(ids, patch){
+      const targets = new Set(ids.map(String));
+      const rows = state.rows.filter(r => targets.has(String(r[idKey])));
+      if(rows.length === 0) return;
+      rows.forEach(row => Object.assign(row, patch));
       fillSelectOptions();
       render();
+    },
+    getFilteredRows(){
+      return getFilteredRows();
     },
     removeRow(id){
       state.rows = state.rows.filter(r => String(r[idKey]) !== String(id));
@@ -1383,6 +1397,33 @@ function createListFilter(options){
   };
   if(listEditConfigs[options.tableId]) listEditConfigs[options.tableId].filter = api;
   return api;
+}
+
+//////////////////////////////
+// 読書状況（サーバーの ReadService.js と同じ値）
+//////////////////////////////
+const READ_STATUS_OPTIONS = ['未読', '読書中', '読了'];
+
+// 次に読む巻（読書中の巻、なければ未読のうち最小の巻）。サーバーの getNextReadVolume と同じ判定
+// rows: [{ id, volume, read }] → 該当する要素（なければ null）
+function pickNextReadVolume(rows){
+  const sorted = (rows || []).slice().sort((a, b) => compareVolumes(a.volume, b.volume));
+  return sorted.find(row => row.read === '読書中') || sorted.find(row => row.read === '未読') || null;
+}
+
+// 書籍の読書状況を変更（ids: LibraryID の配列）。成功したら onDone(res)
+function setReadStatus(ids, status, onDone, btn){
+  if(btn) btn.disabled = true;
+  callGAS('setReadStatusWeb', function(res){
+    if(btn) btn.disabled = false;
+    if(res && res.success){
+      showSuccess(res.message);
+      loadLibrarySummary('libraryGlobal');
+      if(onDone) onDone(res);
+    } else {
+      showError(res && res.message ? res.message : '読書状況の変更に失敗しました');
+    }
+  }, ids, status);
 }
 
 //////////////////////////////

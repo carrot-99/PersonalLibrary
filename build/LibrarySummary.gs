@@ -19,12 +19,19 @@ function getLibrarySummary(){
 
   const lastAdded = libs.length === 0 ? null : formatDateCell(sortLibraryRowsByNewest(libs)[0][4]);
 
+  // 積読（未読）・読書中の冊数（ReadService.js。行のない書籍は読了）
+  const readMap = getReadStatusMap();
+  const unread = libs.filter(row => getReadStatus(readMap, row[0]) === '未読').length;
+  const reading = libs.filter(row => getReadStatus(readMap, row[0]) === '読書中').length;
+
   return {
     total,
     mangaTotal,
     novelTotal,
     uniqueTitles,
     uniqueBoxes,
-    lastAdded
+    lastAdded,
+    unread,
+    reading
   };
 }

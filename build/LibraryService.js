@@ -124,6 +124,8 @@ function addNewVolumeCore(titleId, volume, boxId){
       return [lastId, normalizedTitleId, boxId, String(value), today];
     });
     appendLibraryRows(rows);
+    // 新しく登録した本は未読（ReadService.js）
+    writeReadStatuses(rows.map(row => row[0]), READ_NEW_STATUS);
 
     const wishRemoved = removeWishesForLibrary(
       parsedVolume.values.map(value => ({ titleId: normalizedTitleId, volume: value }))
@@ -173,7 +175,8 @@ function getRecentLibrary(){
 // entries: [{titleId, volume, boxId}, ...]
 // 戻り値: { added: number, errors: [{line, message}], messages: [] }
 // ----------------------
-function addBulkVolumesWeb(entries){
+// readStatus: 登録した本の読書状況（省略時は未読）
+function addBulkVolumesWeb(entries, readStatus){
 
   if(!Array.isArray(entries) || entries.length === 0){
     return failure('入力データが不正です');
@@ -229,6 +232,7 @@ function addBulkVolumesWeb(entries){
     });
 
     appendLibraryRows(rows);
+    writeReadStatuses(rows.map(row => row[0]), READ_STATUSES.includes(readStatus) ? readStatus : READ_NEW_STATUS);
     const added = rows.length;
 
     const messages = [];
@@ -286,9 +290,14 @@ function updateLibraryMasterCore(id, values){
     const titleInput = String(values[0] ?? '').trim();
     const newVolume = String(values[1] ?? '').trim();
     const boxInput = String(values[2] ?? '').trim();
+    // 読書状況（書籍一覧の編集。省略可）
+    const readInput = values.length > 3 ? String(values[3] ?? '').trim() : '';
 
     if(!titleInput || !newVolume || !boxInput){
       return failure('作品名・巻数・Boxは必須です');
+    }
+    if(readInput && !READ_STATUSES.includes(readInput)){
+      return failure(`読書状況は ${READ_STATUSES.join(' / ')} のいずれかを指定してください`);
     }
 
     const currentRow = libraryRows.find(row => String(row[0]) === String(id));
@@ -334,6 +343,10 @@ function updateLibraryMasterCore(id, values){
       return failure('該当データが見つかりません');
     }
 
+    if(readInput && readInput !== getReadStatus(getReadStatusMap(), id)){
+      writeReadStatuses([id], readInput);
+    }
+
     return success('更新成功しました');
 
   } catch(e){
@@ -374,6 +387,7 @@ function deleteLibraryMaster(id){
     const label = `${titleMap.get(String(row[1]).trim()) || row[1]} ${row[3]}巻`;
 
     sheet.deleteRow(rowNumber);
+    removeReadStatuses([targetId]);
 
     return success(`${label}（${targetId}）を削除しました`);
 
@@ -393,6 +407,7 @@ function getLibraryListAll(){
   const labelMap = buildTitleLabelMap(titles);
   const typeMap = new Map(titles.map(r => [String(r[0]).trim(), String(r[3] || '').trim()]));
   const boxMap = new Map(getData(SHEETS.BOX).map(r => [String(r[0]).trim(), r[1]]));
+  const readMap = getReadStatusMap();
 
   return getData(SHEETS.LIBRARY).map(r => {
     const titleId = String(r[1]).trim();
@@ -406,7 +421,8 @@ function getLibraryListAll(){
       box: boxMap.get(String(r[2]).trim()) || '',
       date: formatDateCell(r[4]),
       month: formatDateCell(r[4], 'yyyy/MM'),
-      dateValue: getDateValue(r[4])
+      dateValue: getDateValue(r[4]),
+      read: getReadStatus(readMap, r[0])
     };
   });
 }
@@ -452,12 +468,15 @@ function getLibraryPage(page, pageSize) {
 function getTitleDetail(titleId){
 
   const libs = getData(SHEETS.LIBRARY);
+  const readMap = getReadStatusMap();
 
   return libs
     .filter(row => String(row[1]) === String(titleId))
     .map(row => ({
+      id: String(row[0]).trim(),
       volume: row[3],
-      box: row[2]
+      box: row[2],
+      read: getReadStatus(readMap, row[0])
     }));
 }
 

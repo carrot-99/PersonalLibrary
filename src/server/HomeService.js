@@ -1,7 +1,7 @@
 // ======================================================
 // HomeService.gs
-// ホーム画面（今週・今月の発売予定、発売済で未所持の巻、欲しい巻、視聴中のアニメ）
-// 既存の取得処理（getReleaseViewWeb / getWishList / getAnimeData）をまとめて 1 回で返す
+// ホーム画面（積読、今週・今月の発売予定、発売済で未所持の巻、欲しい巻、視聴中のアニメ）
+// 既存の取得処理（getReleaseViewWeb / getWishList / getAnimeData / getUnreadSummary）をまとめて 1 回で返す
 // ======================================================
 
 const HOME_WEEK_DAYS = 7;
@@ -16,6 +16,7 @@ const HOME_WEEK_DAYS = 7;
 //   wishes:   [{ id, titleId, titleName, volume, memo, date }]（getWishList と同じ）
 //   watching: [{ ...getAnimeData の seasons の要素 }]（視聴中。最近更新した順）
 //   plannedCount: 視聴予定の件数
+//   reading:  getUnreadSummary() の結果（積読）
 // }
 // ----------------------
 function getHomeDataWeb(){
@@ -43,7 +44,8 @@ function getHomeDataWeb(){
       release,
       wishes: getWishList(),
       watching,
-      plannedCount: seasons.filter(s => s.status === '視聴予定').length
+      plannedCount: seasons.filter(s => s.status === '視聴予定').length,
+      reading: getUnreadSummary()
     };
 
   } catch(e){

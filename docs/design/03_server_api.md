@@ -83,8 +83,9 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 4. 解析した全巻について、`M_Library` に同一 (TitleID, 巻数) が存在するか確認。1 件でもあれば
    `failure('同じ作品に既に登録済みの巻数があります: <巻数一覧>')`（**全件登録しない**）
 5. 巻ごとに ID を採番し `[LibraryID, TitleID, BoxID, 巻数, 今日(Date)]` を `appendLibraryRows` で一括書き込み（`setValues` 1 回）
-6. 登録した巻を欲しい巻リストから外す（`removeWishesForLibrary`）
-7. `success('<titleId> に巻 <巻数一覧> を追加しました（<件数>件）')`（欲しい巻から外した場合は「。欲しい巻リストから n 件外しました」を付加）
+6. 登録した巻を未読にする（`writeReadStatuses`。3.9.5）
+7. 登録した巻を欲しい巻リストから外す（`removeWishesForLibrary`）
+8. `success('<titleId> に巻 <巻数一覧> を追加しました（<件数>件）')`（欲しい巻から外した場合は「。欲しい巻リストから n 件外しました」を付加）
 
 備考: `titleId` / `boxId` がマスタに存在するかの確認は行いません。
 
@@ -98,7 +99,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 ### `getLibraryListAll()` — 書籍一覧（全件）
 
-戻り値 `[{ id, title, type, volume, box, date, month, dateValue }]`。`titleId` / `boxId` は詳細画面へのリンク用、`title` は作品の表示ラベル、`type` は作品の種別、`month` は追加月（`yyyy/MM`）、`dateValue` は並べ替え用の数値（日単位）。書籍一覧の絞り込み・並べ替え・ページングは画面側で行います（編集・削除も書籍一覧から行う）。
+戻り値 `[{ id, title, type, volume, box, date, month, dateValue, read }]`。`read` は読書状況（`未読` / `読書中` / `読了`。3.9.5）。`titleId` / `boxId` は詳細画面へのリンク用、`title` は作品の表示ラベル、`type` は作品の種別、`month` は追加月（`yyyy/MM`）、`dateValue` は並べ替え用の数値（日単位）。書籍一覧の絞り込み・並べ替え・ページングは画面側で行います（編集・削除も書籍一覧から行う）。
 
 ### `getLibraryPage(page, pageSize)` — 書籍のページ取得
 
@@ -122,7 +123,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | 引数 | 説明 |
 |---|---|
 | `id` | LibraryID |
-| `values` | `[作品名 or TitleID, 巻数, 保管場所 or BoxID]`（画面の表示値をそのまま送る想定） |
+| `values` | `[作品名 or TitleID, 巻数, 保管場所 or BoxID, 読書状況（省略可）]`（画面の表示値をそのまま送る想定） |
 
 処理:
 
@@ -130,29 +131,30 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 2. いずれか空 → `failure('作品名・巻数・Boxは必須です')`、`id` の行がなければ `failure('該当データが見つかりません')`
 3. `resolveMasterId` で作品（ID or 作品名）→ TitleID、Box（ID or 保管場所）→ BoxID に変換。同名が複数ある場合は現在の紐付け先を優先。見つからなければ `failure('作品「…」が見つかりません')` / `failure('Box「…」が見つかりません')`
 4. 自分以外に同一 (TitleID, 巻数) があれば `failure('同じ作品・巻数のデータが既に存在します')`
-5. `updateRowById` で 2 列目（TitleID）・3 列目（BoxID）・4 列目（巻数）を更新 → 成功は `success('更新成功しました')`
+5. `updateRowById` で 2 列目（TitleID）・3 列目（BoxID）・4 列目（巻数）を更新
+6. 読書状況の指定があり、今と違えば `M_Read` に書く（`未読` / `読書中` / `読了` 以外は手順 2 で `failure`）→ 成功は `success('更新成功しました')`
 
 ### `deleteLibraryMaster(id)` — 書籍削除
 
 | 項目 | 内容 |
 |---|---|
 | 引数 | `id`: LibraryID |
-| 処理 | `LockService.getScriptLock()`（最大 10 秒待機）で排他し、1 列目が `id` の行を `deleteRow` で物理削除 |
+| 処理 | `LockService.getScriptLock()`（最大 10 秒待機）で排他し、1 列目が `id` の行を `deleteRow` で物理削除。`M_Read` の行も消す（`removeReadStatuses`） |
 | 成功 | `success('<作品名> <巻数>巻（<ID>）を削除しました')` |
 | エラー | `id` 空 → `IDが指定されていません`、該当行なし → `該当データが見つかりません`、ロック取得失敗 → `他の登録処理が実行中です。…` |
 
-### `addBulkVolumesWeb(entries)` — 複数行一括登録
+### `addBulkVolumesWeb(entries, readStatus)` — 複数行一括登録
 
 | 項目 | 内容 |
 |---|---|
-| 引数 | `entries: [{ titleId, volume, boxId }]` |
+| 引数 | `entries: [{ titleId, volume, boxId }]`、`readStatus`: 登録した本の読書状況（省略時は `未読`） |
 | 戻り値 | `{ success: true, added, errors: [{ line, message }], messages: [] }` |
 | 処理 | 行ごとに必須・作品/Box 存在・重複をチェックし、OK の行だけ最後に `appendLibraryRows` でまとめて書き込み（部分成功） |
 | 備考 | 巻数式は解釈しない（1 行 1 巻）。重複エラーには `duplicate: true` を付与。写真から登録の `bulkAddLibraryFromPhoto` から呼び出される（排他は呼び出し側で実施） |
 
 ### `getTitleDetail(titleId)` — 作品別検索
 
-戻り値 `[{ volume, box }]`。`box` は **BoxID**（保管場所名ではない）。行順（画面側で巻数順に並べ替え）。
+戻り値 `[{ id, volume, box, read }]`。`id` は LibraryID、`box` は **BoxID**（保管場所名ではない）、`read` は読書状況。行順（画面側で巻数順に並べ替え）。
 
 ### `getSeriesDetail(seriesId)` — シリーズの書籍
 
@@ -180,6 +182,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 | `uniqueTitles` | `M_Library` に登場する TitleID の種類数（登録作品数） |
 | `uniqueBoxes` | `M_Library` に登場する BoxID の種類数（使用中 Box 数。`M_Box` の件数ではない） |
 | `lastAdded` | 最終行の追加日（`yyyy/MM/dd`）。データなしは `null` |
+| `unread` / `reading` | 読書状況が `未読`（積読）/ `読書中` の冊数（`M_Read` に行のない書籍は読了） |
 
 ---
 
@@ -360,11 +363,11 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 3. 既存シリーズ指定時: SeriesID の存在を確認
 4. `addTitleMasterWeb` で作品を追加し、採番された ID を返す
 
-### `bulkAddLibraryFromPhoto(rows)` — 確定行の一括登録
+### `bulkAddLibraryFromPhoto(rows, options)` — 確定行の一括登録
 
 | 項目 | 内容 |
 |---|---|
-| 引数 | `rows: [{ rowId, titleId, volume, boxId, label, markCompleted }]`（最大 200 件） |
+| 引数 | `rows: [{ rowId, titleId, volume, boxId, label, markCompleted }]`（最大 200 件）、`options.read`: `true` なら読了として登録（省略時は未読） |
 | 戻り値 | `{ success: true, added, duplicates: [{ rowId, label, message }], failed: [...], addedRowIds, completedTitles }` |
 | 排他 | 登録処理をスクリプトロックで保護 |
 
@@ -492,8 +495,23 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 
 | 関数 | 内容 |
 |---|---|
-| `getHomeDataWeb()` | 画面用。戻り値 `{ success, release, wishes, watching, plannedCount }`。`release` は `getReleaseViewWeb` の結果を分けたもの `{ success, configured, lastFetchedAt, thisWeek, thisMonth, laterCount, unowned }`（`thisWeek` / `thisMonth` の要素は `upcoming`、`unowned` は「完結済みかも」を除いた `unowned`。発売予定の取得に失敗したときは `{ success: false, message }` で、他の欄は返す）。`wishes` は `getWishList()`、`watching` は `getAnimeData()` の `seasons` のうち状況が `視聴中` のもの（最近更新した順）、`plannedCount` は `視聴予定` の件数 |
+| `getHomeDataWeb()` | 画面用。戻り値 `{ success, release, wishes, watching, plannedCount, reading }`。`reading` は `getUnreadSummary()`（3.9.5）。`release` は `getReleaseViewWeb` の結果を分けたもの `{ success, configured, lastFetchedAt, thisWeek, thisMonth, laterCount, unowned }`（`thisWeek` / `thisMonth` の要素は `upcoming`、`unowned` は「完結済みかも」を除いた `unowned`。発売予定の取得に失敗したときは `{ success: false, message }` で、他の欄は返す）。`wishes` は `getWishList()`、`watching` は `getAnimeData()` の `seasons` のうち状況が `視聴中` のもの（最近更新した順）、`plannedCount` は `視聴予定` の件数 |
 | `splitHomeReleases(upcoming, today)` | 発売予定（発売日順）を分ける。戻り値 `{ thisWeek, thisMonth, laterCount }`。今週: 日付まで分かっていて今日から 7 日以内（今日を含む。`HOME_WEEK_DAYS`、月をまたいでもよい）。今月: 今週以外で今月中（「11月下旬」「11月頃」など日付のないものを含む）。それ以外は件数だけ |
+
+---
+
+## 3.9.5 書籍の読書状況（`server/ReadService.js`）
+
+書籍ごとの読書状況（`未読` / `読書中` / `読了`）を `M_Read`（2.3.11）に持ちます。**行のない書籍は `読了`**（記録を始める前に登録した本）。新しく登録した本は登録処理（`addNewVolumeWeb` / `addBulkVolumesWeb`）が `未読` の行を作ります。
+
+| 関数 | 内容 |
+|---|---|
+| `setReadStatusWeb(libraryIds, status)` | 画面用。複数の書籍をまとめて同じ状況にする（スクリプトロック）。戻り値 `success('進撃の巨人 3巻を「読了」にしました')`（1 冊のときは作品の表示ラベルと巻。複数なら `n冊を「読了」にしました`）。エラー: 状況が 3 つ以外 / 書籍の指定なし / `M_Library` にない ID（`書籍が見つかりません: …`。1 件でもあれば何も書かない） |
+| `getUnreadSummary()` | 積読のまとめ。戻り値 `{ unreadCount, readingCount, titles: [{ titleId, titleName, titleType, unreadVolumes, readingVolumes, next: { id, volume, read } }] }`。`titles` は未読・読書中の巻がある作品で、読書中の作品が先、その後は最後に登録した日の新しい順。`titleName` は表示ラベル（同名作品は「作品名（種別）」） |
+| `getNextReadVolume(volumes)` | 次に読む巻。`volumes: [{ id, volume, read }]` のうち読書中の巻（巻順で最初）、なければ未読のうち最小の巻。なければ `null`。数字以外の巻は数字の巻の後ろ。画面の `pickNextReadVolume`（`Common.html`）も同じ判定 |
+| `getReadStatusMap()` / `getReadStatus(map, libraryId)` | LibraryID → 状況（シートにある分だけ）と、行がなければ `読了` を返す取得 |
+| `writeReadStatuses(libraryIds, status)` | 書き込みの本体（ロックは呼び出し元）。ある行は書き換え、ない書籍は追加。データ行をまとめて書き直す |
+| `removeReadStatuses(libraryIds)` | 書籍の削除に合わせて行を消す |
 
 ---
 
@@ -504,7 +522,8 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 | `getTitleMaster` | `refreshMasterData`, `loadLibraryAddForm`, `loadPhotoImportView` |
 | `getTitleListWithOwnership` | `loadTitleList` |
 | `getWishList` / `addWishes` / `deleteWish` | `loadWishListView`・`reloadWishList` / `addWishFromForm`・`addPhotoRowToWishList`・`addReleaseToWish`（発売予定・ホーム）/ `deleteWishItem` |
-| `getHomeDataWeb` | `loadHomeView`（ホームを開いたとき・起動時・欲しい巻への追加の後） |
+| `getHomeDataWeb` | `loadHomeView`（ホームを開いたとき・起動時・欲しい巻への追加や読了の後） |
+| `setReadStatusWeb` | `setReadStatus`（書籍一覧の [にする]（まとめて変更）、作品の詳細・ホームの [n巻を読了]） |
 | `getReleaseViewWeb` / `updateReleasesWeb` | `loadReleaseView`（発売予定を開いたとき・取得や欲しい巻への追加の後）/ `fetchReleases`（[発売情報を取得]・[続きを取得]・作品ごとの [再取得]） |
 | `updateReleasesByTrigger` | 毎日 5 時台の時間主導トリガー（`setupReleaseTrigger` で設定） |
 | `setupReleaseTrigger` | Apps Script エディタから手動実行（1 回だけ） |

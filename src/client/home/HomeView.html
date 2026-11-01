@@ -6,6 +6,12 @@
   <div id="homeReleaseStatus" class="release-status"></div>
 
   <div class="home-sections">
+    <details class="home-section" data-section="reading" open>
+      <summary><h4 class="release-heading">積読 <span id="homeReadingCount" class="release-count"></span>
+        <a href="#" class="home-more" onclick="event.preventDefault(); showTab('LibraryListView');">書籍一覧 →</a></h4></summary>
+      <div id="homeReading" class="wish-groups"></div>
+    </details>
+
     <details class="home-section" data-section="week" open>
       <summary><h4 class="release-heading">今週の発売 <span id="homeWeekCount" class="release-count"></span>
         <a href="#" class="home-more" onclick="event.preventDefault(); showTab('ReleaseView');">発売予定 →</a></h4></summary>

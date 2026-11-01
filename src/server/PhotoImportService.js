@@ -448,8 +448,9 @@ function getLibraryKeys(){
 // 確定行の一括登録
 // rows: [{ rowId, titleId, volume, boxId, label, markCompleted }, ...]
 // markCompleted: 最終巻。登録できた場合に作品を完結済へ更新する
+// options.read: true なら読了として登録（省略時は未読）
 // ----------------------
-function bulkAddLibraryFromPhoto(rows){
+function bulkAddLibraryFromPhoto(rows, options){
 
   if(!Array.isArray(rows) || rows.length === 0){
     return failure('登録対象がありません');
@@ -503,7 +504,7 @@ function bulkAddLibraryFromPhoto(rows){
     }
 
     try{
-      const res = addBulkVolumesWeb(entries);
+      const res = addBulkVolumesWeb(entries, options && options.read ? '読了' : READ_NEW_STATUS);
       if(!res.success){
         return failure(res.message);
       }
