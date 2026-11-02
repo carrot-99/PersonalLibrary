@@ -1165,6 +1165,27 @@
   .release-view-switch { display: inline-flex; margin: 4px 0 8px; border: 1px solid #374151; border-radius: 8px; overflow: hidden; }
   .release-view-switch button { margin: 0; padding: 6px 16px; border-radius: 0; background: #111827; color: #cbd5e1; box-shadow: none; }
   .release-view-switch button.active { background: #0e7490; color: #fff; }
+  /* おすすめ（PC 幅は 2 列、スマホ幅は 1 列） */
+  .recommend-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr)); gap: 10px; margin-top: 10px; }
+  .recommend-card {
+    display: flex;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid #374151;
+    border-left: 6px solid #a78bfa;
+    border-radius: 8px;
+    background: #0b1220;
+  }
+  .recommend-cover { flex: 0 0 72px; width: 72px; height: 104px; object-fit: cover; border-radius: 4px; background: #1f2937; }
+  .recommend-body { flex: 1 1 auto; min-width: 0; }
+  .recommend-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+  .recommend-author { font-size: 0.85rem; color: #9ca3af; }
+  .recommend-reason { margin: 6px 0 4px; font-size: 0.9rem; }
+  .recommend-similar { font-size: 0.85rem; color: #c4b5fd; }
+  .recommend-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+  .recommend-action { margin: 0; padding: 4px 12px; font-size: 0.85rem; background: #374151; box-shadow: none; }
+  .recommend-action.is-interested { background: #7c3aed; }
+  .recommend-dismissed { margin-top: 12px; }
   /* 読書状況 */
   .read-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; font-size: 0.9rem; }
   .read-bulk select { width: auto; margin: 0; }

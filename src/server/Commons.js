@@ -17,7 +17,8 @@ const SHEETS = {
   ANIME_WATCH:  'M_AnimeWatch',
   RELEASE:       'M_Release',
   RELEASE_CHECK: 'M_ReleaseCheck',
-  READ:          'M_Read'
+  READ:          'M_Read',
+  RECOMMEND:     'M_Recommend'
 };
 
 // ----------------------

@@ -1,0 +1,189 @@
+<!-- Recommend.html -->
+<script>
+//////////////////////////////
+// おすすめの漫画
+//////////////////////////////
+const recommendState = {
+  data: null,
+  busy: false
+};
+
+// refresh: true なら前回の結果を描画せず取り直すだけ（状態の変更・作成の後）
+function loadRecommendView(refresh){
+  callGASCached('recommend.view', 'getRecommendViewWeb', function(res){
+    if(!res || !res.success) return showError(res && res.message ? res.message : 'おすすめの読み込みに失敗しました');
+    recommendState.data = res;
+    renderRecommendView();
+  }, { viewId: 'RecommendView', refresh: refresh === true, errorMessage: 'おすすめの読み込みに失敗しました' });
+}
+
+// [おすすめを探す]（AI の応答と楽天での確認で 1 分ほどかかる）
+function createRecommendations(){
+  if(recommendState.busy) return;
+  const input = document.getElementById('recommendRequestInput');
+  const message = checkTextInput(input.value, '要望', { max: MEMO_MAX_LENGTH });
+  if(message) return showError(message);
+
+  recommendState.busy = true;
+  const button = document.getElementById('recommendCreateButton');
+  button.disabled = true;
+  button.textContent = '探しています...';
+  showInlineLoading('RecommendView', 'AI がおすすめを探しています（1 分ほどかかります）...');
+
+  const finish = function(){
+    recommendState.busy = false;
+    button.disabled = false;
+    button.textContent = 'おすすめを探す';
+    hideInlineLoading('RecommendView');
+  };
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      finish();
+      if(res && res.success){
+        showSuccess(res.message);
+        loadRecommendView(true);
+      } else {
+        showError(res && res.message ? res.message : 'おすすめの作成に失敗しました');
+      }
+    })
+    .withFailureHandler(function(error){
+      finish();
+      showError(error && error.message ? error.message : '通信に失敗しました');
+    })
+    .createRecommendationsWeb(input.value.trim());
+}
+
+function setRecommendStatus(id, status, btn){
+  btn.disabled = true;
+  callGAS('setRecommendStatusWeb', function(res){
+    if(res && res.success){
+      showSuccess(res.message);
+      loadRecommendView(true);
+    } else {
+      btn.disabled = false;
+      showError(res && res.message ? res.message : '変更に失敗しました');
+    }
+  }, id, status);
+}
+
+//////////////////////////////
+// 表示用の整形（DOM を使わない）
+//////////////////////////////
+// 上部の状況の文（API キー・楽天の設定と最終作成日時）
+function formatRecommendStatus(data){
+  if(!data) return '';
+  if(!data.configured) return 'スクリプトプロパティ ANTHROPIC_API_KEY が未設定です';
+  const parts = [data.lastCreatedAt ? `最終作成: ${data.lastCreatedAt}` : 'まだおすすめを作っていません'];
+  if(!data.rakutenConfigured) parts.push('楽天の認証情報がないため、作品が実在するかは確かめていません');
+  return parts.join('・');
+}
+
+//////////////////////////////
+// 描画
+//////////////////////////////
+function renderRecommendView(){
+  const data = recommendState.data;
+  document.getElementById('recommendStatus').textContent = formatRecommendStatus(data);
+  document.getElementById('recommendCreateButton').disabled = !data.configured || recommendState.busy;
+
+  renderRecommendCards('recommendCandidates', 'recommendCandidatesCount', data.candidates || [],
+    '[おすすめを探す] を押すと、ここにおすすめが表示されます');
+  renderRecommendCards('recommendInterested', 'recommendInterestedCount', data.interested || [],
+    'おすすめの [気になる] を押した作品がここに残ります');
+
+  document.getElementById('recommendDismissed').textContent = data.dismissedCount > 0
+    ? `興味なし ${data.dismissedCount}件（次回のおすすめから除きます）`
+    : '';
+}
+
+function renderRecommendCards(containerId, countId, items, emptyText){
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  document.getElementById(countId).textContent = `${items.length}件`;
+  if(items.length === 0){
+    const empty = document.createElement('p');
+    empty.className = 'detail-empty';
+    empty.textContent = emptyText;
+    container.appendChild(empty);
+    return;
+  }
+  items.forEach(item => container.appendChild(createRecommendCard(item)));
+}
+
+function createRecommendCard(item){
+  const card = document.createElement('div');
+  card.className = 'recommend-card';
+
+  if(item.imageUrl){
+    const image = document.createElement('img');
+    image.className = 'recommend-cover';
+    image.src = item.imageUrl;
+    image.alt = '';
+    image.loading = 'lazy';
+    card.appendChild(image);
+  }
+
+  const body = document.createElement('div');
+  body.className = 'recommend-body';
+
+  const head = document.createElement('div');
+  head.className = 'recommend-head';
+  const name = document.createElement('strong');
+  name.textContent = item.name;
+  head.appendChild(name);
+  if(!item.verified) head.appendChild(createReleaseBadge('未確認', 'is-stale'));
+  body.appendChild(head);
+
+  if(item.author){
+    const author = document.createElement('div');
+    author.className = 'recommend-author';
+    author.textContent = item.author;
+    body.appendChild(author);
+  }
+
+  const reason = document.createElement('p');
+  reason.className = 'recommend-reason';
+  reason.textContent = item.reason;
+  body.appendChild(reason);
+
+  if((item.similar || []).length > 0){
+    const similar = document.createElement('div');
+    similar.className = 'recommend-similar';
+    similar.appendChild(document.createTextNode('似ている手持ち: '));
+    item.similar.forEach((s, i) => {
+      if(i > 0) similar.appendChild(document.createTextNode('、'));
+      similar.appendChild(s.titleId
+        ? createCellLink(s.name, function(){ openTitleDetail(s.titleId); })
+        : document.createTextNode(s.name));
+    });
+    body.appendChild(similar);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'recommend-actions';
+  if(item.url) actions.appendChild(createReleaseShopLink(item.url));
+  if(item.status === '気になる'){
+    actions.appendChild(createRecommendButton('候補に戻す', '', btn => setRecommendStatus(item.id, '候補', btn)));
+  } else {
+    actions.appendChild(createRecommendButton('気になる', 'is-interested', btn => setRecommendStatus(item.id, '気になる', btn)));
+  }
+  actions.appendChild(createRecommendButton('興味なし', '', btn => setRecommendStatus(item.id, '興味なし', btn)));
+  body.appendChild(actions);
+
+  card.appendChild(body);
+  return card;
+}
+
+function createRecommendButton(label, className, onClick){
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `recommend-action ${className}`;
+  button.textContent = label;
+  button.addEventListener('click', function(){ onClick(button); });
+  return button;
+}
+
+window.loadRecommendView = loadRecommendView;
+window.createRecommendations = createRecommendations;
+</script>

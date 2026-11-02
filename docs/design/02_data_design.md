@@ -18,6 +18,7 @@
 | `SHEETS.RELEASE` | `M_Release` | 連載中の漫画・ラノベの、所持巻より先の巻と発売日（楽天ブックスから取得。**初回取得時に自動作成**） |
 | `SHEETS.RELEASE_CHECK` | `M_ReleaseCheck` | 発売情報の作品ごとの取得状況（**初回取得時に自動作成**） |
 | `SHEETS.READ` | `M_Read` | 書籍の読書状況（**初回登録・変更時に自動作成**。行のない書籍は読了） |
+| `SHEETS.RECOMMEND` | `M_Recommend` | おすすめの漫画（AI の挙げた作品と、気になる・興味なしの反応。**初回の作成時に自動作成**） |
 
 共通ルール:
 
@@ -173,9 +174,29 @@ M_Series 1 ──── 0..* M_Anime 1 ──── 0..* M_AnimeSeason 1 ──�
 - 新しく登録した本（`addNewVolumeWeb` / `bulkAddLibraryFromPhoto`）は `未読` の行を作る（写真から登録で「読了として登録」にしたときは `読了`）。
 - 書籍を削除すると（`deleteLibraryMaster`）その行も消す。
 
+### 2.3.12 M_Recommend（おすすめの漫画）
+
+`getRecommendSheet()`（`server/RecommendService.js`）が、なければヘッダー行（固定表示）付きで作成します。
+
+| 列 | 項目 | 型 | 説明 |
+|---|---|---|---|
+| A (1) | RecommendID | 文字列 | `R` + 6 桁連番 |
+| B (2) | 作品名 | 文字列 | AI の挙げた作品名（AI の表記のまま） |
+| C (3) | 作者 | 文字列 | 楽天の `author`（見つからなければ AI の回答） |
+| D (4) | おすすめの理由 | 文字列 | 1〜2 文 |
+| E (5) | 似ている作品 | 文字列 | 根拠にした手持ちの作品名（「、」区切り。最大 3 件） |
+| F (6) | 状態 | 文字列 | `候補` / `気になる` / `興味なし`（`RECOMMEND_STATUSES`） |
+| G (7) | 楽天URL | 文字列 | 1 巻（なければいちばん古い商品）の商品ページ。未確認なら空 |
+| H (8) | 画像URL | 文字列 | 楽天の表紙画像。未確認なら空 |
+| I (9) | 確認 | 文字列 | `確認済`（楽天で見つかった）/ `未確認`（楽天の認証情報なし・通信エラー） |
+| J (10) | 作成日 | 日付 | 作成した日時 |
+
+- [おすすめを探す] で新しいおすすめが見つかると、**状態が `候補` の行を消して**追加します。`気になる` / `興味なし` の行は残し、次回の AI への指示に使います（新しいおすすめが 0 件なら前回の候補も残す）。
+- 手持ちの作品（`M_Title`）と同じ作品（あとで買って登録したもの）は、表示時に照合して画面に出しません（行は残す）。
+
 ## 2.4 ID 採番
 
-`M_Library` / `M_Title` / `M_Series` / `M_Wish` / `M_Anime` / `M_AnimeSeason` は `generateNextId(prefix, lastId)`（`server/Commons.js`）で採番します。
+`M_Library` / `M_Title` / `M_Series` / `M_Wish` / `M_Anime` / `M_AnimeSeason` / `M_Recommend` は `generateNextId(prefix, lastId)`（`server/Commons.js`）で採番します。
 
 1. `getMaxId(sheetName)` で**1 列目のうち末尾の数字が最大の ID** を取得（データなしの場合 `null`）。シートを並べ替えても重複しません
 2. その値から `prefix` を除去して整数化し、+1
@@ -189,10 +210,11 @@ M_Series 1 ──── 0..* M_Anime 1 ──── 0..* M_AnimeSeason 1 ──�
 | M_Wish | `W` | `W000001` |
 | M_Anime | `A` | `A000001` |
 | M_AnimeSeason | `AS` | `AS000001` |
+| M_Recommend | `R` | `R000001` |
 
 前提・制約:
 
-- 最大 ID の行を削除すると、次の登録で同じ ID が再利用されます（ID は他シートから参照されない LibraryID・WishID では影響なし）。
+- 最大 ID の行を削除すると、次の登録で同じ ID が再利用されます（ID は他シートから参照されない LibraryID・WishID・RecommendID では影響なし）。
 - 追加・更新・削除はすべてスクリプトロックで排他するため、同時登録でも同一 ID は発行されません。
 - シリーズ名は重複不可（全角半角・大文字小文字・ひらがな/カタカナ・空白記号の違いを無視して比較。`findDuplicateName`）。
 - 作品は**作品名と種別の組み合わせ**が重複不可（同じ作品名でも漫画とラノベは別作品として登録できる。`findDuplicateTitle`）。同名の作品は画面の選択肢で「作品名（種別）」と表示して区別します（`buildTitleLabelMap`）。
@@ -210,4 +232,5 @@ M_Series 1 ──── 0..* M_Anime 1 ──── 0..* M_AnimeSeason 1 ──�
 | 積読・読書状況（サマリー・書籍一覧・作品の詳細・ホーム） | `M_Library.LibraryID` → `M_Read.状況`（行がなければ読了） |
 | アニメの作品名・シリーズ（期の一覧） | `M_AnimeSeason.AnimeID` → `M_Anime.作品名` → `M_Anime.SeriesID` → `M_Series.シリーズ名` |
 | アニメの話数・状況 | `M_AnimeSeason.SeasonID` → `M_AnimeWatch` |
+| おすすめ・気になる（おすすめ画面） | `M_Recommend`（`M_Title` と同じ作品名のものは除く）。「似ている手持ち」のリンクは作品名で `M_Title` と照合 |
 | 発売予定・発売済未所持（発売予定画面） | `M_Release`（`M_Library` に同じ (TitleID, 巻数) があれば除く。欲しい巻は `M_Wish` と照合）→ `M_Title.作品名` |

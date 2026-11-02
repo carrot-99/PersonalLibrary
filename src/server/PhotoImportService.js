@@ -133,7 +133,22 @@ function requestSpineAnalysis(images, titles, apiKey, props){
     messages: [{ role: 'user', content }]
   };
 
-  const response = fetchAnthropicMessages(payload, apiKey);
+  const parsed = parseAnthropicJson(fetchAnthropicMessages(payload, apiKey), {
+    failed: 'AI解析に失敗しました',
+    refusal: 'AIが解析を拒否しました。別の写真で再試行してください',
+    maxTokens: '解析結果が長すぎます。写真を分けて再試行してください'
+  });
+
+  return validateSpineResult(parsed, images.length);
+}
+
+
+// ----------------------
+// Messages API の応答（JSON スキーマ指定）→ 解析済みの JSON
+// messages: { failed: HTTP エラーの見出し, refusal: 拒否されたとき, maxTokens: 長すぎたとき }
+// ----------------------
+function parseAnthropicJson(response, messages){
+
   const status = response.getResponseCode();
   const body = response.getContentText();
 
@@ -146,16 +161,16 @@ function requestSpineAnalysis(images, titles, apiKey, props){
     }
     console.error(`AI API error ${status}: ${body}`);
     const retryable = status === 429 || status >= 500;
-    throw new Error(`AI解析に失敗しました（${status}）${retryable ? '。時間をおいて再試行してください' : ''}${detail ? ': ' + detail : ''}`);
+    throw new Error(`${messages.failed}（${status}）${retryable ? '。時間をおいて再試行してください' : ''}${detail ? ': ' + detail : ''}`);
   }
 
   const result = JSON.parse(body);
 
   if(result.stop_reason === 'refusal'){
-    throw new Error('AIが解析を拒否しました。別の写真で再試行してください');
+    throw new Error(messages.refusal);
   }
   if(result.stop_reason === 'max_tokens'){
-    throw new Error('解析結果が長すぎます。写真を分けて再試行してください');
+    throw new Error(messages.maxTokens);
   }
 
   const textBlock = (result.content || []).find(block => block.type === 'text');
@@ -163,14 +178,11 @@ function requestSpineAnalysis(images, titles, apiKey, props){
     throw new Error('AIの応答が不正です');
   }
 
-  let parsed;
   try{
-    parsed = JSON.parse(textBlock.text);
+    return JSON.parse(textBlock.text);
   } catch(e){
     throw new Error('AIの応答が不正です');
   }
-
-  return validateSpineResult(parsed, images.length);
 }
 
 
