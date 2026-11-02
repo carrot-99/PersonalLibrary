@@ -52,6 +52,20 @@ test('buildTitleVolumeGrid: 所持していて欲しい巻にもある巻は所�
   assert.deepEqual(plain(client.buildTitleVolumeGrid([], [])), []);
 });
 
+test('pickVolumesToMarkRead: 選んだ巻まで（巻の順）の、まだ読了でない巻', () => {
+  const owned = [
+    { id: 'L1', volume: '1', read: '読了' },
+    { id: 'L2', volume: '2', read: '読書中' },
+    { id: 'L3', volume: '3', read: '未読' },
+    { id: 'L10', volume: '10', read: '未読' },
+    { id: 'LX', volume: '特装版', read: '未読' }
+  ];
+  assert.deepEqual(plain(client.pickVolumesToMarkRead(owned, '3')), ['L2', 'L3']);
+  assert.deepEqual(plain(client.pickVolumesToMarkRead(owned, '10')), ['L2', 'L3', 'L10']);
+  assert.deepEqual(plain(client.pickVolumesToMarkRead(owned, '特装版')), ['L2', 'L3', 'L10', 'LX']);
+  assert.deepEqual(plain(client.pickVolumesToMarkRead(owned, '1')), []);
+});
+
 test('getPhotoImportStep: 写真を選ぶ → 所持を確認 → 未所持を登録 → 完了', () => {
   assert.equal(client.getPhotoImportStep({ reviewing: false, mode: 'check', hasResult: false }), 1);
   assert.equal(client.getPhotoImportStep({ reviewing: true, mode: 'check', hasResult: false }), 2);

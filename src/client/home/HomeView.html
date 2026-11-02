@@ -62,9 +62,10 @@
       <div id="homeWatching" class="wish-groups"></div>
     </details>
 
-    <!-- 最近追加した漫画（書籍モードのみ。たためない） -->
-    <section class="recent-history-panel book-only">
-      <h4 class="release-heading"><span class="home-icon" aria-hidden="true">🆙</span>最近追加した漫画</h4>
+    <!-- 最近追加した漫画（書籍モードのみ） -->
+    <details class="home-section recent-history-panel book-only" data-section="recent" open>
+      <summary><h4 class="release-heading"><span class="home-icon" aria-hidden="true">🆙</span>最近追加した漫画
+        <a href="#" class="home-more" onclick="event.preventDefault(); event.stopPropagation(); showTab('LibraryListView');">書籍一覧 →</a></h4></summary>
       <table class="table table-striped" id="globalRecentLibraryTable">
         <thead>
           <tr>
@@ -74,6 +75,6 @@
         </thead>
         <tbody></tbody>
       </table>
-    </section>
+    </details>
   </div>
 </div>
