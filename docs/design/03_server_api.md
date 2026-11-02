@@ -358,7 +358,7 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 | `volumeDisplay` | 巻数（数字のみ。「上」等はそのまま。不明は空文字） |
 | `uncertain` | 作品名・巻数に自信がない場合 `true` |
 
-エラー処理:
+エラー処理（応答の解析は `parseAnthropicJson(response, messages)` に共通化し、おすすめ（3.9.6）でも使う。下の `AI解析に失敗しました` などは `messages` で呼び出し元ごとに指定）:
 
 | 状況 | メッセージ |
 |---|---|
@@ -557,6 +557,53 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 
 ---
 
+## 3.9.6 おすすめの漫画（`server/RecommendService.js`）
+
+手持ちの作品・読書状況・欲しい巻・アニメの視聴状況から好みを推定する材料を作り、AI（写真から登録と同じ Anthropic Messages API。スクリプトプロパティ `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` / `ANTHROPIC_EFFORT` を共用）に持っていない漫画を挙げてもらいます。挙がった作品は楽天ブックス（3.9.3 の `fetchRakutenBooks`）で実在を確かめてから `M_Recommend`（2.3.12）に保存します。AI を呼ぶのは画面の [おすすめを探す] を押したときだけです。
+
+| 定数 `RECOMMEND` | 値 | 内容 |
+|---|---|---|
+| `REQUEST_COUNT` | 15 | AI に挙げてもらう件数（手持ちとの重複・楽天で見つからない分を見込んで多めに） |
+| `SHOW_COUNT` | 10 | 1 回に保存する件数の上限（楽天で確かめた件数がそろったら確認を打ち切る） |
+| `MAX_PROFILE_TITLES` | 300 | AI に渡す手持ち作品の上限（所持巻数の多い順） |
+| `MAX_TOKENS` | 6000 | 応答の最大トークン |
+| `OWNED_THRESHOLD` | 0.9 | 手持ちの作品・保存済みのおすすめと同じ作品とみなす類似度（`titleSimilarity`）の下限 |
+| `CONTAIN_MIN_LENGTH` | 3 | 作品名が片方に含まれていれば同じ作品とみなす最短の文字数（照合キーの文字数。「フリーレン」と「葬送のフリーレン」など） |
+| `REQUEST_MAX_LENGTH` | 200 | 要望の文字数の上限 |
+
+| 関数 | 内容 |
+|---|---|
+| `getRecommendViewWeb()` | 画面用。戻り値 `{ success, configured（ANTHROPIC_API_KEY があるか）, rakutenConfigured, lastCreatedAt（yyyy/MM/dd HH:mm）, candidates, interested, dismissedCount }`。`candidates` は状態 `候補`、`interested` は `気になる` の行で、要素は `{ id, name, author, reason, similar: [{ name, titleId }], status, url, imageUrl, verified, date }`。`similar` の `titleId` は作品名が `M_Title` と一致したときだけ（作品の詳細へのリンク用）。手持ちの作品と同じになった行は除く |
+| `createRecommendationsWeb(request)` | [おすすめを探す]。`request` は要望（任意。`checkText` で 200 文字まで・「=」始まり不可）。戻り値 `{ success, message, added, duplicates, notFound }`（メッセージ例「8件のおすすめが見つかりました（手持ち・前回までと重複 3・楽天で見つからない 4 を除外）」）。エラー: API キー未設定 / 持っている作品が 0 件 / AI の失敗（`おすすめの作成に失敗しました（<status>）` など。3.8 と同じ扱い）。新しいおすすめが 0 件なら成功扱いで何も書かない。保存はスクリプトロック |
+| `setRecommendStatusWeb(id, status)` | 状態を `候補` / `気になる` / `興味なし` に変更（スクリプトロック）。戻り値 `success('「作品名」を「気になる」にしました')`。エラー: 状態がこの 3 つ以外 / ID がない |
+| `buildRecommendProfile()` | AI に渡す材料。戻り値 `{ titles: [{ name, type, volumes, read, unread, completed, series }], otherTitles, wishes, animeWatched, animeDropped, interested, dismissed, previous }`。`titles` は書籍が 1 冊以上ある作品を所持巻数の多い順（同数は作品名順）に最大 300 件。`otherTitles` は `titles` に入らなかった `M_Title` の作品名（上限を超えた分・書籍のない作品。名前だけを「挙げないもの」として渡す）。`read` は読了の冊数（3.9.5。行のない書籍は読了）、`unread` は未読・読書中の冊数。`wishes` は欲しい巻がある作品名、`animeWatched` / `animeDropped` は状況が `視聴済`・`視聴中` / `視聴中断` のアニメ作品名、`interested` / `dismissed` / `previous` は `M_Recommend` の `気になる` / `興味なし` / `候補` の作品名 |
+| `requestRecommendations(profile, request, apiKey, props)` | AI の呼び出し（`fetchAnthropicMessages` → `parseAnthropicJson`）。指示文の要点は下記。`output_config.format` に JSON スキーマ（`RECOMMEND_SCHEMA`）を指定し `{ "recommendations": [ { "title", "author", "reason", "similar": [手持ちの作品名] } ] }` で応答させる |
+| `validateRecommendResult(parsed)` | 応答の正規化。文字列を前後の空白除去・長さで切り詰め（作品名・作者 100 文字、理由 300 文字、似ている作品は 3 件まで）、作品名が空・同じ作品名（`normalizeTitleForMatch`）の重複を除く。`recommendations` が配列でなければ `AIの応答が不正です` |
+| `filterOwnedRecommendations(items, titleNames, savedNames)` | `M_Title` の全作品名と `M_Recommend` の全作品名（全状態）のどれかと同じ作品（`isSameRecommendTitle`: 類似度 0.9 以上、または片方の照合キーがもう片方に含まれる。含まれる側は 3 文字以上）を除く（末尾の「（小説）」などの注記は除いて比較）。略称（「フリーレン」）・版違い（「鋼の錬金術師 完全版」）・スピンオフ（「DEATH NOTE 短編集」）も除かれる。戻り値 `{ items, duplicates }` |
+| `verifyRecommendation(item, credentials)` | 楽天ブックスで作品名を漫画のジャンルで検索し、商品名（`toReleaseMatchKey`）に作品名が含まれる商品（セット・BOX は除く）があれば確認済。1 巻の通常版（`parseRakutenVolume`）があればその商品、なければいちばん古い商品の URL・表紙画像・作者・商品名（`productTitle`）を使う。見つからなければ `null`（除外）。通信・API のエラーは投げる |
+
+`createRecommendationsWeb` の流れ:
+
+```
+[おすすめを探す] ──request──▶ createRecommendationsWeb
+                               ├ 入力検証・API キー確認
+                               ├ buildRecommendProfile … 手持ち・既読・欲しい巻・アニメ・前回までのおすすめ
+                               ├ requestRecommendations … AI に 15 件を依頼
+                               ├ validateRecommendResult / filterOwnedRecommendations
+                               ├ verifyRecommendation … 楽天で 1 件ずつ確認（間隔 1.5 秒。10 件そろったら打ち切り）
+                               │   商品名でも手持ち・保存済みと照合し、同じなら重複として除く
+                               └ 保存（ロック）… 候補の行を消し、新しい行を追加
+画面を取り直す ◀── message / added / duplicates / notFound
+```
+
+- 楽天の認証情報がなければ確かめずに `未確認` で保存する。確認中に楽天に拒否された（認証エラー）ら、それ以降は確かめずに `未確認`。その他の通信エラーはその作品だけ `未確認`。
+- 指示文の要点: 日本で単行本が出ている漫画だけを挙げる（ラノベ・小説は挙げない）。手持ちの作品（その他の手持ちの作品を含む。略称・英語表記で登録されていることがあるので中身で判断）とその続編・スピンオフ・短編集・同じシリーズの作品と「挙げないもの」（気になる・興味なし・前回の候補）は除く。実在に自信がない作品は挙げない。好みの強さの目安は所持巻数が多い・読了している・欲しい巻がある作品ほど強く、未読が多い作品は弱い。「興味なし」と視聴をやめたアニメは好みに合わなかった手がかり。作品名は略称にしない正式な名前（例「葬送のフリーレン」）。理由は「手持ちの〇〇が好きなら」の形で 1〜2 文。
+- 時間: AI の応答（数十秒）＋楽天の確認（1 件約 1.8 秒、最大 15 件）で、Apps Script の実行時間の上限（6 分）に収まる。
+
+内部関数: `getRecommendSheet()`（シート作成）、`getRecommendRows()`（保存済みの行）、`toRecommendKey(name)` / `isSameRecommendTitle(key, keys)`（作品名の照合）、`formatRecommendProfileLine(title)`（指示文の手持ち作品 1 行。例 `進撃の巨人（漫画） / 所持3巻 / 読了2巻・未読1巻 / 完結済 / シリーズ: 進撃シリーズ`）。
+
+---
+
 ## 3.10 API 呼び出し元一覧
 
 | API | 呼び出し元（クライアント関数） |
@@ -568,6 +615,7 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 | `setReadStatusWeb` | `setReadStatus`（書籍一覧の [にする]（まとめて変更）、作品の詳細・ホームの [n巻を読了]） |
 | `getReleaseViewWeb` / `updateReleasesWeb` | `loadReleaseView`（発売予定を開いたとき・取得や欲しい巻への追加の後）/ `fetchReleases`（[発売情報を取得]・[続きを取得]・作品ごとの [再取得]） |
 | `updateReleasesByTrigger` | 毎日 5 時台の時間主導トリガー（`setupReleaseTrigger` で設定） |
+| `getRecommendViewWeb` / `createRecommendationsWeb` / `setRecommendStatusWeb` | `loadRecommendView`（おすすめを開いたとき・作成や状態の変更の後）/ `createRecommendations`（[おすすめを探す]）/ `setRecommendStatus`（[気になる] [興味なし] [候補に戻す]） |
 | `setupReleaseTrigger` | Apps Script エディタから手動実行（1 回だけ） |
 | `getWishKeys` | `appendTitleWishLine`（作品表示） |
 | `getTitleDetail` | `showTitle`, `onWishTitleInput`（欲しい巻リストの「次の巻」） |

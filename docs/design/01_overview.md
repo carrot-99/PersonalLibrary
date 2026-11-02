@@ -18,6 +18,7 @@
 | 写真で確認・登録 | 本の表紙・背表紙の写真（最大 5 枚）を AI（Anthropic Messages API）で解析し、持っている巻か・買うと続きになるかを判定（書店での確認用）。持っていない本はそのまま確認のうえ一括登録 |
 | 欲しい巻リスト | 買いたい巻を記録（作品＋巻数式）。写真で確認・登録の確認結果・発売予定からも追加でき、登録すると自動でリストから外れる |
 | 発売予定 | 完結状態が「連載中」の漫画・ラノベについて、楽天ブックスから持っている巻より先の巻と発売日を取得（毎日 5 時台に自動）。発売予定を月ごとに、発売済みで持っていない巻を作品ごとに表示し、欲しい巻リストに追加できる。見つからない作品は作品名を直して [再取得] |
+| おすすめ | 持っている作品・読書状況・欲しい巻・視聴したアニメから好みを推定し、まだ持っていない漫画を AI（Anthropic Messages API）が理由付きで紹介。楽天ブックスで実在を確かめた作品だけを表示し、[気になる] / [興味なし] を次回のおすすめに使う |
 | アニメ | 視聴したアニメを作品・期（TV の各期・OVA・劇場版）単位で記録。視聴中の一覧（+1話・視聴済・中断。アニメの登録もこの画面から）、今期のアニメ（Annict から取得した期の作品一覧。登録状況の表示と、[登録] で登録フォームを開いて確認してから登録）、アニメ一覧（期ごと／作品ごとに切り替え、絞り込み・インライン編集・期の削除）、登録。シリーズは書籍と共通で、シリーズ一覧・詳細は両方のモードから開く。サイドメニュー先頭の切り替えで書籍とアニメのメニューを出し分ける |
 | 常時表示（書籍モード） | 所蔵サマリー（所蔵冊数・漫画/ラノベ別冊数・作品数・Box 数・最新登録日）、最近追加した書籍（10 件） |
 | 常時表示（アニメモード） | アニメのサマリー（状況別の期数・登録作品数・視聴話数の合計） |
@@ -41,6 +42,7 @@
 │  PhotoImportService.js 写真解析・作品照合・一括登録 ──UrlFetchApp──┼──▶ Anthropic Messages API
 │  AnimeSeasonService.js 今期のアニメ一覧 ─────────────UrlFetchApp──┼──▶ Annict API
 │  ReleaseService.js 漫画の発売予定（毎日トリガー）─────UrlFetchApp──┼──▶ 楽天ブックス書籍検索 API
+│  RecommendService.js おすすめの漫画 ──────────UrlFetchApp──┼──▶ Anthropic Messages API・楽天ブックス書籍検索 API
 │                     │  SpreadsheetApp                               │
 └─────────────────────┼──────────────────────────────────────────────┘
                       ▼
@@ -54,9 +56,9 @@
 - **通信**: クライアント → サーバーはすべて `google.script.run` による非同期呼び出し。戻り値はプレーンオブジェクト／配列。
 - **外部依存**:
   - Bootstrap 5.3.2 の CSS（`cdn.jsdelivr.net`）。JS ライブラリは使用していません。
-  - Anthropic Messages API（`https://api.anthropic.com/v1/messages`）。写真から登録機能のみで使用。サーバー（GAS）から `UrlFetchApp` で呼び出し、API キーはクライアントに渡しません。
+  - Anthropic Messages API（`https://api.anthropic.com/v1/messages`）。写真から登録とおすすめで使用。サーバー（GAS）から `UrlFetchApp` で呼び出し、API キーはクライアントに渡しません。
   - Annict API（`https://api.annict.com/v1/works`）。今期のアニメ一覧のみで使用。サーバーから `UrlFetchApp` で呼び出し、アクセストークンはクライアントに渡しません。
-  - 楽天ブックス書籍検索 API（`https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404`）。発売予定画面で使用（毎日 5 時台のトリガーと画面の [発売情報を取得] で取得し、`M_Release` に保存）。サーバーから `UrlFetchApp` で呼び出し、アプリ ID・アクセスキーはクライアントに渡しません。
+  - 楽天ブックス書籍検索 API（`https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404`）。発売予定画面で使用（毎日 5 時台のトリガーと画面の [発売情報を取得] で取得し、`M_Release` に保存）。おすすめでも AI の挙げた作品の実在の確認に使う。サーバーから `UrlFetchApp` で呼び出し、アプリ ID・アクセスキーはクライアントに渡しません。
 
 ## 1.3 ディレクトリ構成
 
@@ -82,6 +84,7 @@ PersonalLibrary/
     │   ├── ReleaseService.js    連載中の漫画・ラノベの発売日（楽天ブックス API から取得・所持巻との照合）
     │   ├── HomeService.js       ホーム画面（積読・発売予定・欲しい巻・視聴中のアニメをまとめて取得）
     │   ├── ReadService.js       M_Read（書籍の読書状況）関連 API
+    │   ├── RecommendService.js  おすすめの漫画（AI に依頼・楽天で実在を確認・M_Recommend に保存）
     │   └── Code.js              旧実装（全行コメントアウト済み）
     └── client/              クライアントサイド（HTML テンプレート）
         ├── Index.html           ベースレイアウト
@@ -90,7 +93,7 @@ PersonalLibrary/
         ├── Common.html          共通 JS
         ├── Scripts.html         空テンプレート（未使用）
         ├── home/     Home.html(JS)    / HomeView
-        ├── library/  Library.html(JS) / PhotoImport.html(JS) / Wish.html(JS) / Release.html(JS) / PhotoImportView / WishListView / ReleaseView / LibraryListView
+        ├── library/  Library.html(JS) / PhotoImport.html(JS) / Wish.html(JS) / Release.html(JS) / Recommend.html(JS) / PhotoImportView / WishListView / ReleaseView / RecommendView / LibraryListView
         ├── title/    Title.html(JS)   / TitleView / TitleListView
         ├── series/   Series.html(JS)  / SeriesView / SeriesListView
         ├── box/      Box.html(JS)     / BoxView / BoxListView
@@ -140,12 +143,12 @@ node build.js
 
 ### スクリプトプロパティ
 
-写真から登録機能と今期のアニメ一覧で使用します（Apps Script エディタの「プロジェクトの設定 → スクリプト プロパティ」で設定）。
+写真から登録・おすすめ・今期のアニメ一覧・発売予定で使用します（Apps Script エディタの「プロジェクトの設定 → スクリプト プロパティ」で設定）。
 
 | キー | 必須 | 既定値 | 内容 |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | ○ | — | Anthropic API キー。未設定時は解析がエラーになる |
-| `ANTHROPIC_MODEL` | — | `claude-sonnet-5-5` | 解析に使用するモデル |
+| `ANTHROPIC_API_KEY` | ○ | — | Anthropic API キー。未設定時は写真の解析・おすすめがエラーになる |
+| `ANTHROPIC_MODEL` | — | `claude-sonnet-5-5` | 写真の解析・おすすめに使用するモデル |
 | `ANTHROPIC_EFFORT` | — | `medium` | `output_config.effort` の値 |
 | `ANNICT_ACCESS_TOKEN` | ○（今期のアニメ） | — | Annict の個人用アクセストークン（スコープは読み取りのみ）。未設定時は今期のアニメがエラーになる |
 | `RAKUTEN_APPLICATION_ID` | ○（漫画の発売日） | — | 楽天ウェブサービスのアプリ ID（UUID 形式） |
@@ -162,4 +165,4 @@ node build.js
 | 性能 | 取得系 API は対象シートを全件読み込みメモリ上で結合・集計（件数数千規模を想定） |
 | 入力検証 | クライアントとサーバーの両方で必須チェック。巻数式は両側で同等ロジックにより解析 |
 | ログ | 例外は STACKDRIVER。AI API のエラー応答・通信失敗のみ `console.error` で記録 |
-| 外部 API 費用 | 写真から登録の「解析」1 回ごとに Anthropic API の利用料が発生 |
+| 外部 API 費用 | 写真から登録の「解析」1 回ごと、おすすめの [おすすめを探す] 1 回ごとに Anthropic API の利用料が発生（おすすめは画像なしで、入力は手持ち 300 作品で約 1 万トークン・出力は約 3 千トークン） |

@@ -1,0 +1,20 @@
+<!-- RecommendView.html -->
+<!-- おすすめの漫画（手持ち・既読・欲しい巻・アニメから AI が持っていない漫画を挙げる。楽天ブックスで実在を確認） -->
+<div id="RecommendView" class="view" style="display:none;">
+  <h3>おすすめ</h3>
+
+  <div class="photo-import-panel">
+    <p class="photo-import-note">持っている作品・読んだ巻・欲しい巻・見たアニメから好みを推定して、まだ持っていない漫画を AI が紹介します。[おすすめを探す] を押したときだけ AI を使います（1 回ごとに利用料がかかります）。</p>
+    <span id="recommendStatus" class="release-status"></span>
+    <input id="recommendRequestInput" placeholder="要望（任意） 例: 完結済みで 10 巻以内">
+    <button id="recommendCreateButton" type="button" onclick="createRecommendations()">おすすめを探す</button>
+  </div>
+
+  <h4 class="release-heading">おすすめ <span id="recommendCandidatesCount" class="release-count"></span></h4>
+  <div id="recommendCandidates" class="recommend-cards"></div>
+
+  <h4 class="release-heading">気になる <span id="recommendInterestedCount" class="release-count"></span></h4>
+  <div id="recommendInterested" class="recommend-cards"></div>
+
+  <p id="recommendDismissed" class="photo-import-note recommend-dismissed"></p>
+</div>
