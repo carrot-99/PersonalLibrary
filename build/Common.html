@@ -226,15 +226,16 @@ function showTab(tabId){
   }
   if(!targetView) return;
 
-  const buttons = document.querySelectorAll('.tabs button');
-  buttons.forEach(b => b.classList.remove('active'));
-
-  const activeButton = document.querySelector(`.tabs button[data-tab="${tabId}"]`);
-  if(activeButton) activeButton.classList.add('active');
+  // サイドメニューとスマホの下部タブバーの選択状態
+  document.querySelectorAll('.tabs button, .bottom-nav button[data-tab]').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tabId);
+  });
 
   document.querySelectorAll('.view')
     .forEach(v => v.style.display = 'none');
 
+  // 表示中の画面（CSS でホームだけにサマリー・最近追加を出す）
+  document.body.dataset.view = targetView.id;
   applyAppMode(getModeOfView(targetView.id));
 
   resetViewState(targetView);
@@ -257,10 +258,15 @@ function showTab(tabId){
     AnimeListView: loadAnimeListView
   };
 
-  // サマリー・最近追加は書籍モードのときだけ表示・更新する
-  if(appMode === 'book'){
-    loadLibrarySummary('libraryGlobal');
-    loadRecentLibrary('globalRecentLibraryTable');
+  // サマリー・最近追加はホームだけに表示し、開くたびに更新する（書籍モードは所蔵、アニメモードは視聴のサマリー）
+  if(targetView.id === 'HomeView'){
+    if(appMode === 'anime'){
+      // ホーム自身の「読み込み中」と重ならないよう viewId は渡さない
+      callGASCached('animeData.summary', 'getAnimeData', setAnimeState);
+    } else {
+      loadLibrarySummary('libraryGlobal');
+      loadRecentLibrary('globalRecentLibraryTable');
+    }
   }
 
   if(loaders[tabId]) loaders[tabId]();
@@ -922,6 +928,7 @@ function getAutocompleteValue(inputId){
 // シリーズ選択肢取得
 function populateSeries(series){
   masterCache.seriesOptions = series || [];
+  renderGlobalSearchList();
   populateSelect(
     ['seriesSelect', 'newTitleSeries'],
     series,
@@ -936,16 +943,7 @@ function populateSeries(series){
 // タイトル選択肢取得
 function populateTitle(titles){
   masterCache.titleOptions = titles || [];
-
-  const globalList = document.getElementById('globalSearchList');
-  if(globalList){
-    globalList.innerHTML = '';
-    masterCache.titleOptions.forEach(t => {
-      const option = document.createElement('option');
-      option.value = getTitleLabel(t);
-      globalList.appendChild(option);
-    });
-  }
+  renderGlobalSearchList();
   populateSelect(
     ['titleViewSelect'],
     titles,
@@ -964,6 +962,7 @@ function getTitleLabel(title){
 // 箱選択肢取得
 function populateBoxes(boxes){
   masterCache.boxOptions = boxes || [];
+  renderGlobalSearchList();
   populateSelect(
     ['boxViewSelect'],
     boxes,
@@ -1589,32 +1588,82 @@ function compareVolumes(a, b){
 }
 
 //////////////////////////////
-// 上部バーの検索（作品名 → 作品別検索を表示）
-// 完全一致、なければ部分一致が 1 件のときだけ確定する
+// 上部バーの検索（作品・シリーズ・箱 → それぞれの詳細を表示）
+// 候補は作品名はそのまま、シリーズ・箱は「シリーズ: 名前」「箱: ID : 場所」。
+// 作品 → シリーズ → 箱の順に探し、最初に見つかった種類で決める（完全一致、なければ部分一致が 1 件のときだけ確定）
 //////////////////////////////
+const GLOBAL_SEARCH_KINDS = [
+  { kind: 'title', name: '作品', prefix: '', listKey: 'titles', label: getTitleLabel },
+  { kind: 'series', name: 'シリーズ', prefix: 'シリーズ: ', listKey: 'series', label: s => String((s && s.name) || '') },
+  { kind: 'box', name: '箱', prefix: '箱: ', listKey: 'boxes', label: b => `${b.id} : ${b.place}` }
+];
+
+function getGlobalSearchSources(){
+  return {
+    titles: masterCache.titleOptions || [],
+    series: masterCache.seriesOptions || [],
+    boxes: masterCache.boxOptions || []
+  };
+}
+
+function renderGlobalSearchList(){
+  const list = document.getElementById('globalSearchList');
+  if(!list) return;
+  const sources = getGlobalSearchSources();
+  list.innerHTML = '';
+  GLOBAL_SEARCH_KINDS.forEach(k => {
+    sources[k.listKey].forEach(item => {
+      const option = document.createElement('option');
+      option.value = k.prefix + k.label(item);
+      list.appendChild(option);
+    });
+  });
+}
+
+// 戻り値: { kind: 'title'|'series'|'box', id } または { error }
+function findGlobalSearchTarget(keyword, sources){
+  let text = String(keyword || '').trim();
+  if(!text) return { error: '' };
+
+  // 候補から選んだとき（「シリーズ: 」「箱: 」付き）はその種類だけを探す
+  let kinds = GLOBAL_SEARCH_KINDS;
+  const prefixed = GLOBAL_SEARCH_KINDS.find(k => k.prefix && text.startsWith(k.prefix));
+  if(prefixed){
+    kinds = [prefixed];
+    text = text.slice(prefixed.prefix.length).trim();
+  }
+  const lower = text.toLowerCase();
+
+  for(const k of kinds){
+    const items = (sources && sources[k.listKey]) || [];
+    const exact = items.find(item => k.label(item).trim().toLowerCase() === lower);
+    if(exact) return { kind: k.kind, id: exact.id };
+  }
+  for(const k of kinds){
+    const items = (sources && sources[k.listKey]) || [];
+    const partial = items.filter(item => k.label(item).toLowerCase().includes(lower));
+    if(partial.length === 1) return { kind: k.kind, id: partial[0].id };
+    if(partial.length > 1) return { error: `「${text}」を含む${k.name}が${partial.length}件あります。候補から選んでください` };
+  }
+  return { error: `「${text}」に一致する${kinds.length === 1 ? kinds[0].name : '作品・シリーズ・箱'}がありません` };
+}
+
 function runGlobalSearch(){
   const input = document.getElementById('globalSearchInput');
   const keyword = input.value.trim();
   if(!keyword) return;
 
-  const titles = masterCache.titleOptions || [];
-  const lower = keyword.toLowerCase();
-  let match = titles.find(t => getTitleLabel(t).trim().toLowerCase() === lower);
-
-  if(!match){
-    const partial = titles.filter(t => getTitleLabel(t).toLowerCase().includes(lower));
-    if(partial.length !== 1){
-      showError(partial.length > 0
-        ? `「${keyword}」を含む作品が${partial.length}件あります。候補から選んでください`
-        : `「${keyword}」に一致する作品がありません`);
-      return;
-    }
-    match = partial[0];
+  const target = findGlobalSearchTarget(keyword, getGlobalSearchSources());
+  if(target.error){
+    showError(target.error);
+    return;
   }
 
   input.value = '';
   input.blur();
-  openTitleDetail(match.id);
+  if(target.kind === 'series') openSeriesDetail(target.id);
+  else if(target.kind === 'box') openBoxDetail(target.id);
+  else openTitleDetail(target.id);
 }
 
 function initApp(){
