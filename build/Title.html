@@ -15,18 +15,133 @@ function showTitle(titleId){
       hideInlineLoading('TitleView');
       const rows = (data || []).slice().sort((a, b) => compareVolumes(a.volume, b.volume));
       const title = (masterCache.titleOptions || []).find(t => String(t.id) === String(id));
+      renderTitleHero(title, rows);
       renderTitleOwnershipSummary(rows.map(row => row.volume), title ? title.completed : '', title);
       appendTitleReadLine(rows, id);
-      appendTitleWishLine(id);
+      renderTitleVolumeGrid(rows, []);
+      appendTitleWishLine(id, rows);
       renderTableReadOnly('titleTable', rows, ['volume','box','read'], {
         box: row => openBoxDetail(row.box)
       });
+      document.getElementById('titleTableSection').style.display = rows.length > 0 ? 'block' : 'none';
     })
     .withFailureHandler(function(error){
       hideInlineLoading('TitleView');
       showError(error && error.message ? error.message : '検索に失敗しました');
     })
     .getTitleDetail(id);
+}
+
+// 作品の詳細の見出し（作品名・種別・完結）と数字のまとめ（所持・抜け・積読・次の巻）
+function renderTitleHero(title, rows){
+  const hero = document.getElementById('titleDetailHero');
+  if(!hero) return;
+
+  document.getElementById('titleDetailName').textContent = title ? title.name : '';
+  const meta = document.getElementById('titleDetailMeta');
+  meta.innerHTML = '';
+  if(title){
+    [title.type, title.completed].filter(Boolean).forEach(text => {
+      const chip = document.createElement('span');
+      chip.className = `release-badge${text === 'ラノベ' ? ' is-novel' : ''}${text === '完結済' ? ' is-done' : ''}`;
+      chip.textContent = text;
+      meta.appendChild(chip);
+    });
+  }
+
+  const stats = document.getElementById('titleDetailStats');
+  stats.innerHTML = '';
+  buildTitleStats(rows, title ? title.completed : '').forEach(stat => {
+    const tile = document.createElement('div');
+    tile.className = `stat-tile ${stat.tone ? 'is-' + stat.tone : ''}`.trim();
+    const label = document.createElement('span');
+    label.className = 'stat-label';
+    label.textContent = stat.label;
+    const value = document.createElement('strong');
+    value.className = 'stat-value';
+    value.textContent = stat.value;
+    tile.appendChild(label);
+    tile.appendChild(value);
+    stats.appendChild(tile);
+  });
+
+  hero.style.display = 'block';
+}
+
+// 数字のまとめ（DOM を使わない）。rows: getTitleDetail の行（volume, read）
+// 戻り値: [{ label, value, tone? }]（tone: 'ok' / 'warning'）
+function buildTitleStats(rows, completed){
+  const summary = summarizeOwnedVolumes((rows || []).map(row => row.volume));
+  const unread = (rows || []).filter(row => row.read === '未読').length;
+  const isCompleted = String(completed || '').trim() === '完結済';
+  const stats = [
+    { label: '所持', value: `${summary.count}冊` },
+    { label: '抜け', value: summary.count === 0 ? '-' : `${summary.missing.length}巻`, tone: summary.missing.length > 0 ? 'warning' : (summary.count > 0 ? 'ok' : '') },
+    { label: '積読', value: `${unread}冊`, tone: unread === 0 && summary.count > 0 ? 'ok' : '' }
+  ];
+  if(isCompleted){
+    const allOwned = summary.numbers.length > 0 && summary.missing.length === 0;
+    stats.push({ label: '完結済', value: allOwned ? '全巻所持' : '抜けあり', tone: allOwned ? 'ok' : 'warning' });
+  } else {
+    stats.push({ label: '次の巻', value: `${summary.next}巻` });
+  }
+  return stats;
+}
+
+// 巻の一覧（1 巻から最大巻まで並べ、所持・読書・抜け・欲しい巻を色で示す）
+function renderTitleVolumeGrid(rows, wishVolumes){
+  const section = document.getElementById('titleVolumeSection');
+  const grid = document.getElementById('titleVolumeGrid');
+  if(!section || !grid) return;
+
+  const cells = buildTitleVolumeGrid(rows, wishVolumes);
+  grid.innerHTML = '';
+  if(cells.length === 0){
+    section.style.display = 'none';
+    return;
+  }
+  const STATE_LABELS = { read: '読了', reading: '読書中', unread: '未読', missing: '未所持', wish: '欲しい巻' };
+  cells.forEach(cell => {
+    const chip = document.createElement('span');
+    chip.className = `volume-chip is-${cell.state}${cell.wished && cell.state !== 'wish' ? ' is-wished' : ''}`;
+    chip.textContent = cell.label;
+    chip.title = `${cell.label}${/^\d+$/.test(cell.label) ? '巻' : ''}: ${STATE_LABELS[cell.state]}${cell.wished && cell.state !== 'wish' ? '（欲しい巻）' : ''}`;
+    grid.appendChild(chip);
+  });
+  section.style.display = 'block';
+}
+
+// 巻の一覧のデータ（DOM を使わない）。数字の巻は 1 から最大巻まで（未所持も含める）、数字以外の巻は後ろに並べる
+// rows: [{ volume, read }]、wishVolumes: 欲しい巻リストの巻
+// 戻り値: [{ label, state: 'read'|'reading'|'unread'|'missing'|'wish', wished }]
+function buildTitleVolumeGrid(rows, wishVolumes){
+  const normalize = v => {
+    const text = String(v == null ? '' : v).trim();
+    return /^\d+$/.test(text) ? String(Number(text)) : text;
+  };
+  const owned = new Map();
+  (rows || []).forEach(row => {
+    const key = normalize(row.volume);
+    if(key) owned.set(key, row.read || '未読');
+  });
+  const wished = new Set((wishVolumes || []).map(normalize).filter(Boolean));
+
+  const readState = read => read === '読了' ? 'read' : (read === '読書中' ? 'reading' : 'unread');
+  const toCell = key => ({
+    label: key,
+    state: owned.has(key) ? readState(owned.get(key)) : (wished.has(key) ? 'wish' : 'missing'),
+    wished: wished.has(key)
+  });
+
+  const keys = [...owned.keys(), ...wished];
+  const numbers = keys.filter(k => /^\d+$/.test(k)).map(Number);
+  const max = numbers.length > 0 ? Math.max(...numbers) : 0;
+  const cells = [];
+  for(let n = 1; n <= max; n++) cells.push(toCell(String(n)));
+  Array.from(new Set(keys.filter(k => !/^\d+$/.test(k))))
+    .sort(compareVolumes)
+    .forEach(key => cells.push(toCell(key)));
+  return cells;
 }
 
 // 作品表示の所持状況（シリーズ・所持巻・抜け・次の巻）
@@ -110,14 +225,15 @@ function appendTitleReadLine(rows, titleId){
   box.appendChild(line);
 }
 
-// 作品表示に欲しい巻を追記（欲しい巻リストに登録がある場合のみ）
-function appendTitleWishLine(titleId){
+// 作品表示に欲しい巻を追記（欲しい巻リストに登録がある場合のみ）。巻の一覧にも欲しい巻を反映する
+function appendTitleWishLine(titleId, rows){
   callGAS('getWishKeys', function(keys){
     const box = document.getElementById('titleOwnershipSummary');
     if(!box || box.style.display === 'none') return;
     const prefix = `${titleId}|`;
     const volumes = (keys || []).filter(k => k.startsWith(prefix)).map(k => k.slice(prefix.length));
     if(volumes.length === 0) return;
+    if(rows) renderTitleVolumeGrid(rows, volumes);
 
     const summary = summarizeOwnedVolumes(volumes);
     const parts = [];

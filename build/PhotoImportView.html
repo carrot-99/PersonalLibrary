@@ -2,6 +2,14 @@
 <div id="PhotoImportView" class="view">
   <h3>写真で確認・登録</h3>
 
+  <!-- 手順の表示（今の段階を強調。updatePhotoImportSteps） -->
+  <ol id="photoImportSteps" class="step-indicator" aria-label="手順">
+    <li data-step="1"><span class="step-number">1</span><span class="step-label">写真を選ぶ</span></li>
+    <li data-step="2"><span class="step-number">2</span><span class="step-label">所持を確認</span></li>
+    <li data-step="3"><span class="step-number">3</span><span class="step-label">未所持を登録</span></li>
+    <li data-step="4"><span class="step-number">4</span><span class="step-label">完了</span></li>
+  </ol>
+
   <div id="photoImportPanel" class="photo-import-panel is-check-mode">
     <p class="photo-import-note">本の表紙・背表紙を撮ると、持っている巻かを確認できます。持っていない本はそのまま登録できます。</p>
     <label for="photoImportFiles">本の写真（最大5枚）</label>

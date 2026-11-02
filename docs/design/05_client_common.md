@@ -75,7 +75,7 @@ callGASCached(cacheKey, funcName, onData, { viewId?, errorMessage?, refresh? })
    - フォーム（`.master-form`）と一覧テーブルを閉じ、検索キーワード（`*SearchKeyword`）をクリア
    - 詳細画面（`SEARCH_VIEW_IDS` = `SeriesView` / `TitleView` / `BoxView`）は入力欄・結果テーブル・欄（`.detail-section`）もクリア
 5. 通知をクリア
-6. `body[data-view]` に画面の ID を入れる（CSS でホームだけにサマリー・最近追加を出す）。ホームのときだけ、書籍モードはサマリー・最近追加、アニメモードはアニメのサマリー（`getAnimeData`。キャッシュ `animeData.summary`）を再取得（前回の結果をすぐ表示して取り直す）
+6. ホームのときだけ、書籍モードはサマリー・最近追加、アニメモードはアニメのサマリー（`getAnimeData`。キャッシュ `animeData.summary`）を再取得（前回の結果をすぐ表示して取り直す）
 7. View ごとのローダーを実行
 8. 詳細画面の [← 戻る] の表示を更新（`updateDetailBackButtons`）
 

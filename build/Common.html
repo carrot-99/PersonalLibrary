@@ -234,8 +234,6 @@ function showTab(tabId){
   document.querySelectorAll('.view')
     .forEach(v => v.style.display = 'none');
 
-  // 表示中の画面（CSS でホームだけにサマリー・最近追加を出す）
-  document.body.dataset.view = targetView.id;
   applyAppMode(getModeOfView(targetView.id));
 
   resetViewState(targetView);

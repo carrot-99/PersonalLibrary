@@ -33,6 +33,7 @@ function loadPhotoImportView(){
   if(!photoImportState.busy){
     resetPhotoImport();
     document.getElementById('photoImportResult').innerHTML = '';
+    updatePhotoImportSteps();
   }
 
   callGAS('getTitleMaster', function(titles){
@@ -211,6 +212,7 @@ async function analyzePhotoImport(){
 
   setPhotoImportBusy(true);
   document.getElementById('photoImportResult').innerHTML = '';
+  updatePhotoImportSteps();
   showInlineLoading('photoImportPanel', '解析中...（数十秒かかることがあります）');
 
   let images;
@@ -260,6 +262,7 @@ async function analyzePhotoImport(){
 
       setPhotoImportMode('check');
       document.getElementById('photoImportReview').style.display = 'block';
+      updatePhotoImportSteps();
       renderPhotoImportRows();
 
       if(photoImportState.rows.length === 0){
@@ -801,6 +804,31 @@ function refreshPhotoImportStatuses(){
 function setPhotoImportMode(mode){
   photoImportState.mode = mode;
   document.getElementById('photoImportPanel').classList.toggle('is-check-mode', mode === 'check');
+  updatePhotoImportSteps();
+}
+
+// 手順の表示（1 写真を選ぶ → 2 所持を確認 → 3 未所持を登録 → 4 完了）
+function updatePhotoImportSteps(){
+  const steps = document.getElementById('photoImportSteps');
+  if(!steps) return;
+  const current = getPhotoImportStep({
+    reviewing: document.getElementById('photoImportReview').style.display !== 'none',
+    mode: photoImportState.mode,
+    hasResult: document.getElementById('photoImportResult').childElementCount > 0
+  });
+  steps.querySelectorAll('li').forEach(li => {
+    const step = Number(li.dataset.step);
+    li.classList.toggle('is-current', step === current);
+    li.classList.toggle('is-done', step < current);
+    if(step === current) li.setAttribute('aria-current', 'step');
+    else li.removeAttribute('aria-current');
+  });
+}
+
+// 今の段階（DOM を使わない）。reviewing: 読み取り結果を表示中、mode: 'check' / 'register'、hasResult: 登録結果を表示中
+function getPhotoImportStep(state){
+  if(state.reviewing) return state.mode === 'register' ? 3 : 2;
+  return state.hasResult ? 4 : 1;
 }
 
 function startPhotoImportRegister(){
@@ -918,6 +946,7 @@ function resetPhotoImport(){
   renderPhotoImportPreview();
   renderPhotoImportRows();
   document.getElementById('photoImportReview').style.display = 'none';
+  updatePhotoImportSteps();
 }
 
 function renderPhotoImportResult(res){
@@ -948,6 +977,7 @@ function renderPhotoImportResult(res){
 
   addList(res.duplicates, '重複スキップ');
   addList(res.failed, '失敗');
+  updatePhotoImportSteps();
 }
 
 window.loadPhotoImportView = loadPhotoImportView;
