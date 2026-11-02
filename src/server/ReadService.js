@@ -141,6 +141,22 @@ function getNextReadVolume(volumes){
 
 
 // ----------------------
+// 作品ごとの読了していない巻（未読・読書中）の冊数
+// 戻り値: { TitleID: 冊数 }（1 冊以上の作品だけ）。作品一覧の「読書」の絞り込みに使う
+// ----------------------
+function getUnreadCountByTitle(){
+  const map = getReadStatusMap();
+  const result = {};
+  getData(SHEETS.LIBRARY).forEach(row => {
+    const titleId = String(row[1]).trim();
+    if(!titleId || getReadStatus(map, row[0]) === '読了') return;
+    result[titleId] = (result[titleId] || 0) + 1;
+  });
+  return result;
+}
+
+
+// ----------------------
 // 積読（未読・読書中の巻がある作品）
 // 戻り値: { unreadCount, readingCount, titles: [{ titleId, titleName, titleType, unreadVolumes, readingVolumes, next: { id, volume, read } }] }
 // titles は読書中の作品が先、その後は最後に登録した日の新しい順

@@ -231,7 +231,7 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 
 ### `getTitleListWithOwnership()` — 作品一覧用
 
-戻り値 `{ titles, volumes }`。`titles` は `getTitleMaster()` と同じ配列、`volumes` は `getOwnedVolumesByTitle()` の結果。
+戻り値 `{ titles, volumes, unread }`。`titles` は `getTitleMaster()` と同じ配列、`volumes` は `getOwnedVolumesByTitle()` の結果、`unread` は `getUnreadCountByTitle()`（3.9.5）の結果。
 
 ### `getTitles()`
 
@@ -550,6 +550,7 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 |---|---|
 | `setReadStatusWeb(libraryIds, status)` | 画面用。複数の書籍をまとめて同じ状況にする（スクリプトロック）。戻り値 `success('進撃の巨人 3巻を「読了」にしました')`（1 冊のときは作品の表示ラベルと巻。複数なら `n冊を「読了」にしました`）。エラー: 状況が 3 つ以外 / 書籍の指定なし / `M_Library` にない ID（`書籍が見つかりません: …`。1 件でもあれば何も書かない） |
 | `getUnreadSummary()` | 積読のまとめ。戻り値 `{ unreadCount, readingCount, titles: [{ titleId, titleName, titleType, unreadVolumes, readingVolumes, next: { id, volume, read } }] }`。`titles` は未読・読書中の巻がある作品で、読書中の作品が先、その後は最後に登録した日の新しい順。`titleName` は表示ラベル（同名作品は「作品名（種別）」） |
+| `getUnreadCountByTitle()` | 作品ごとの読了していない巻（未読・読書中）の冊数。戻り値 `{ TitleID: 冊数 }`（1 冊以上の作品だけ）。作品一覧の「読書」の絞り込みに使用 |
 | `getNextReadVolume(volumes)` | 次に読む巻。`volumes: [{ id, volume, read }]` のうち読書中の巻（巻順で最初）、なければ未読のうち最小の巻。なければ `null`。数字以外の巻は数字の巻の後ろ。画面の `pickNextReadVolume`（`Common.html`）も同じ判定 |
 | `getReadStatusMap()` / `getReadStatus(map, libraryId)` | LibraryID → 状況（シートにある分だけ）と、行がなければ `読了` を返す取得 |
 | `writeReadStatuses(libraryIds, status)` | 書き込みの本体（ロックは呼び出し元）。ある行は書き換え、ない書籍は追加。データ行をまとめて書き直す |

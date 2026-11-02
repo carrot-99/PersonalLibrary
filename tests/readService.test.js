@@ -148,3 +148,22 @@ test('pickNextReadVolume（画面）: サーバーの getNextReadVolume と同�
   assert.equal(client.pickNextReadVolume([v('3', '未読'), v('5', '読書中')]).volume, '5');
   assert.equal(client.pickNextReadVolume([v('1', '読了')]), null);
 });
+
+test('getUnreadCountByTitle / getTitleListWithOwnership: 作品ごとの読了していない巻（未読・読書中）の冊数', () => {
+  const { gas } = loadServer(readSheets([
+    ['L000001', '未読', new Date(2026, 0, 1)],
+    ['L000002', '読書中', new Date(2026, 0, 1)],
+    ['L000003', '読了', new Date(2026, 0, 1)]
+  ]));
+  assert.deepEqual(plain(gas.getUnreadCountByTitle()), { T000001: 2 });
+  assert.deepEqual(plain(gas.getTitleListWithOwnership().unread), { T000001: 2 });
+  // シートがなければすべて読了
+  assert.deepEqual(plain(loadServer(baseSheets()).gas.getUnreadCountByTitle()), {});
+});
+
+test('getTitleReadStatus: 作品一覧の「読書」の絞り込みの値', () => {
+  const client = loadClient(['Common.html', 'title/Title.html']);
+  assert.equal(client.getTitleReadStatus(3, 1), '未読あり');
+  assert.equal(client.getTitleReadStatus(3, 0), 'すべて読了');
+  assert.equal(client.getTitleReadStatus(0, 0), '');
+});
