@@ -149,7 +149,7 @@
 | 画面 | View / ファイル | 列 | API | 絞り込み（選択式） | キーワード対象 | 初期の並び |
 |---|---|---|---|---|---|---|
 | シリーズ一覧（書籍・アニメ共通） | `SeriesListView` | SeriesID, シリーズ名, 書籍（作品数）, 冊数, アニメ（期数）, 操作 | `getSeriesListWithCounts` | 書籍（あり・なし）/ アニメ（あり・なし） | ID・シリーズ名 | シリーズ名 昇順 |
-| 作品一覧 | `TitleListView` | TitleID, 作品名, シリーズ, 種別, 完結, 所持巻（抜けを含む）, 操作 | `getTitleListWithOwnership` | 種別 / 完結 / 所持（抜けあり・抜けなし・未所持）/ シリーズ | 作品名・シリーズ名・所持巻 | 作品名 昇順 |
+| 作品一覧 | `TitleListView` | TitleID, 作品名, シリーズ, 種別, 完結, 所持巻（抜けを含む）, 操作 | `getTitleListWithOwnership` | 種別 / 完結 / 所持（抜けあり・抜けなし・未所持）/ 読書（未読あり＝未読・読書中の巻がある・すべて読了。未所持の作品はどちらにも入らない。`getTitleReadStatus`）/ シリーズ | 作品名・シリーズ名・所持巻 | 作品名 昇順 |
 | 箱一覧 | `BoxListView` | BoxID, 保管場所, 冊数, 作品数, 操作 | `getBoxListWithCounts` | — | ID・保管場所 | BoxID 昇順 |
 | 書籍一覧 | `LibraryListView` | ID, 作品名, 巻数, Box, 読書, 追加日, 操作 | `getLibraryListAll` | 読書（未読・読書中・読了）/ 種別 / Box / 追加月 | ID・作品名・巻数・Box・追加日 | 追加日 新しい順 |
 

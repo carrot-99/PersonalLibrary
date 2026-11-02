@@ -32,13 +32,14 @@ function getTitleMaster(){
 
 
 // ----------------------
-// 作品一覧用（所持巻付き）
-// 戻り値: { titles: getTitleMaster() の配列, volumes: { TitleID: [巻数, ...] } }
+// 作品一覧用（所持巻・読了していない巻の冊数付き）
+// 戻り値: { titles: getTitleMaster() の配列, volumes: { TitleID: [巻数, ...] }, unread: { TitleID: 冊数 } }
 // ----------------------
 function getTitleListWithOwnership(){
   return {
     titles: getTitleMaster(),
-    volumes: getOwnedVolumesByTitle()
+    volumes: getOwnedVolumesByTitle(),
+    unread: getUnreadCountByTitle()
   };
 }
 

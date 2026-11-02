@@ -306,6 +306,8 @@ function loadTitleList(options = {}){
         { key: 'type', label: '種別' },
         { key: 'completed', label: '完結' },
         { key: 'ownStatus', label: '所持', options: ['抜けあり', '抜けなし', '未所持'] },
+        // 未読あり: 未読・読書中の巻がある作品（未所持の作品はどちらにも入らない）
+        { key: 'readStatus', label: '読書', options: ['未読あり', 'すべて読了'] },
         { key: 'seriesName', label: 'シリーズ' }
       ],
       defaultSort: { key: 'name', dir: 'asc' },
@@ -320,8 +322,10 @@ function loadTitleList(options = {}){
   callGASCached('titleList', 'getTitleListWithOwnership', function(res){
       res = res || {};
       const volumesMap = res.volumes || {};
+      const unreadMap = res.unread || {};
       const rows = (res.titles || []).map(item => {
         const summary = summarizeOwnedVolumes(volumesMap[String(item.id).trim()]);
+        const unreadCount = Number(unreadMap[String(item.id).trim()]) || 0;
         return {
           id: item.id,
           name: item.name,
@@ -332,11 +336,18 @@ function loadTitleList(options = {}){
           owned: formatOwnershipText(summary, item.completed),
           ownedCount: summary.count,
           missingCount: summary.missing.length,
-          ownStatus: summary.count === 0 ? '未所持' : (summary.missing.length > 0 ? '抜けあり' : '抜けなし')
+          ownStatus: summary.count === 0 ? '未所持' : (summary.missing.length > 0 ? '抜けあり' : '抜けなし'),
+          readStatus: getTitleReadStatus(summary.count, unreadCount)
         };
       });
       titleListFilter.setRows(rows);
     }, { viewId: 'TitleListView', errorMessage: '作品一覧の読み込みに失敗しました', refresh: options.refresh });
+}
+
+// 作品一覧の「読書」の絞り込みの値（DOM を使わない）。所持なしは ''（どの選択肢にも入らない）
+function getTitleReadStatus(ownedCount, unreadCount){
+  if(!ownedCount) return '';
+  return unreadCount > 0 ? '未読あり' : 'すべて読了';
 }
 
 //////////////////////////////
