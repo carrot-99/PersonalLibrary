@@ -70,12 +70,12 @@ callGASCached(cacheKey, funcName, onData, { viewId?, errorMessage?, refresh? })
 0. 詳細への移動・戻る（`navigating`）でなければ戻る履歴 `navHistory` を消す。`navEntry`（今の画面を開き直す関数）を設定
 1. `tabId` の要素がなければ最初の `.view` を対象にする
 2. View の ID からモードを決めて反映（`getModeOfView` → `applyAppMode`。`Anime` で始まればアニメ、他は書籍。共通の画面 `COMMON_VIEW_IDS`（`SeriesListView` / `SeriesView`）は `null` でモードを変えない）。`body[data-mode]` を切り替え、CSS で `.book-only` / `.anime-only` の部品（メニューのグループ、上部バーの検索、サマリー、最近追加）を出し分ける。モードは `localStorage`（`personalLibrary.appMode`）に保存し、次回の初期表示に使う
-3. 全メニューボタンから `active` を外し、`data-tab` が一致するボタンに付与
+3. メニューのボタンと下部タブバーのボタン（`.tabs button` / `.bottom-nav button[data-tab]`）のうち、`data-tab` が一致するものに `active` を付け、ほかから外す
 4. 全 `.view` を非表示 → 対象 View の状態をリセット（`resetViewState`）して表示
    - フォーム（`.master-form`）と一覧テーブルを閉じ、検索キーワード（`*SearchKeyword`）をクリア
    - 詳細画面（`SEARCH_VIEW_IDS` = `SeriesView` / `TitleView` / `BoxView`）は入力欄・結果テーブル・欄（`.detail-section`）もクリア
 5. 通知をクリア
-6. 書籍モードのときだけサマリー・最近追加を再取得（前回の結果をすぐ表示して取り直す）
+6. `body[data-view]` に画面の ID を入れる（CSS でホームだけにサマリー・最近追加を出す）。ホームのときだけ、書籍モードはサマリー・最近追加、アニメモードはアニメのサマリー（`getAnimeData`。キャッシュ `animeData.summary`）を再取得（前回の結果をすぐ表示して取り直す）
 7. View ごとのローダーを実行
 8. 詳細画面の [← 戻る] の表示を更新（`updateDetailBackButtons`）
 
@@ -257,10 +257,14 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 `runGlobalSearch()`（`Common.html`）。`#globalSearchInput` の `change` と Enter で呼ばれます。
 
 1. 入力が空なら何もしない（Enter の後の `change` で二重実行しないよう、成功時は入力をクリア）
-2. `masterCache.titleOptions` から作品名の完全一致（大文字小文字無視）を探し、なければ部分一致が 1 件のときだけ採用。2 件以上・0 件はエラー通知
-3. `openTitleDetail(titleId)`（作品の詳細を開き、作品名を入力欄に設定して `showTitle(titleId)`。ID を直接渡し、入力欄の部分一致による取り違えを避ける。開く前の画面へ [← 戻る] で戻れる）
+2. `findGlobalSearchTarget(keyword, { titles, series, boxes })`（`masterCache` の作品・シリーズ・箱の選択肢）で開く先を決める。戻り値は `{ kind: 'title' | 'series' | 'box', id }` または `{ error }`（エラー通知）
+   - 種類の順（`GLOBAL_SEARCH_KINDS`）: 作品（作品の表示名）→ シリーズ（名前）→ 箱（「ID : 場所」）
+   - まず全種類で完全一致（前後の空白・大文字小文字無視）を探す。同じ名前の作品とシリーズがあれば作品
+   - なければ種類の順に部分一致を探し、最初に見つかった種類で決める（1 件なら確定、2 件以上は「〜を含む作品が n 件あります」）。0 件は「一致する作品・シリーズ・箱がありません」
+   - 入力が候補の「シリーズ: 」「箱: 」で始まるときは、その種類だけを探す
+3. `openTitleDetail` / `openSeriesDetail` / `openBoxDetail`（詳細を開き、名前を入力欄に設定して表示。ID を直接渡し、入力欄の部分一致による取り違えを避ける。開く前の画面へ [← 戻る] で戻れる）
 
-候補の datalist（`#globalSearchList`）は `populateTitle` で作品選択肢と一緒に構築します。
+候補の datalist（`#globalSearchList`）は `renderGlobalSearchList` で作品・シリーズ・箱の順に作り直します（`populateTitle` / `populateSeries` / `populateBoxes` のたび）。作品は名前のまま、シリーズは「シリーズ: 名前」、箱は「箱: ID : 場所」。
 
 ## 5.12 一覧の絞り込み・並べ替え
 

@@ -28,8 +28,8 @@
       <main class="main-content">
         <div class="page-header">
           <h2><span class="brand-mark" aria-hidden="true">🥕</span>にんじん図書館</h2>
-          <div class="global-search book-only">
-            <input id="globalSearchInput" type="search" list="globalSearchList" placeholder="作品名で所持巻を検索" enterkeyhint="search" autocomplete="off"
+          <div class="global-search">
+            <input id="globalSearchInput" type="search" list="globalSearchList" placeholder="作品・シリーズ・箱を検索" enterkeyhint="search" autocomplete="off"
               onchange="runGlobalSearch()" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); runGlobalSearch(); }">
             <datalist id="globalSearchList"></datalist>
           </div>
@@ -91,6 +91,18 @@
           </aside>
         </div>
       </main>
+
+      <!-- スマホ（720px 以下）の下部タブバー。よく使う画面とメニュー（モードで中身が変わる） -->
+      <div class="bottom-nav" role="navigation" aria-label="よく使う画面">
+        <button type="button" data-tab="HomeView" onclick="showTab('HomeView'); closeSidebar();"><span class="bottom-nav-icon" aria-hidden="true">🏠</span>ホーム</button>
+        <button type="button" class="book-only" data-tab="PhotoImportView" onclick="showTab('PhotoImportView'); closeSidebar();"><span class="bottom-nav-icon" aria-hidden="true">📷</span>写真登録</button>
+        <button type="button" class="book-only" data-tab="ReleaseView" onclick="showTab('ReleaseView'); closeSidebar();"><span class="bottom-nav-icon" aria-hidden="true">📅</span>発売予定</button>
+        <button type="button" class="book-only" data-tab="TitleListView" onclick="showTab('TitleListView'); closeSidebar();"><span class="bottom-nav-icon" aria-hidden="true">📚</span>作品</button>
+        <button type="button" class="anime-only" data-tab="AnimeWatchingView" onclick="showTab('AnimeWatchingView'); closeSidebar();"><span class="bottom-nav-icon" aria-hidden="true">▶️</span>視聴中</button>
+        <button type="button" class="anime-only" data-tab="AnimeSeasonView" onclick="showTab('AnimeSeasonView'); closeSidebar();"><span class="bottom-nav-icon" aria-hidden="true">🗓️</span>今期</button>
+        <button type="button" class="anime-only" data-tab="AnimeListView" onclick="showTab('AnimeListView'); closeSidebar();"><span class="bottom-nav-icon" aria-hidden="true">📺</span>一覧</button>
+        <button type="button" class="bottom-nav-menu" onclick="toggleSidebar();"><span class="bottom-nav-icon" aria-hidden="true">☰</span>メニュー</button>
+      </div>
     </div>
 
     <?!= include('Common') ?>
