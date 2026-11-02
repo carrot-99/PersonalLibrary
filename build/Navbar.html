@@ -53,3 +53,13 @@
     <button data-tab="SeriesListView" onclick="showTab('SeriesListView'); closeSidebar();">シリーズ一覧</button>
   </div>
 </div>
+
+<!-- 配色（このブラウザに保存。自動は OS の設定に合わせる） -->
+<div class="theme-switch-group">
+  <div class="tab-title">配色</div>
+  <div class="theme-switch" role="group" aria-label="配色の切り替え">
+    <button type="button" data-theme-choice="auto" onclick="setThemeChoice('auto');">自動</button>
+    <button type="button" data-theme-choice="light" onclick="setThemeChoice('light');">☀ ライト</button>
+    <button type="button" data-theme-choice="dark" onclick="setThemeChoice('dark');">☾ ダーク</button>
+  </div>
+</div>
