@@ -1,16 +1,29 @@
 <!-- BoxView.html -->
+<!-- 箱の詳細。見出し（BoxID・保管場所）と数字のまとめ、集計と中の本の表 -->
 <div id="BoxView" class="view">
   <button type="button" class="detail-back" style="display:none;" onclick="backFromDetail()">← 戻る</button>
-  <h3>Box表示</h3>
-  <label>Box
-    <input id="boxViewSelectInput" list="boxViewSelectList" placeholder="Boxを入力">
+  <h3>箱の詳細</h3>
+  <div class="detail-picker">
+    <input id="boxViewSelectInput" list="boxViewSelectList" placeholder="Boxを入力" aria-label="Box">
     <datalist id="boxViewSelectList"></datalist>
     <select id="boxViewSelect" style="display:none;"></select>
-  </label>
-  <button onclick="showBox()">表示</button>
-  <div id="boxSummary" class="ownership-summary" style="display:none;"></div>
-  <table id="boxTable" style="display:none;">
-    <thead><tr><th>作品名</th><th>巻</th></tr></thead>
-    <tbody></tbody>
-  </table>
+    <button onclick="showBox()">表示</button>
+  </div>
+
+  <section id="boxDetailHero" class="detail-section detail-hero" style="display:none;">
+    <div class="detail-hero-head">
+      <h4 class="detail-hero-name"></h4>
+      <div class="detail-hero-meta"></div>
+    </div>
+    <div class="stat-tiles"></div>
+  </section>
+
+  <section id="boxItemsSection" class="detail-section detail-panel" style="display:none;">
+    <h4 class="detail-section-title">📦 中の本</h4>
+    <div id="boxSummary" class="ownership-summary" style="display:none;"></div>
+    <table id="boxTable" style="display:none;">
+      <thead><tr><th>作品名</th><th>巻</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
 </div>

@@ -1,14 +1,15 @@
 <!-- TitleListView.html -->
 <div id="TitleListView" class="view" style="display:none;">
-  <h3>作品一覧</h3>
-
-  <!-- ツールバー -->
-  <div class="master-toolbar">
-    <button onclick="toggleAddForm('titleAddForm')">追加</button>
+  <!-- 見出しと操作（右寄せ） -->
+  <div class="view-header">
+    <h3>作品一覧</h3>
+    <div class="master-toolbar">
+      <button onclick="toggleAddForm('titleAddForm')">＋ 追加</button>
+    </div>
   </div>
 
   <!-- 追加フォーム（初期非表示） -->
-  <div id="titleAddForm" class="master-form" style="display:none;">
+  <div id="titleAddForm" class="master-form form-grid" style="display:none;">
 
     <input type="text" id="newTitleName" placeholder="作品名">
 

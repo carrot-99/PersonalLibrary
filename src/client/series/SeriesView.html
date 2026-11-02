@@ -1,18 +1,26 @@
 <!-- SeriesView.html -->
-<!-- シリーズの詳細（書籍・アニメ共通。開いてもモードは切り替えない） -->
+<!-- シリーズの詳細（書籍・アニメ共通。開いてもモードは切り替えない）。見出しと数字のまとめ、書籍の欄、アニメの欄 -->
 <div id="SeriesView" class="view">
   <button type="button" class="detail-back" style="display:none;" onclick="backFromDetail()">← 戻る</button>
-  <h3>シリーズ表示</h3>
-  <label>シリーズ
-    <input id="seriesSelectInput" list="seriesSelectList" placeholder="シリーズ名を入力">
+  <h3>シリーズの詳細</h3>
+  <div class="detail-picker">
+    <input id="seriesSelectInput" list="seriesSelectList" placeholder="シリーズ名を入力" aria-label="シリーズ">
     <datalist id="seriesSelectList"></datalist>
     <select id="seriesSelect" style="display:none;"></select>
-  </label>
-  <button onclick="showSeries()">表示</button>
+    <button onclick="showSeries()">表示</button>
+  </div>
+
+  <section id="seriesDetailHero" class="detail-section detail-hero" style="display:none;">
+    <div class="detail-hero-head">
+      <h4 class="detail-hero-name"></h4>
+      <div class="detail-hero-meta"></div>
+    </div>
+    <div class="stat-tiles"></div>
+  </section>
 
   <!-- アニメモードではアニメの欄を先に表示（CSS の order） -->
   <div class="series-sections">
-    <section id="seriesBookSection" class="detail-section" style="display:none;">
+    <section id="seriesBookSection" class="detail-section detail-panel" style="display:none;">
       <h4 class="detail-section-title">📚 書籍</h4>
       <div id="seriesBookSummary" class="ownership-summary" style="display:none;"></div>
       <div class="detail-empty" id="seriesBookEmpty" style="display:none;">このシリーズの書籍は登録されていません</div>
@@ -22,7 +30,7 @@
       </table>
     </section>
 
-    <section id="seriesAnimeSection" class="detail-section" style="display:none;">
+    <section id="seriesAnimeSection" class="detail-section detail-panel" style="display:none;">
       <h4 class="detail-section-title">📺 アニメ</h4>
       <div id="seriesAnimeSummary" class="ownership-summary" style="display:none;"></div>
       <table id="seriesAnimeTable" style="display:none;">

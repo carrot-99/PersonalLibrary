@@ -1,13 +1,15 @@
 <!-- BoxListView.html -->
 <div id="BoxListView" class="view" style="display:none;">
-  <h3>箱一覧</h3>
-
-  <div class="master-toolbar">
-    <button onclick="toggleAddForm('boxAddForm')">追加</button>
+  <!-- 見出しと操作（右寄せ） -->
+  <div class="view-header">
+    <h3>箱一覧</h3>
+    <div class="master-toolbar">
+      <button onclick="toggleAddForm('boxAddForm')">＋ 追加</button>
+    </div>
   </div>
 
   <!-- 追加フォーム（最初は非表示） -->
-  <div id="boxAddForm" class="master-form" style="display:none;">
+  <div id="boxAddForm" class="master-form form-grid" style="display:none;">
     <input type="text" id="newBoxId" placeholder="BoxID">
     <input type="text" id="newBoxPlace" placeholder="場所">
     <button onclick="addBoxMaster()">保存</button>

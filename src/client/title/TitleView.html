@@ -10,17 +10,17 @@
     <button onclick="showTitle()">表示</button>
   </div>
 
-  <section id="titleDetailHero" class="detail-section title-hero" style="display:none;">
-    <div class="title-hero-head">
-      <h4 id="titleDetailName" class="title-hero-name"></h4>
-      <div id="titleDetailMeta" class="title-hero-meta"></div>
+  <section id="titleDetailHero" class="detail-section detail-hero" style="display:none;">
+    <div class="detail-hero-head">
+      <h4 class="detail-hero-name"></h4>
+      <div class="detail-hero-meta"></div>
     </div>
-    <div id="titleDetailStats" class="stat-tiles"></div>
+    <div class="stat-tiles"></div>
   </section>
 
   <div id="titleOwnershipSummary" class="ownership-summary" style="display:none;"></div>
 
-  <section id="titleVolumeSection" class="detail-section title-volume-section" style="display:none;">
+  <section id="titleVolumeSection" class="detail-section detail-panel" style="display:none;">
     <h4 class="detail-section-title">巻の一覧</h4>
     <div id="titleVolumeGrid" class="volume-grid"></div>
     <div class="volume-legend" aria-hidden="true">
@@ -32,7 +32,7 @@
     </div>
   </section>
 
-  <details id="titleTableSection" class="detail-section title-table-section" style="display:none;">
+  <details id="titleTableSection" class="detail-section detail-panel title-table-section" style="display:none;">
     <summary>巻ごとの保管場所（Box）・読書状況</summary>
     <table id="titleTable" style="display:none;">
       <thead><tr><th>巻</th><th>BoxID</th><th>読書</th></tr></thead>

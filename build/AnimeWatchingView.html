@@ -1,16 +1,18 @@
 <!-- AnimeWatchingView.html -->
 <!-- 視聴中の一覧（＋視聴予定）。アニメの登録もこの画面の [＋ アニメを登録] から行う -->
 <div id="AnimeWatchingView" class="view">
-  <h3>視聴中の一覧</h3>
-
-  <div class="master-toolbar">
-    <button type="button" onclick="toggleAnimeEntryForm()">＋ アニメを登録</button>
+  <!-- 見出しと操作（右寄せ） -->
+  <div class="view-header">
+    <h3>視聴中の一覧</h3>
+    <div class="master-toolbar">
+      <button type="button" class="is-anime" onclick="toggleAnimeEntryForm()">＋ アニメを登録</button>
+    </div>
   </div>
 
   <!-- 登録フォーム（初期非表示）。登録後も開いたままにして続けて登録できる -->
   <!-- 今期のアニメの [登録] では、このフォームを今期のアニメの画面（#animeSeasonEntryHost）へ移して使う -->
   <div id="animeEntryHost">
-  <div id="animeEntryForm" class="master-form anime-entry-panel" style="display:none;">
+  <div id="animeEntryForm" class="master-form form-grid anime-entry-panel" style="display:none;">
     <p class="photo-import-note">作品（例: オーバーロード）の下に、期（TV の各期・OVA・劇場版）を 1 件ずつ登録します。新しい作品のときはシリーズも指定できます（空欄なら作品名と同じシリーズ。書籍と共通）。</p>
     <div id="animeEntrySource" class="anime-entry-source"></div>
     <input id="animeEntryAnimeInput" list="animeEntryAnimeList" placeholder="作品名">
@@ -41,6 +43,6 @@
   <div id="animeWatchingSummary" class="photo-import-summary"></div>
   <div id="animeWatchingCards" class="anime-cards"></div>
 
-  <h4 class="anime-section-title">視聴予定</h4>
+  <h4 class="anime-section-title">🗓️ 視聴予定</h4>
   <div id="animePlannedCards" class="anime-cards"></div>
 </div>
