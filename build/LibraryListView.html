@@ -1,12 +1,14 @@
 <!-- LibraryListView.html -->
 <div id="LibraryListView" class="view" style="display:none;">
-  <h3>書籍一覧</h3>
-
-  <div class="master-toolbar">
-    <button onclick="toggleAddForm('libraryAddForm')">追加</button>
+  <!-- 見出しと操作（右寄せ） -->
+  <div class="view-header">
+    <h3>書籍一覧</h3>
+    <div class="master-toolbar">
+      <button onclick="toggleAddForm('libraryAddForm')">＋ 追加</button>
+    </div>
   </div>
 
-  <div id="libraryAddForm" class="master-form" style="display:none;">
+  <div id="libraryAddForm" class="master-form form-grid" style="display:none;">
     <input id="libraryAddTitleInput" list="libraryAddTitleList" placeholder="作品名を入力">
     <datalist id="libraryAddTitleList"></datalist>
 

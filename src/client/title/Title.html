@@ -34,38 +34,13 @@ function showTitle(titleId){
 
 // 作品の詳細の見出し（作品名・種別・完結）と数字のまとめ（所持・抜け・積読・次の巻）
 function renderTitleHero(title, rows){
-  const hero = document.getElementById('titleDetailHero');
-  if(!hero) return;
-
-  document.getElementById('titleDetailName').textContent = title ? title.name : '';
-  const meta = document.getElementById('titleDetailMeta');
-  meta.innerHTML = '';
-  if(title){
-    [title.type, title.completed].filter(Boolean).forEach(text => {
-      const chip = document.createElement('span');
-      chip.className = `release-badge${text === 'ラノベ' ? ' is-novel' : ''}${text === '完結済' ? ' is-done' : ''}`;
-      chip.textContent = text;
-      meta.appendChild(chip);
-    });
-  }
-
-  const stats = document.getElementById('titleDetailStats');
-  stats.innerHTML = '';
-  buildTitleStats(rows, title ? title.completed : '').forEach(stat => {
-    const tile = document.createElement('div');
-    tile.className = `stat-tile ${stat.tone ? 'is-' + stat.tone : ''}`.trim();
-    const label = document.createElement('span');
-    label.className = 'stat-label';
-    label.textContent = stat.label;
-    const value = document.createElement('strong');
-    value.className = 'stat-value';
-    value.textContent = stat.value;
-    tile.appendChild(label);
-    tile.appendChild(value);
-    stats.appendChild(tile);
-  });
-
-  hero.style.display = 'block';
+  const chips = title
+    ? [title.type, title.completed].filter(Boolean).map(text => ({
+        text,
+        className: text === 'ラノベ' ? 'is-novel' : (text === '完結済' ? 'is-done' : '')
+      }))
+    : [];
+  renderDetailHero('titleDetailHero', title ? title.name : '', chips, buildTitleStats(rows, title ? title.completed : ''));
 }
 
 // 数字のまとめ（DOM を使わない）。rows: getTitleDetail の行（volume, read）

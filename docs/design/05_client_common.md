@@ -222,7 +222,7 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | 関数 | 仕様 |
 |---|---|
 | `closeMasterForms(view)` | 同一 View 内の `.master-form` をすべて閉じる |
-| `toggleMasterForm(id)` | `closeMasterForms` の後、指定フォームの表示をトグル。開いたら `true` を返す |
+| `toggleMasterForm(id)` | `closeMasterForms` の後、指定フォームの表示をトグル。開いたら `true` を返す。開くときは `style.display` を空にして CSS の表示（`.form-grid` は grid）に任せる |
 | `toggleAddForm(id)` / `toggleSearchForm(id)` | `toggleMasterForm` を呼ぶ |
 
 ## 5.9 クライアント状態
@@ -243,7 +243,7 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 
 ## 5.10 所持巻の集計
 
-`Common.html` の関数。作品表示・シリーズ表示・作品一覧・写真から登録で共通に使います。
+`Common.html` の関数。作品の詳細・シリーズの詳細・作品一覧・写真から登録で共通に使います。
 
 | 関数 | 用途 |
 |---|---|
@@ -300,3 +300,9 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 - 基本はダーク（`:root`）。ライトは `:root[data-theme="light"]` と、`data-theme` がないとき（自動）の `@media (prefers-color-scheme: light)` で同じ値を上書きします。**ライトの値を変えるときは両方を直します**。
 - 配色の選択（自動 / ライト / ダーク）はサイドメニュー末尾の `.theme-switch`。`setThemeChoice(choice)` が `<html data-theme>` を切り替え（自動は属性なし）、`localStorage`（`personalLibrary.theme`）に保存します。`loadSavedTheme()` は保存がない・知らない値・`localStorage` が使えないときは `auto`。描画前のちらつきを防ぐため、`Index.html` の `<head>` でも保存値を `data-theme` に反映し、`init` の `applyTheme` でボタンの選択状態をそろえます。
 - Bootstrap の `.table` は `--bs-table-*` 変数をトークンに向けて同じ見た目にそろえます（`!important` で打ち消さない）。`!important` は、JS のインラインの列幅（`applyColumnWidthHints`）を上書きする列幅指定と、`.table-striped` のセルの色を消すスマホのカード表示などに限ります。
+
+## 5.14 詳細画面の見出しと画面の見出し行
+
+- `renderDetailHero(heroId, name, chips, stats)`（`Common.html`）: 詳細画面（作品・シリーズ・箱）の見出し（`.detail-hero`）の中の `.detail-hero-name` に名前、`.detail-hero-meta` にバッジ（`chips: [{ text, className? }]`）、`.stat-tiles` に数字のまとめ（`stats: [{ label, value, tone? }]`。`tone` は `ok`（緑）/ `warning`（黄））を描いて表示します。数字は `buildTitleStats`（作品）・`buildGroupStats` / `buildSeriesStats`（箱・シリーズ）、バッジは `buildGroupTypeChips` で作ります（いずれも DOM を使わない）。
+- 画面の見出し行 `.view-header`: 見出し（`h3`）と操作ボタン（`.master-toolbar`）を左右に並べます（一覧画面・視聴中の一覧・発売予定・今期のアニメ）。スマホ幅ではボタンを見出しの下に全幅で並べます。控えめなボタンは `is-secondary`、アニメの色は `is-anime`。
+- 追加フォームの `.form-grid`: 入力欄を幅に合わせて横に並べ、説明・ボタンは 1 行使います（シリーズ・作品・箱・書籍の追加、シリーズの統合、アニメの登録）。

@@ -1,13 +1,18 @@
 <!-- AnimeSeasonView.html -->
 <!-- 今期のアニメ（Annict から取得）。[登録] で登録フォームをこの画面に開き、内容を確認してから登録する -->
 <div id="AnimeSeasonView" class="view" style="display:none;">
-  <h3>今期のアニメ</h3>
+  <!-- 見出しと操作（右寄せ） -->
+  <div class="view-header">
+    <h3>今期のアニメ</h3>
+    <div class="master-toolbar">
+      <button type="button" class="anime-season-button anime-season-refresh" onclick="refreshAnimeSeason()">↻ 最新の情報を取得</button>
+    </div>
+  </div>
 
   <div class="anime-season-nav">
     <button type="button" class="anime-season-button" onclick="moveAnimeSeason(-1)">◀ 前の期</button>
     <strong id="animeSeasonTitle" class="anime-season-title"></strong>
     <button type="button" class="anime-season-button" onclick="moveAnimeSeason(1)">次の期 ▶</button>
-    <button type="button" class="anime-season-button anime-season-refresh" onclick="refreshAnimeSeason()">最新の情報を取得</button>
   </div>
   <p class="photo-import-note">放送情報は <a href="https://annict.com/" target="_blank" rel="noopener">Annict</a> から取得します（その期に始まった作品。前の期から続いている作品は [◀ 前の期] で確認できます）。[登録] を押すと登録フォームが開くので、作品名・期名を確認してから登録してください。</p>
 

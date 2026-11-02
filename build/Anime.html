@@ -299,7 +299,7 @@ function openAnimeEntryFromSeason(work){
     `Annict の「${work.title}」${detail ? `（${detail}）` : ''}から入力しました。作品名・期名を確認して [登録する] を押してください`;
 
   const form = document.getElementById('animeEntryForm');
-  form.style.display = 'block';
+  form.style.display = '';
   syncAnimeEntrySeries();
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
   document.getElementById('animeEntryAnimeInput').focus();

@@ -979,6 +979,58 @@
     border: none;
     min-width: 120px;
   }
+  .master-toolbar button.is-secondary { background: var(--neutral); color: var(--on-neutral); box-shadow: none; }
+  .master-toolbar button.is-secondary:hover { background: var(--neutral-hover); }
+  .master-toolbar button.is-anime { background: var(--anime); color: #fff; }
+  .master-toolbar button.is-anime:hover { background: var(--anime-hover); }
+
+  /* 画面の見出し行（見出しと操作ボタンを左右に） */
+  .view-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin-bottom: 12px;
+  }
+  .view-header h3 { margin: 4px 0; }
+  .view-header .master-toolbar { margin-bottom: 0; }
+  .view-header .master-toolbar button { min-width: 0; }
+
+  /* 追加フォームの入力欄を横に並べる（説明・ボタンは 1 行使う） */
+  .master-form.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+    gap: 10px;
+    align-items: center;
+  }
+  .master-form.form-grid input,
+  .master-form.form-grid select { margin: 0; }
+  .master-form.form-grid > button,
+  .master-form.form-grid > p,
+  .master-form.form-grid > .series-merge-help,
+  .master-form.form-grid > .anime-entry-source,
+  .master-form.form-grid > .anime-entry-hint,
+  .master-form.form-grid > #animeEntrySeriesRow,
+  .master-form.form-grid > #animeEntryAnimeInput { grid-column: 1 / -1; }
+  .master-form.form-grid > button { justify-self: start; margin: 4px 0 0; min-width: 140px; }
+  .master-form.form-grid > p,
+  .master-form.form-grid > .series-merge-help { margin: 0; }
+  .anime-entry-hint:empty { display: none; }
+  .anime-entry-panel > #animeEntryButton { background: var(--anime); color: #fff; }
+  .anime-entry-panel > #animeEntryButton:hover { background: var(--anime-hover); }
+
+  /* 欲しい巻の追加フォーム（作品名 | 巻数、メモ | 追加） */
+  .wish-form {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+  }
+  .wish-form > .photo-import-note { grid-column: 1 / -1; }
+  .wish-form input { margin: 0; }
+  .wish-form .wish-next { margin: 0; }
+  .wish-form > button { margin: 0; }
 
   .search-field {
     flex: 1 1 auto;
@@ -1287,6 +1339,8 @@
     white-space: nowrap;
   }
   .wish-groups { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+  /* 欲しい巻リストの作品カード（PC 幅は 2 列） */
+  #wishListGroups { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr)); align-items: start; }
   .wish-group {
     padding: 10px 14px;
     border: 1px solid var(--border);
@@ -1333,7 +1387,8 @@
   body[data-mode="anime"] #seriesAnimeSection { order: -1; }
   .detail-section-title { margin: 0 0 8px; font-size: 1.05rem; font-weight: 700; color: var(--accent); }
   .detail-empty { color: var(--text-subtle); }
-  .anime-cards { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+  /* 視聴中・視聴予定のカード（PC 幅は 2 列） */
+  .anime-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr)); align-items: start; gap: 10px; margin-top: 10px; }
   .anime-card {
     padding: 10px 14px;
     border: 1px solid var(--border);
@@ -1568,8 +1623,8 @@
   .detail-picker input { flex: 1 1 auto; min-width: 0; margin: 0; }
   .detail-picker button { flex: 0 0 auto; margin: 0; }
 
-  /* 作品の詳細: 見出しと数字のまとめ */
-  .title-hero {
+  /* 詳細画面（作品・シリーズ・箱）: 見出しと数字のまとめ（renderDetailHero） */
+  .detail-hero {
     margin-top: 16px;
     padding: 16px 18px;
     border: 1px solid var(--border);
@@ -1577,12 +1632,12 @@
     background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, var(--surface)), var(--surface) 60%);
     box-shadow: var(--shadow-sm);
   }
-  .title-hero-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-  .title-hero-name { margin: 0; font-size: 1.4rem; font-weight: 800; }
-  .title-hero-meta { display: flex; flex-wrap: wrap; gap: 6px; }
-  .title-hero-meta .release-badge { margin: 0; font-size: 0.8rem; padding: 2px 10px; }
+  .detail-hero-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .detail-hero-name { margin: 0; font-size: 1.4rem; font-weight: 800; }
+  .detail-hero-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+  .detail-hero-meta .release-badge { margin: 0; font-size: 0.8rem; padding: 2px 10px; }
   .release-badge.is-done { background: color-mix(in srgb, var(--status-ok) 25%, transparent); color: var(--ok-text); }
-  .stat-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+  .stat-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-top: 14px; }
   .stat-tile {
     padding: 10px 12px;
     border: 1px solid var(--border);
@@ -1594,9 +1649,8 @@
   .stat-tile.is-ok .stat-value { color: var(--ok-text); }
   .stat-tile.is-warning .stat-value { color: var(--warn-text); }
 
-  /* 作品の詳細: 巻の一覧（所持・読書・抜け・欲しい巻を色で） */
-  .title-volume-section,
-  .title-table-section {
+  /* 詳細画面の欄（巻の一覧・書籍・アニメ・中の本など）。中の集計は枠を外す */
+  .detail-panel {
     margin-top: 12px;
     padding: 12px 16px;
     border: 1px solid var(--border);
@@ -1604,6 +1658,17 @@
     background: var(--surface);
     box-shadow: var(--shadow-sm);
   }
+  .series-sections > .detail-panel { margin-top: 0; }
+  .detail-panel .ownership-summary {
+    margin-top: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
+  .detail-panel table { margin-top: 12px; }
+
+  /* 作品の詳細: 巻の一覧（所持・読書・抜け・欲しい巻を色で） */
   .volume-grid { display: flex; flex-wrap: wrap; gap: 6px; }
   .volume-chip {
     display: inline-flex;
@@ -1864,6 +1929,11 @@
     #photoImportReview > button { width: 100%; }
     .photo-import-back { margin: 8px 0 0; }
 
+    /* 見出し行の操作は見出しの下に全幅で */
+    .view-header .master-toolbar { flex: 1 1 100%; }
+    .master-form.form-grid > button { justify-self: stretch; }
+    .wish-form { grid-template-columns: 1fr; }
+
     /* ツールバーは横並び・等幅 */
     .master-toolbar { flex-direction: row; flex-wrap: nowrap; }
     .master-toolbar button {
@@ -2019,8 +2089,9 @@
 
     /* 作品の詳細 */
     .stat-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .title-hero { padding: 14px; }
-    .title-hero-name { font-size: 1.25rem; }
+    .detail-hero { padding: 14px; }
+    .detail-hero-name { font-size: 1.25rem; }
+    .detail-picker button { width: auto; }
     .volume-chip { min-width: 2.6em; height: 2.2em; }
 
     /* 手順の表示（番号の下に名前） */

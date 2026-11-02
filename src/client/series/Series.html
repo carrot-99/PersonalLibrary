@@ -13,6 +13,7 @@ function showSeries(seriesId){
   google.script.run
     .withSuccessHandler(function(data){
       hideInlineLoading('SeriesView');
+      renderSeriesHero(id, data || {});
       renderSeriesBooks((data && data.titles) || [], data && data.bookSummary);
       renderSeriesAnime((data && data.seasons) || []);
     })
@@ -21,6 +22,24 @@ function showSeries(seriesId){
       showError(error && error.message ? error.message : '検索に失敗しました');
     })
     .getSeriesOverview(id);
+}
+
+// 見出し（シリーズ名・漫画とラノベの冊数）と数字のまとめ
+function renderSeriesHero(seriesId, data){
+  const series = (masterCache.seriesOptions || []).find(s => String(s.id) === String(seriesId));
+  renderDetailHero('seriesDetailHero', series ? series.name : '',
+    buildGroupTypeChips(data.bookSummary),
+    buildSeriesStats(data.bookSummary, data.titles || [], (data.seasons || []).length));
+}
+
+// シリーズの数字のまとめ（DOM を使わない）: 冊数・作品・積読・抜けのある作品・アニメの期
+function buildSeriesStats(bookSummary, titles, seasonCount){
+  const stats = buildGroupStats(bookSummary).slice(0, 3);
+  const books = Number((bookSummary || {}).books) || 0;
+  const missing = (titles || []).filter(item => summarizeOwnedVolumes(item.volumes).missing.length > 0).length;
+  stats.push({ label: '抜け', value: books > 0 ? `${missing}作品` : '-', tone: books === 0 ? '' : (missing > 0 ? 'warning' : 'ok') });
+  stats.push({ label: 'アニメ', value: `${seasonCount || 0}期` });
+  return stats;
 }
 
 // 書籍: 集計（冊数・作品・積読・抜けのある作品）と作品ごとの所持巻（作品名から作品の詳細へ）

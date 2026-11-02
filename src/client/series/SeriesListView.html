@@ -1,21 +1,22 @@
 <!-- SeriesListView.html -->
 <div id="SeriesListView" class="view" style="display:none;">
-  <h3>シリーズ一覧</h3>
-
-  <!-- ツールバー -->
-  <div class="master-toolbar">
-    <button onclick="toggleAddForm('seriesAddForm')">追加</button>
-    <button onclick="toggleSeriesMergeForm()">統合</button>
+  <!-- 見出しと操作（右寄せ） -->
+  <div class="view-header">
+    <h3>シリーズ一覧</h3>
+    <div class="master-toolbar">
+      <button onclick="toggleAddForm('seriesAddForm')">＋ 追加</button>
+      <button class="is-secondary" onclick="toggleSeriesMergeForm()">⇄ 統合</button>
+    </div>
   </div>
 
   <!-- 追加フォーム（初期非表示） -->
-  <div id="seriesAddForm" class="master-form" style="display:none;">
+  <div id="seriesAddForm" class="master-form form-grid" style="display:none;">
     <input type="text" id="newSeriesName" placeholder="シリーズ名">
     <button onclick="addSeriesMaster()">保存</button>
   </div>
 
   <!-- 統合フォーム（初期非表示）。左のシリーズを右のシリーズにまとめ、左は削除する -->
-  <div id="seriesMergeForm" class="master-form" style="display:none;">
+  <div id="seriesMergeForm" class="master-form form-grid" style="display:none;">
     <div class="series-merge-help">同じシリーズが別名で登録されているときに 1 つにまとめます。「まとめるシリーズ」の作品・アニメ作品を「残すシリーズ」に付け替え、「まとめるシリーズ」は削除します。</div>
     <input id="seriesMergeFromInput" list="seriesMergeFromList" placeholder="まとめるシリーズ（削除される）" autocomplete="off">
     <datalist id="seriesMergeFromList"></datalist>

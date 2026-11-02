@@ -13,10 +13,15 @@ function showBox(boxId) {
   google.script.run
     .withSuccessHandler(function(data){
       hideInlineLoading('BoxView');
+      const box = (masterCache.boxOptions || []).find(b => String(b.id) === String(id));
+      const chips = buildGroupTypeChips(data && data.summary);
+      if(box && box.place) chips.unshift({ text: box.place });
+      renderDetailHero('boxDetailHero', box ? box.id : id, chips, buildGroupStats(data && data.summary));
       renderSummaryLines('boxSummary', formatGroupSummaryLines(data && data.summary));
       renderTableReadOnly('boxTable', (data && data.items) || [], ['name','volume'], {
         name: row => openTitleDetail(row.titleId)
       });
+      document.getElementById('boxItemsSection').style.display = 'block';
     })
     .withFailureHandler(function(error){
       hideInlineLoading('BoxView');

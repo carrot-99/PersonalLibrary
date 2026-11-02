@@ -731,7 +731,8 @@ function toggleMasterForm(id){
   const wasHidden = form.style.display === 'none';
   closeMasterForms(view);
 
-  form.style.display = wasHidden ? 'block' : 'none';
+  // 表示は CSS の display に任せる（追加フォームは横並びの grid）
+  form.style.display = wasHidden ? '' : 'none';
   return wasHidden;
 }
 
@@ -1437,6 +1438,67 @@ function checkTextInputs(checks){
     if(message) return message;
   }
   return '';
+}
+
+//////////////////////////////
+// 詳細画面（作品・シリーズ・箱）の見出しと数字のまとめ
+// heroId の要素の中の .detail-hero-name / .detail-hero-meta / .stat-tiles に描く
+//   chips: [{ text, className? }]（名前の横のバッジ）、stats: [{ label, value, tone? }]（tone: 'ok' / 'warning'）
+//////////////////////////////
+function renderDetailHero(heroId, name, chips, stats){
+  const hero = document.getElementById(heroId);
+  if(!hero) return;
+
+  hero.querySelector('.detail-hero-name').textContent = name || '';
+
+  const meta = hero.querySelector('.detail-hero-meta');
+  meta.innerHTML = '';
+  (chips || []).forEach(chip => {
+    const span = document.createElement('span');
+    span.className = `release-badge ${chip.className || ''}`.trim();
+    span.textContent = chip.text;
+    meta.appendChild(span);
+  });
+
+  const tiles = hero.querySelector('.stat-tiles');
+  tiles.innerHTML = '';
+  (stats || []).forEach(stat => {
+    const tile = document.createElement('div');
+    tile.className = `stat-tile ${stat.tone ? 'is-' + stat.tone : ''}`.trim();
+    const label = document.createElement('span');
+    label.className = 'stat-label';
+    label.textContent = stat.label;
+    const value = document.createElement('strong');
+    value.className = 'stat-value';
+    value.textContent = stat.value;
+    tile.appendChild(label);
+    tile.appendChild(value);
+    tiles.appendChild(tile);
+  });
+
+  hero.style.display = 'block';
+}
+
+// 書籍のまとまり（Box・シリーズ）の数字のまとめ（DOM を使わない）。summary: summarizeLibraryRows の結果
+function buildGroupStats(summary){
+  const s = summary || {};
+  const books = Number(s.books) || 0;
+  const unread = Number(s.unread) || 0;
+  return [
+    { label: '冊数', value: `${books}冊` },
+    { label: '作品', value: `${Number(s.titles) || 0}作品` },
+    { label: '積読', value: `${unread}冊`, tone: books > 0 && unread === 0 ? 'ok' : '' },
+    { label: '最終追加', value: s.lastAdded || '-' }
+  ];
+}
+
+// 漫画・ラノベの冊数のバッジ（DOM を使わない）
+function buildGroupTypeChips(summary){
+  const s = summary || {};
+  return [
+    s.manga ? { text: `漫画 ${s.manga}冊` } : null,
+    s.novel ? { text: `ラノベ ${s.novel}冊`, className: 'is-novel' } : null
+  ].filter(Boolean);
 }
 
 //////////////////////////////
