@@ -588,19 +588,22 @@
     min-width: 0;
   }
 
+  /* 最近追加した漫画（ホームのパネルの 1 枚） */
   .recent-history-panel {
-    width: min(420px, 30vw);
-    flex: 0 0 min(420px, 30vw);
-    padding: 12px 14px;
-    margin-top: 0;
-    align-self: flex-start;
+    min-width: 0;
+    padding: 4px 16px 14px;
+    border-top: 3px solid var(--primary);
   }
 
   .recent-history-panel h4 {
-    margin: 0 0 8px;
-    font-size: 1rem;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin: 10px 0 8px;
+    font-size: 1.05rem;
     color: var(--text);
   }
+  #HomeView .top-summary-panel { margin-bottom: 12px; }
 
   .recent-history-panel table {
     margin-top: 0;
@@ -1460,22 +1463,56 @@
   .photo-import-read input { width: auto; margin: 0; }
   .release-group.is-reading { border-left-color: var(--status-ok); }
 
-  /* ホーム */
-  .home-sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); align-items: start; gap: 4px 20px; }
-  .home-section { min-width: 0; }
+  /* ホーム（各欄は 1 枚のパネル。上端の色で欄を見分ける） */
+  .home-sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); align-items: start; gap: 16px; margin-top: 12px; }
+  .home-section {
+    --section-color: var(--accent);
+    min-width: 0;
+    padding: 4px 16px 12px;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--section-color);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+  .home-section[data-section="reading"] { --section-color: var(--status-ok); }
+  .home-section[data-section="week"],
+  .home-section[data-section="month"] { --section-color: var(--accent); }
+  .home-section[data-section="unowned"] { --section-color: var(--status-orange); }
+  .home-section[data-section="wishes"],
+  .home-section[data-section="watching"] { --section-color: var(--anime); }
+  .home-section:not([open]) { padding-bottom: 4px; }
   /* 見出しを押すとたためる（▾ 開いている / ▸ たたんでいる） */
   .home-section > summary { list-style: none; cursor: pointer; user-select: none; border-radius: var(--radius-sm); }
   .home-section > summary::-webkit-details-marker { display: none; }
+  .home-section > summary .release-heading {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0 6px;
+  }
   .home-section > summary .release-heading::before {
     content: '▸';
-    display: inline-block;
-    width: 1.1em;
-    color: var(--accent);
+    width: 0.9em;
+    color: var(--text-subtle);
   }
   .home-section[open] > summary .release-heading::before { content: '▾'; }
   .home-section:not([open]) > summary .release-heading { margin-bottom: 8px; }
-  .home-more { float: right; font-size: 0.85rem; font-weight: normal; color: var(--link); text-decoration: none; }
+  .home-icon { font-size: 1.05em; }
+  .home-more { margin-left: auto; font-size: 0.85rem; font-weight: normal; color: var(--link); text-decoration: none; }
   .home-more:hover { text-decoration: underline; }
+  /* パネルの中のカードは枠を外して行の並びにする */
+  .home-section .wish-groups { gap: 0; margin-top: 0; }
+  .home-section .wish-group {
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .home-section .wish-group + .wish-group { border-top: 1px solid var(--border); }
+  .home-section .wish-group > .wish-item:first-child { border-top: none; }
   .home-rest { color: var(--text-subtle); font-size: 0.85rem; }
   .home-anime .wish-item:first-child { border-top: none; }
   .wish-item > .home-episodes { flex: 0 0 auto; }
@@ -1526,9 +1563,116 @@
     padding: 6px 14px;
   }
 
-  /* サマリー・最近追加はホームだけに出す（body[data-view] は showTab が設定） */
-  body:not([data-view="HomeView"]) .top-summary-panel,
-  body:not([data-view="HomeView"]) .recent-history-panel { display: none; }
+  /* 詳細画面の選択欄（入力欄と [表示] を横並び） */
+  .detail-picker { display: flex; gap: 8px; align-items: center; max-width: 560px; }
+  .detail-picker input { flex: 1 1 auto; min-width: 0; margin: 0; }
+  .detail-picker button { flex: 0 0 auto; margin: 0; }
+
+  /* 作品の詳細: 見出しと数字のまとめ */
+  .title-hero {
+    margin-top: 16px;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, var(--surface)), var(--surface) 60%);
+    box-shadow: var(--shadow-sm);
+  }
+  .title-hero-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .title-hero-name { margin: 0; font-size: 1.4rem; font-weight: 800; }
+  .title-hero-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+  .title-hero-meta .release-badge { margin: 0; font-size: 0.8rem; padding: 2px 10px; }
+  .release-badge.is-done { background: color-mix(in srgb, var(--status-ok) 25%, transparent); color: var(--ok-text); }
+  .stat-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+  .stat-tile {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .stat-label { display: block; font-size: 0.78rem; color: var(--text-muted); }
+  .stat-value { display: block; margin-top: 2px; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat-tile.is-ok .stat-value { color: var(--ok-text); }
+  .stat-tile.is-warning .stat-value { color: var(--warn-text); }
+
+  /* 作品の詳細: 巻の一覧（所持・読書・抜け・欲しい巻を色で） */
+  .title-volume-section,
+  .title-table-section {
+    margin-top: 12px;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+  .volume-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .volume-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.4em;
+    height: 2em;
+    padding: 0 6px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-style: normal;
+    font-variant-numeric: tabular-nums;
+    box-sizing: border-box;
+  }
+  .volume-chip.is-read { background: color-mix(in srgb, var(--status-ok) 30%, var(--surface)); color: var(--text); }
+  .volume-chip.is-reading { background: color-mix(in srgb, var(--status-warn) 40%, var(--surface)); color: var(--text); }
+  .volume-chip.is-unread { background: var(--surface); border-color: var(--primary); color: var(--text); }
+  .volume-chip.is-missing { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-subtle); font-weight: 500; }
+  .volume-chip.is-wish { background: transparent; border: 1px dashed var(--anime); color: var(--anime-text); }
+  .volume-chip.is-wished { box-shadow: inset 0 -3px 0 var(--anime); }
+  .volume-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 0.78rem; color: var(--text-muted); }
+  .volume-legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .volume-legend .volume-chip { min-width: 1.3em; width: 1.3em; height: 1.1em; padding: 0; }
+  .title-table-section > summary { cursor: pointer; font-weight: 700; color: var(--text-muted); }
+  .title-table-section[open] > summary { margin-bottom: 4px; }
+
+  /* 手順の表示（写真で確認・登録） */
+  .step-indicator {
+    display: flex;
+    gap: 4px;
+    margin: 0 0 12px;
+    padding: 0;
+    list-style: none;
+    counter-reset: none;
+  }
+  .step-indicator li {
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px 10px;
+    border-bottom: 3px solid var(--border);
+    color: var(--text-subtle);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .step-number {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7em;
+    height: 1.7em;
+    border-radius: 50%;
+    background: var(--neutral);
+    color: var(--on-neutral);
+    font-size: 0.8rem;
+  }
+  .step-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .step-indicator li.is-done { border-bottom-color: color-mix(in srgb, var(--primary) 45%, transparent); color: var(--text-muted); }
+  .step-indicator li.is-done .step-number { background: color-mix(in srgb, var(--primary) 30%, var(--surface)); color: var(--text); }
+  .step-indicator li.is-done .step-number::before { content: '✓'; }
+  .step-indicator li.is-done .step-number { font-size: 0; }
+  .step-indicator li.is-done .step-number::before { font-size: 0.8rem; }
+  .step-indicator li.is-current { border-bottom-color: var(--primary); color: var(--text); }
+  .step-indicator li.is-current .step-number { background: var(--primary); color: var(--on-primary); }
 
   /* PC（1101px 以上）はサイドメニューを常に表示し、☰ は出さない */
   @media (min-width: 1101px) {
@@ -1539,6 +1683,10 @@
       box-shadow: none;
     }
     .main-content { padding-left: 288px; }
+    /* サマリーは 6 項目を 1 段に */
+    .top-summary-panel { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .summary-item.compact:nth-child(3n+1) { border-left: 1px solid var(--border); }
+    .summary-item.compact:first-child { border-left: none; }
   }
 
   /* スマホの下部タブバー（720px 以下だけ表示） */
@@ -1566,12 +1714,6 @@
     #tabContent { align-self: stretch; }
     .top-summary-panel { grid-template-columns: repeat(3, minmax(120px, 1fr)); row-gap: 10px; }
     .summary-item.compact:nth-child(3n+1) { border-left: none; }
-    .recent-history-panel {
-      width: 100%;
-      flex-basis: auto;
-      align-self: stretch;
-      order: 2;
-    }
     .summary-item.compact { font-size: 0.85rem; }
     .summary-item.compact strong { font-size: 1.2rem; }
     .menu-toggle {
@@ -1874,6 +2016,16 @@
     .recent-history-panel td { padding: 8px 6px; font-size: 0.9rem; }
 
     .inline-loading { font-size: 0.95rem; }
+
+    /* 作品の詳細 */
+    .stat-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .title-hero { padding: 14px; }
+    .title-hero-name { font-size: 1.25rem; }
+    .volume-chip { min-width: 2.6em; height: 2.2em; }
+
+    /* 手順の表示（番号の下に名前） */
+    .step-indicator li { flex-direction: column; gap: 4px; padding: 6px 2px; text-align: center; font-size: 0.72rem; }
+    .step-label { white-space: normal; }
 
     /* 写真から登録 */
     .photo-import-panel { padding: 12px; }
