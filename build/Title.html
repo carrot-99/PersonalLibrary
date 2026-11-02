@@ -198,6 +198,60 @@ function appendTitleReadLine(rows, titleId){
     span.appendChild(button);
   }
   box.appendChild(line);
+
+  appendTitleReadBulkLine(rows, titleId);
+}
+
+// まとめて読了（「n巻まで」を選んで、それまでの未読・読書中の巻を読了にする）。読了していない巻が 2 冊以上のときだけ出す
+function appendTitleReadBulkLine(rows, titleId){
+  const box = document.getElementById('titleOwnershipSummary');
+  const targets = rows.filter(row => row.read !== '読了').sort((a, b) => compareVolumes(a.volume, b.volume));
+  if(!box || targets.length < 2) return;
+
+  const line = document.createElement('div');
+  line.className = 'ownership-line read-bulk-line';
+  const strong = document.createElement('strong');
+  strong.textContent = 'まとめて';
+  const span = document.createElement('span');
+  span.className = 'read-bulk';
+
+  const select = document.createElement('select');
+  select.id = 'titleReadUpTo';
+  select.setAttribute('aria-label', '読了にする最後の巻');
+  targets.forEach(row => {
+    const option = document.createElement('option');
+    option.value = row.volume;
+    option.textContent = `${row.volume}${/^\d+$/.test(String(row.volume).trim()) ? '巻' : ''}まで`;
+    select.appendChild(option);
+  });
+  select.value = targets[targets.length - 1].volume;
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'read-action';
+  const updateLabel = () => {
+    button.textContent = `${pickVolumesToMarkRead(rows, select.value).length}冊を読了にする`;
+  };
+  select.addEventListener('change', updateLabel);
+  updateLabel();
+  button.addEventListener('click', function(){
+    const ids = pickVolumesToMarkRead(rows, select.value);
+    if(ids.length === 0) return;
+    setReadStatus(ids, '読了', function(){ showTitle(titleId); }, button);
+  });
+
+  span.appendChild(select);
+  span.appendChild(button);
+  line.appendChild(strong);
+  line.appendChild(span);
+  box.appendChild(line);
+}
+
+// まとめて読了にする巻の ID（DOM を使わない）。upTo の巻まで（巻の順）で、まだ読了でないもの
+function pickVolumesToMarkRead(rows, upTo){
+  return (rows || [])
+    .filter(row => row.read !== '読了' && compareVolumes(row.volume, upTo) <= 0)
+    .map(row => row.id);
 }
 
 // 作品表示に欲しい巻を追記（欲しい巻リストに登録がある場合のみ）。巻の一覧にも欲しい巻を反映する

@@ -140,6 +140,7 @@ node build.js
 | `webapp.executeAs` | `USER_DEPLOYING` | デプロイしたユーザーの権限でスプレッドシートにアクセス |
 | `webapp.access` | `MYSELF` | デプロイしたユーザー本人のみアクセス可能 |
 | viewport | `width=device-width, initial-scale=1` | `doGet` で `addMetaTag` により設定。スマホで端末幅どおりに表示する（GAS では HTML 内の `<meta name="viewport">` は効かない） |
+| ファビコン | 🥕（`FAVICON_URL`） | `doGet` で `setFaviconUrl` により設定。Google Noto Emoji（Apache License 2.0）の画像を版（`v2.047`）を固定して jsDelivr から読む（リポジトリは非公開のため画像を置けない。GAS のページは iframe の中なので HTML の `<link rel="icon">` は効かない） |
 
 ### スクリプトプロパティ
 

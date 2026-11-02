@@ -588,21 +588,8 @@
     min-width: 0;
   }
 
-  /* 最近追加した漫画（ホームのパネルの 1 枚） */
-  .recent-history-panel {
-    min-width: 0;
-    padding: 4px 16px 14px;
-    border-top: 3px solid var(--primary);
-  }
-
-  .recent-history-panel h4 {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    margin: 10px 0 8px;
-    font-size: 1.05rem;
-    color: var(--text);
-  }
+  /* 最近追加した漫画（ホームのパネルの 1 枚。見た目・開閉は .home-section） */
+  .recent-history-panel { min-width: 0; }
   #HomeView .top-summary-panel { margin-bottom: 12px; }
 
   .recent-history-panel table {
@@ -1514,6 +1501,11 @@
   .read-bulk button.is-confirm { background: var(--success); color: #fff; }
   .read-action { margin: 0 0 0 6px; padding: 3px 10px; font-size: 0.8rem; background: var(--success); color: #fff; box-shadow: none; }
   .read-action:hover { background: var(--success-hover); }
+  /* 作品の詳細の「まとめて」（n巻まで読了） */
+  .read-bulk-line .read-bulk { margin: 0; }
+  .read-bulk-line .read-bulk select { padding: 4px 8px; font-size: 0.9rem; }
+  .read-bulk-line .read-bulk .read-action { margin: 0; padding: 5px 12px; background: var(--success); color: #fff; }
+  .read-bulk-line .read-bulk .read-action:hover { background: var(--success-hover); }
   .photo-import-read { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
   .photo-import-read input { width: auto; margin: 0; }
   .release-group.is-reading { border-left-color: var(--status-ok); }
@@ -1536,6 +1528,7 @@
   .home-section[data-section="unowned"] { --section-color: var(--status-orange); }
   .home-section[data-section="wishes"],
   .home-section[data-section="watching"] { --section-color: var(--anime); }
+  .home-section[data-section="recent"] { --section-color: var(--primary); }
   .home-section:not([open]) { padding-bottom: 4px; }
   /* 見出しを押すとたためる（▾ 開いている / ▸ たたんでいる） */
   .home-section > summary { list-style: none; cursor: pointer; user-select: none; border-radius: var(--radius-sm); }
