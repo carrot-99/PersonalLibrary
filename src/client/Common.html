@@ -12,6 +12,7 @@ let appMode = null;
 
 function init(){
   refreshMasterData(true);
+  applyTheme(loadSavedTheme());
   // 起動時はホーム（共通の画面でモードを決めないので、前回のモードを先に反映する）
   applyAppMode(loadSavedAppMode());
   showTab('HomeView');
@@ -50,6 +51,34 @@ function applyAppMode(mode){
 function setAppMode(mode){
   if(!APP_MODE_HOME[mode] || appMode === mode) return;
   showTab(APP_MODE_HOME[mode]);
+}
+
+// 配色（自動 / ライト / ダーク）。自動は OS の設定に合わせる（<html data-theme> なし）。
+// 描画前の反映は Index.html の <head> で行い、ここではメニューの選択状態をそろえる
+const THEME_STORAGE_KEY = 'personalLibrary.theme';
+const THEME_CHOICES = ['auto', 'light', 'dark'];
+
+function loadSavedTheme(){
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    if(THEME_CHOICES.includes(saved)) return saved;
+  } catch(e) {}
+  return 'auto';
+}
+
+function applyTheme(choice){
+  const root = document.documentElement;
+  if(choice === 'light' || choice === 'dark') root.dataset.theme = choice;
+  else delete root.dataset.theme;
+  document.querySelectorAll('.theme-switch button').forEach(b => {
+    b.classList.toggle('active', b.dataset.themeChoice === choice);
+  });
+}
+
+function setThemeChoice(choice){
+  if(!THEME_CHOICES.includes(choice)) return;
+  applyTheme(choice);
+  try { localStorage.setItem(THEME_STORAGE_KEY, choice); } catch(e) {}
 }
 
 function toggleSidebar(){
@@ -582,7 +611,6 @@ function renderPagedTableDOM(options){
     paginationDiv = document.createElement('div');
     paginationDiv.id = paginationDivId;
     paginationDiv.className = 'pagination-bar';
-    paginationDiv.style.marginTop = "10px";
     document.getElementById(tableId).after(paginationDiv);
   }
 
@@ -610,7 +638,6 @@ function renderPagedTableDOM(options){
     const prevBtn = document.createElement('button');
     prevBtn.textContent = '« 前へ';
     prevBtn.onclick = () => onPageChange(currentPage - 1);
-    prevBtn.style.marginRight = '5px';
     paginationDiv.appendChild(prevBtn);
   }
 
@@ -619,13 +646,11 @@ function renderPagedTableDOM(options){
     const firstBtn = document.createElement('button');
     firstBtn.textContent = 1;
     firstBtn.onclick = () => onPageChange(1);
-    firstBtn.style.marginRight = '5px';
     paginationDiv.appendChild(firstBtn);
 
     if(startPage > 2){
       const dots = document.createElement('span');
       dots.textContent = '...';
-      dots.style.marginRight = '5px';
       paginationDiv.appendChild(dots);
     }
   }
@@ -635,13 +660,11 @@ function renderPagedTableDOM(options){
     if(p === currentPage){
       const span = document.createElement('span');
       span.textContent = p;
-      span.style.fontWeight = 'bold';
-      span.style.marginRight = '5px';
+      span.className = 'is-current';
       paginationDiv.appendChild(span);
     } else {
       const btn = document.createElement('button');
       btn.textContent = p;
-      btn.style.marginRight = '5px';
       btn.onclick = () => onPageChange(p);
       paginationDiv.appendChild(btn);
     }
@@ -652,14 +675,12 @@ function renderPagedTableDOM(options){
     if(endPage < totalPages - 1){
       const dots = document.createElement('span');
       dots.textContent = '...';
-      dots.style.marginRight = '5px';
       paginationDiv.appendChild(dots);
     }
 
     const lastBtn = document.createElement('button');
     lastBtn.textContent = totalPages;
     lastBtn.onclick = () => onPageChange(totalPages);
-    lastBtn.style.marginRight = '5px';
     paginationDiv.appendChild(lastBtn);
   }
 
@@ -707,7 +728,6 @@ function toggleMasterForm(id){
   closeMasterForms(view);
 
   form.style.display = wasHidden ? 'block' : 'none';
-  syncMasterToolbarLayout(view);
   return wasHidden;
 }
 
@@ -748,33 +768,6 @@ function resetViewState(view){
       box.style.display = 'none';
     });
   }
-}
-
-function syncMasterToolbarLayout(view){
-  if(!view) return;
-
-  const toolbar = view.querySelector('.master-toolbar');
-  if(!toolbar) return;
-
-  const isTablet = window.matchMedia('(max-width: 1100px)').matches;
-  if(!isTablet){
-    toolbar.style.flexDirection = '';
-    toolbar.style.alignItems = '';
-    toolbar.style.gap = '';
-    return;
-  }
-
-  toolbar.style.display = 'flex';
-  toolbar.style.flexDirection = 'row';
-  toolbar.style.flexWrap = 'wrap';
-  toolbar.style.alignItems = 'stretch';
-  toolbar.style.gap = '8px';
-
-  toolbar.querySelectorAll('button').forEach(button => {
-    button.style.marginTop = '0';
-    button.style.width = 'auto';
-    button.style.flex = '1 1 180px';
-  });
 }
 
 ///////////////////////////////
@@ -1060,7 +1053,6 @@ function startEdit(btn){
   const cancelBtn = document.createElement('button');
   cancelBtn.type = 'button';
   cancelBtn.textContent = '取消';
-  cancelBtn.style.marginLeft = '5px';
   cancelBtn.addEventListener('click', function(){
     cancelEdit(this);
   });

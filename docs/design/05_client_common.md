@@ -124,7 +124,7 @@ callGASCached(cacheKey, funcName, onData, { viewId?, errorMessage?, refresh? })
 
 - テーブル直後に `<tableId>_pagination` の `div`（クラス `pagination-bar`）を生成（初回のみ）。
 - 総ページ数 1 以下では非表示。
-- 表示形式: `« 前へ  1 … [n-2] [n-1] **n** [n+1] [n+2] … 最終  次へ »`（中央 5 ページ）。
+- 表示形式: `« 前へ  1 … [n-2] [n-1] **n** [n+1] [n+2] … 最終  次へ »`（中央 5 ページ）。今のページはボタンではなく `span.is-current`。見た目（間隔・色）は CSS（`.pagination-bar`）で指定し、JS では付けない。
 - ボタン押下で `onPageChange(page)` を呼び、呼び出し元が再取得・再描画します。
 
 ## 5.5 オートコンプリート
@@ -224,7 +224,6 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | `closeMasterForms(view)` | 同一 View 内の `.master-form` をすべて閉じる |
 | `toggleMasterForm(id)` | `closeMasterForms` の後、指定フォームの表示をトグル。開いたら `true` を返す |
 | `toggleAddForm(id)` / `toggleSearchForm(id)` | `toggleMasterForm` を呼ぶ |
-| `syncMasterToolbarLayout(view)` | 1100px 以下でツールバーのボタンを折り返し可能な横並びに調整 |
 
 ## 5.9 クライアント状態
 
@@ -279,3 +278,21 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | `edit` | `{ update, remove?, onSaved }`。指定すると各行に操作列を付ける（表の最後に操作列の見出しを置く。[5.7](#57-インライン編集)） |
 
 戻り値 `{ setRows(rows), updateRow(id, patch), updateRows(ids, patch), removeRow(id), getFilteredRows() }`。`updateRows` は複数の行に同じ `patch` を上書き（書籍一覧の読書状況のまとめて変更）、`getFilteredRows` はキーワード・絞り込みに合う行（全ページ分）を返します。`setRows` は行を入れ替えて再描画します（条件・並び順・ページは保持。編集中の行があれば描き直さない）。`updateRow` は ID の行に `patch` を上書き、`removeRow` は ID の行を消して再描画します（インライン編集の保存・削除の直後）。描画は `renderPagedTableDOM`、見出しにはクラス `sortable` / `sort-asc` / `sort-desc` を付けます。表にはクラス `card-list` を付け、スマホ幅（720px 以下）では 1 行を 1 枚のカードで表示します（[04 章 4.1](04_screen_design.md#レスポンシブ)。CSS のみ）。
+
+## 5.13 デザイントークンと配色
+
+色・角丸・影は `Styles.html` 先頭の CSS 変数（デザイントークン）にまとめ、各部品はこの変数だけを使います（色の直書きはしない）。
+
+| 変数の例 | 用途 |
+|---|---|
+| `--bg` / `--bg-elevated` / `--surface` / `--surface-2` / `--surface-hover` | 画面の背景・サイドメニューと上部バー・カードや表・入力欄と表の見出し・マウスを乗せたとき |
+| `--border` / `--border-strong` | 枠線（入力欄は強め） |
+| `--text` / `--text-muted` / `--text-subtle` | 本文・補足・さらに控えめな文字 |
+| `--primary` / `--neutral` / `--danger` / `--success` | ボタン（主・控えめ・削除・完了）。文字色は `--on-primary` / `--on-neutral` |
+| `--book` / `--anime` / `--entry` / `--list` / `--common` | 機能ごとの色（メニューのグループの印・選択中の線、カードの左線） |
+| `--status-*` / `--on-status` | 状態バッジ（写真で確認・登録の判定など） |
+| `--radius-sm` / `--radius` / `--radius-lg` / `--shadow-sm` / `--shadow` | 角丸・影 |
+
+- 基本はダーク（`:root`）。ライトは `:root[data-theme="light"]` と、`data-theme` がないとき（自動）の `@media (prefers-color-scheme: light)` で同じ値を上書きします。**ライトの値を変えるときは両方を直します**。
+- 配色の選択（自動 / ライト / ダーク）はサイドメニュー末尾の `.theme-switch`。`setThemeChoice(choice)` が `<html data-theme>` を切り替え（自動は属性なし）、`localStorage`（`personalLibrary.theme`）に保存します。`loadSavedTheme()` は保存がない・知らない値・`localStorage` が使えないときは `auto`。描画前のちらつきを防ぐため、`Index.html` の `<head>` でも保存値を `data-theme` に反映し、`init` の `applyTheme` でボタンの選択状態をそろえます。
+- Bootstrap の `.table` は `--bs-table-*` 変数をトークンに向けて同じ見た目にそろえます（`!important` で打ち消さない）。`!important` は、JS のインラインの列幅（`applyColumnWidthHints`）を上書きする列幅指定と、`.table-striped` のセルの色を消すスマホのカード表示などに限ります。
