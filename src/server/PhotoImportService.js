@@ -28,11 +28,12 @@ const PHOTO_IMPORT_SCHEMA = {
           position: { type: 'integer' },
           photo: { type: 'integer' },
           recognizedTitle: { type: 'string' },
+          recognizedAuthor: { type: 'string' },
           volumeDisplay: { type: 'string' },
           uncertain: { type: 'boolean' },
           notes: { type: 'string' }
         },
-        required: ['position', 'photo', 'recognizedTitle', 'volumeDisplay', 'uncertain', 'notes'],
+        required: ['position', 'photo', 'recognizedTitle', 'recognizedAuthor', 'volumeDisplay', 'uncertain', 'notes'],
         additionalProperties: false
       }
     }
@@ -107,6 +108,7 @@ function requestSpineAnalysis(images, titles, apiKey, props){
     '- 複数の写真がある場合は、1枚目の左から順に、続けて2枚目以降も同様に position を1から連番で振ってください。',
     '- photo にはその本が写っている写真の番号（1枚目なら1）を入れてください。',
     '- recognizedTitle には表紙・背表紙から読み取れた作品名を入れてください。副題や作者名、出版社名は含めないでください。',
+    '- recognizedAuthor には表紙・背表紙に書かれた作者名を入れてください。複数（原作と漫画など）なら「/」で区切り、「原作」「漫画」などの役割は付けないでください。読み取れない場合は空文字にしてください。',
     '- 読み取った文字が下の「登録済み作品名」のどれかと明らかに同じ作品であれば、その表記に合わせてください。推測で当てはめることはしないでください。',
     '- volumeDisplay には巻数を数字のみで入れてください（例: "12"）。「上」「下」など数字でない巻表記はそのまま入れてください。読み取れない場合は空文字にしてください。',
     '- 作品名か巻数のどちらかに少しでも自信がない場合は uncertain を true にしてください。',
@@ -267,6 +269,7 @@ function validateSpineResult(parsed, imageCount){
         ? book.photo
         : (imageCount === 1 ? 1 : 0),
       recognizedTitle: book.recognizedTitle.trim(),
+      recognizedAuthor: typeof book.recognizedAuthor === 'string' ? book.recognizedAuthor.trim() : '',
       volumeDisplay: /^\d+$/.test(book.volumeDisplay.trim())
         ? String(Number(book.volumeDisplay.trim()))
         : book.volumeDisplay.trim(),
@@ -343,6 +346,7 @@ function matchExistingTitles(books, titles){
       position: book.position,
       photo: book.photo,
       recognizedTitle: book.recognizedTitle,
+      recognizedAuthor: book.recognizedAuthor || '',
       volume: book.volumeDisplay,
       uncertain: book.uncertain,
       notes: book.notes,
@@ -357,7 +361,8 @@ function matchExistingTitles(books, titles){
 
 // ----------------------
 // 確認画面からの作品追加（ユーザー操作時のみ。必要ならシリーズも新規作成）
-// input: { name, seriesId, newSeriesName, type, completed }
+// input: { name, seriesId, newSeriesName, type, completed, authorHint }
+// 作者・出版社は楽天ブックスから取得し、見つからなければ写真から読み取った作者（authorHint）を入れる
 // ----------------------
 function addTitleFromPhotoImport(input){
 
@@ -366,6 +371,7 @@ function addTitleFromPhotoImport(input){
   const newSeriesName = String((input && input.newSeriesName) || '').trim();
   const type = String((input && input.type) || '').trim();
   const completed = String((input && input.completed) || '').trim();
+  const authorHint = String((input && input.authorHint) || '').trim();
 
   if(!name){
     return failure('作品名は必須です');
@@ -381,6 +387,10 @@ function addTitleFromPhotoImport(input){
   if(!options.valid){
     return failure(options.message);
   }
+
+  // 楽天への問い合わせはロックの外で行う
+  const looked = lookupTitleAuthor(name, options.type);
+  const info = looked && looked.author ? looked : Object.assign({}, looked || {}, { author: authorHint });
 
   const lock = LockService.getScriptLock();
   if(!lock.tryLock(10000)){
@@ -415,17 +425,17 @@ function addTitleFromPhotoImport(input){
       series = { id: String(found[0]).trim(), name: String(found[1]), created: false };
     }
 
-    const titleRes = addTitleMasterCore(name, series.id, type, completed);
+    const titleRes = addTitleMasterCore(name, series.id, type, completed, info);
     if(!titleRes.success) return titleRes;
 
     const titleId = String(getMaxId(SHEETS.TITLE));
 
     return {
       success: true,
-      message: series.created
+      message: (series.created
         ? `シリーズ「${series.name}」と作品「${name}」を追加しました`
-        : `作品「${name}」を追加しました`,
-      title: { id: titleId, name, completed, type, label: buildTitleLabelMap(getData(SHEETS.TITLE)).get(titleId) || name },
+        : `作品「${name}」を追加しました`) + (info.author ? `（作者: ${info.author}）` : ''),
+      title: { id: titleId, name, completed, type, label: buildTitleLabelMap(getData(SHEETS.TITLE)).get(titleId) || name, author: info.author || '', publisher: info.publisher || '' },
       series
     };
 

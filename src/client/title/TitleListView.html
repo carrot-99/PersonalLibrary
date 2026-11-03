@@ -5,8 +5,11 @@
     <h3>作品一覧</h3>
     <div class="master-toolbar">
       <button onclick="toggleAddForm('titleAddForm')">＋ 追加</button>
+      <!-- 作者が空の作品の作者・出版社を楽天ブックスから取得（fillTitleAuthors。1 回 4 分ほどまで） -->
+      <button id="titleAuthorFillButton" class="is-secondary" type="button" onclick="fillTitleAuthors()">✎ 作者・出版社を補完</button>
     </div>
   </div>
+  <p id="titleAuthorFillStatus" class="photo-import-note" style="display:none;"></p>
 
   <!-- 追加フォーム（初期非表示） -->
   <div id="titleAddForm" class="master-form form-grid" style="display:none;">
@@ -37,6 +40,8 @@
         <th>TitleID</th>
         <th>作品名</th>
         <th>シリーズ</th>
+        <th>作者</th>
+        <th>出版社</th>
         <th>種別</th>
         <th>完結</th>
         <th>所持巻</th>

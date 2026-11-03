@@ -141,6 +141,88 @@ function buildTitleVolumeGrid(rows, wishVolumes){
   ].map(toCell);
 }
 
+// 作者・出版社の行（作者名を押すとその作者で絞り込んだ作品一覧へ。[編集] で手入力）
+function appendTitleAuthorLines(box, title){
+  const line = document.createElement('div');
+  line.className = 'ownership-line title-author-line';
+  const strong = document.createElement('strong');
+  strong.textContent = '作者';
+  const span = document.createElement('span');
+  const names = splitAuthors(title.author);
+  if(names.length === 0){
+    const empty = document.createElement('span');
+    empty.className = 'detail-empty';
+    empty.textContent = '未設定 ';
+    span.appendChild(empty);
+  }
+  names.forEach((name, i) => {
+    if(i > 0) span.appendChild(document.createTextNode(' / '));
+    span.appendChild(createCellLink(name, () => openTitleListByAuthor(name)));
+  });
+  if(title.publisher){
+    const publisher = document.createElement('span');
+    publisher.className = 'title-publisher';
+    publisher.textContent = `（${title.publisher}）`;
+    span.appendChild(publisher);
+  }
+  const editButton = document.createElement('button');
+  editButton.type = 'button';
+  editButton.className = 'read-action title-author-edit';
+  editButton.textContent = '編集';
+  editButton.addEventListener('click', function(){ openTitleAuthorEditor(line, title); });
+  span.appendChild(editButton);
+
+  line.appendChild(strong);
+  line.appendChild(span);
+  box.appendChild(line);
+}
+
+// 作者・出版社の入力欄（行を入力欄に置き換える）。保存したら選択肢の作品も書き換えて表示し直す
+function openTitleAuthorEditor(line, title){
+  const span = line.querySelector('span');
+  span.innerHTML = '';
+  span.className = 'title-author-editor';
+
+  const authorInput = document.createElement('input');
+  authorInput.value = title.author || '';
+  authorInput.placeholder = '作者（複数なら / 区切り）';
+  authorInput.setAttribute('aria-label', '作者');
+  const publisherInput = document.createElement('input');
+  publisherInput.value = title.publisher || '';
+  publisherInput.placeholder = '出版社';
+  publisherInput.setAttribute('aria-label', '出版社');
+
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'read-action';
+  save.textContent = '保存';
+  save.addEventListener('click', function(){
+    const author = authorInput.value.trim();
+    const publisher = publisherInput.value.trim();
+    const message = checkTextInputs([['作者', author, { max: 200 }], ['出版社', publisher]]);
+    if(message) return showError(message);
+    save.disabled = true;
+    callGAS('updateTitleAuthorWeb', function(res){
+      save.disabled = false;
+      if(!res || !res.success) return showError(res && res.message ? res.message : '保存に失敗しました');
+      showSuccess(res.message);
+      title.author = author;
+      title.publisher = publisher;
+      refreshMasterData();
+      showTitle(title.id);
+    }, title.id, author, publisher);
+  });
+
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'detail-back title-author-cancel';
+  cancel.textContent = '取消';
+  cancel.addEventListener('click', function(){ showTitle(title.id); });
+
+  [authorInput, publisherInput, save, cancel].forEach(el => span.appendChild(el));
+  authorInput.focus();
+}
+
 // 作品表示の所持状況（シリーズ・所持巻・抜け・次の巻）
 // title: 作品の選択肢（seriesId / seriesName があればシリーズ別検索へのリンクを出す）
 function renderTitleOwnershipSummary(volumes, completed, title){
@@ -168,6 +250,7 @@ function renderTitleOwnershipSummary(volumes, completed, title){
     const span = addLine('シリーズ', '');
     span.appendChild(createCellLink(title.seriesName, () => openSeriesDetail(title.seriesId)));
   }
+  if(title) appendTitleAuthorLines(box, title);
 
   if(summary.count === 0){
     addLine('所持', 'この作品の本はまだ登録されていません');
@@ -318,13 +401,21 @@ function loadTitleList(options = {}){
         { key: 'id' },
         { key: 'name', edit: true, required: true, link: row => openTitleDetail(row.id) },
         { key: 'seriesName', edit: true, link: row => openSeriesDetail(row.seriesId) },
+        // 作者（複数なら「/」区切り）。編集の値は [作品名, シリーズ, 作者, 出版社, 種別, 完結] の順で updateTitleMaster に渡る
+        { key: 'author', edit: true, maxLength: 200 },
+        { key: 'publisher', edit: true },
         { key: 'type', edit: true, editOptions: ['漫画', 'ラノベ'] },
         { key: 'completed', edit: true, editOptions: ['連載中', '完結済', '未完結'] },
         // 所持巻は抜けの多い順・所持冊数で並べる
         { key: 'owned', compare: (a, b) => (a.missingCount - b.missingCount) || (a.ownedCount - b.ownedCount) }
       ],
-      keywordKeys: ['name', 'seriesName', 'owned'],
+      keywordKeys: ['name', 'seriesName', 'author', 'authorSearch', 'publisher', 'owned'],
       filters: [
+        // 作者: 入力した名前を含む作者がいる作品（「小畑健」なら原作付きの作品も単独の作品も出す。空白は無視）
+        { key: 'author', label: '作者', input: true,
+          match: (row, value) => matchAuthorFilter(row.authorKeys, value),
+          suggest: rows => buildAuthorIndex(rows.map(row => row.author)).names },
+        { key: 'publisher', label: '出版社' },
         { key: 'type', label: '種別' },
         { key: 'completed', label: '完結' },
         { key: 'ownStatus', label: '所持', options: ['抜けあり', '抜けなし', '未所持'] },
@@ -345,14 +436,21 @@ function loadTitleList(options = {}){
       res = res || {};
       const volumesMap = res.volumes || {};
       const unreadMap = res.unread || {};
+      const authorIndex = buildAuthorIndex((res.titles || []).map(item => item.author));
       const rows = (res.titles || []).map(item => {
         const summary = summarizeOwnedVolumes(volumesMap[String(item.id).trim()]);
         const unreadCount = Number(unreadMap[String(item.id).trim()]) || 0;
+        const authorKeys = authorIndex.keysOf(item.author);
         return {
           id: item.id,
           name: item.name,
           seriesId: item.seriesId,
           seriesName: item.seriesName,
+          author: item.author || '',
+          authorKeys,
+          // キーワード検索用（空白を除いた作者名。「小畑健」で「小畑 健」も見つける）
+          authorSearch: authorKeys.join('/'),
+          publisher: item.publisher || '',
           type: item.type,
           completed: item.completed,
           owned: formatOwnershipText(summary, item.completed),
@@ -364,6 +462,41 @@ function loadTitleList(options = {}){
       });
       titleListFilter.setRows(rows);
     }, { viewId: 'TitleListView', errorMessage: '作品一覧の読み込みに失敗しました', refresh: options.refresh });
+}
+
+// 作者で絞り込んだ作品一覧を開く（作品の詳細の作者名から）
+function openTitleListByAuthor(name){
+  showTab('TitleListView');
+  if(titleListFilter) titleListFilter.setFilter('author', name);
+}
+
+// 作者・出版社の一括補完（作者が空の作品を楽天ブックスから。1 回 4 分ほどまで。残りがあればもう一度押す）
+function fillTitleAuthors(){
+  const button = document.getElementById('titleAuthorFillButton');
+  const status = document.getElementById('titleAuthorFillStatus');
+  if(button.disabled) return;
+  button.disabled = true;
+  status.style.display = 'block';
+  status.textContent = '楽天ブックスから作者・出版社を取得しています…（最大 4 分ほどかかります。画面はこのままにしてください）';
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      button.disabled = false;
+      status.textContent = res && res.message ? res.message : '';
+      if(res && res.success) showSuccess(res.message);
+      else showError(res && res.message ? res.message : '作者・出版社の取得に失敗しました');
+      if(res && res.processed > 0){
+        loadTitleList({ refresh: true });
+        refreshMasterData();
+      }
+    })
+    .withFailureHandler(function(error){
+      button.disabled = false;
+      status.textContent = '';
+      status.style.display = 'none';
+      showError(error && error.message ? error.message : '作者・出版社の取得に失敗しました');
+    })
+    .fillTitleAuthorsWeb();
 }
 
 // 作品一覧の「読書」の絞り込みの値（DOM を使わない）。所持なしは ''（どの選択肢にも入らない）

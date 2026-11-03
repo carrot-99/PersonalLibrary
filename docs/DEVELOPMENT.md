@@ -251,7 +251,7 @@ GAS エディタ → プロジェクトの設定 → **スクリプト プロパ
 | `ANTHROPIC_MODEL` | - | 使うモデル。省略時 `claude-sonnet-5-5` |
 | `ANTHROPIC_EFFORT` | - | 推論の effort。省略時 `medium` |
 | `ANNICT_ACCESS_TOKEN` | ○ | 今期のアニメ（`AnimeSeasonService.js`）で使う Annict の個人用アクセストークン。下記「Annict のトークン」参照 |
-| `RAKUTEN_APPLICATION_ID` / `RAKUTEN_ACCESS_KEY` | ○ | 漫画の発売日（`ReleaseService.js`）とおすすめの実在の確認（`RecommendService.js`）で使う楽天ウェブサービスのアプリ ID とアクセスキー。下記「楽天ウェブサービスのアプリ ID・アクセスキー」参照 |
+| `RAKUTEN_APPLICATION_ID` / `RAKUTEN_ACCESS_KEY` | ○ | 漫画の発売日（`ReleaseService.js`）・おすすめの実在の確認（`RecommendService.js`）・作品の作者・出版社の取得（`TitleAuthorService.js`）で使う楽天ウェブサービスのアプリ ID とアクセスキー。下記「楽天ウェブサービスのアプリ ID・アクセスキー」参照 |
 
 - 予算目安: 月 100 円以内（写真の解析を月 5 回程度で Sonnet なら約 30 円。おすすめは画像を送らないので 1 回あたりはそれより安い。[おすすめを探す] を押したときだけ費用がかかる）。精度が足りなければ `ANTHROPIC_MODEL` を上位モデルに、コストを下げたいなら下位モデルに変える（コード変更不要）
 - 接続確認: GAS エディタで関数 `testAnthropicConnection` を選んで実行

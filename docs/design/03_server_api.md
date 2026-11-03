@@ -219,7 +219,7 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 
 ### `getTitleMaster()`
 
-戻り値 `[{ id, name, label, seriesId, seriesName, type, completed }]`。`label` は選択肢の表示名（同名の作品が複数あれば「作品名（種別）」、それ以外は作品名）。`seriesName` は `M_Series` から結合（なければ空文字）。
+戻り値 `[{ id, name, label, seriesId, seriesName, type, completed, author, publisher }]`。`author` / `publisher` は G・H 列（なければ空文字）。`label` は選択肢の表示名（同名の作品が複数あれば「作品名（種別）」、それ以外は作品名）。`seriesName` は `M_Series` から結合（なければ空文字）。
 
 ### `findDuplicateName(rows, name, excludeId)` / `findDuplicateTitle(rows, name, type, excludeId)`
 
@@ -243,18 +243,30 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 |---|---|
 | 必須 | `name`（空なら `failure('作品名は必須です')`）。名前・種別・完結状態は 3.1.4 で検証し、`seriesId` を指定したときは `M_Series` にあること（なければ `シリーズが存在しません`） |
 | 重複 | 同じ名前（正規化して比較）**かつ同じ種別**の作品があれば `failure('同じ名前・種別の作品が既に登録されています（…）')`。種別が違えば登録可 |
-| 処理 | スクリプトロック内で（`addTitleMasterCore`）`T` で採番し `[ID, name, seriesId, type, completed, 0]` を追加。未指定項目は空文字 |
-| 成功 | `success('<name> を追加しました（<ID>）')` |
+| 作者 | ロックの前に楽天ブックスを作品名で検索して作者・出版社を取得（`lookupTitleAuthor`。3.5.1）。楽天が未設定・通信エラーなら作者なしで追加する |
+| 処理 | スクリプトロック内で（`addTitleMasterCore(name, seriesId, type, completed, info)`）`T` で採番し `[ID, name, seriesId, type, completed, 0, 作者, 出版社, 作者の取得日]` を追加。未指定項目は空文字 |
+| 成功 | `success('<name> を追加しました（<ID>）')`。作者が取れたら末尾に `。作者: <作者>` |
 
 ### `updateTitleMaster(id, values)`
 
 | 項目 | 内容 |
 |---|---|
-| `values` | `[作品名, シリーズ名 or SeriesID, 種別, 完結状態]`（要素数 4 未満はエラー） |
+| `values` | `[作品名, シリーズ名 or SeriesID, 種別, 完結状態]`、`[作品名, シリーズ, 作者, 種別, 完結状態]`（5 つなら作者（G 列）も更新）、または作品一覧の列の順の `[作品名, シリーズ, 作者, 出版社, 種別, 完結状態]`（6 つなら作者・出版社（G・H 列）も更新）。作者は 200 文字まで。種別・完結状態はいつも末尾の 2 つ。要素数 4 未満はエラー |
 | 重複 | 自分以外に同じ名前・種別の作品があればエラー |
 | 排他 | スクリプトロック（`updateTitleMasterCore`） |
 | 処理 | シリーズを `resolveMasterId` で SeriesID に変換（同名複数なら現在の紐付け先を優先、空欄は空のまま）し、2〜5 列目を更新 |
 | エラー | ID 空 / 値不正 / 作品名空 / 該当なし / シリーズが見つからない / 例外 |
+
+### 3.5.1 作者・出版社（`server/TitleAuthorService.js`）
+
+楽天ブックス書籍検索 API（3.9.3 の `fetchRakutenBooks` / `buildRakutenKeyword` / `parseRakutenVolume` を共用）で作品名を検索し、作者・出版社を `M_Title` の G・H 列（2.3.2）に入れます。
+
+| 関数 | 仕様 |
+|---|---|
+| `pickTitleAuthor(items, titleName)` | 検索結果のうちその作品の巻と読めた商品（`parseRakutenVolume`）の作者（`author`）・出版社（`publisherName`）で、いちばん多いもの（同数なら先に出たもの＝発売日の新しいもの）。巻と読めた商品がなければ `null` |
+| `lookupTitleAuthor(name, type, credentials?)` | 作品名で 1 回検索して `{ author, publisher, fetched: true }`（見つからなければ空文字）。種別のジャンル（漫画・ラノベ。それ以外は漫画）で検索。楽天が未設定・通信エラーなら `null`（作品の追加は止めない） |
+| `updateTitleAuthorWeb(id, author, publisher)` | 作品の詳細からの手入力。G・H 列を書き換える（作者 200 文字・出版社 100 文字まで、「=」始まり不可）。スクリプトロック |
+| `fillTitleAuthorsWeb(options?)` | 作品一覧の [作者・出版社を補完]。作者が空で作者の取得日（I 列）も空の作品を、`TITLE_AUTHOR_FILL.BUDGET_MS`（4 分）の間だけ順に検索する（楽天への間隔 1.5 秒。1 回で約 150 作品）。`options.retry` なら前回見つからなかった作品も取り直す。結果は最後にまとめて書く（`saveTitleAuthors`。作者が入力済みの行は上書きしない）。戻り値 `{ success, message, processed, filled, notFound, remaining }`（例「150件を確認し、141件の作者を入れました（見つからない 9件・残り 550件）。もう一度押すと続きを取得します」）。楽天が未設定ならエラー。途中で楽天のエラー（拒否・回数制限など）になったら、取得できた分を保存して止める |
 
 ### `deleteTitleMaster(id)`
 
@@ -335,7 +347,7 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 |---|---|
 | 引数 | `images: [{ mimeType, data(base64) }]` |
 | 戻り値 | `{ success: true, rows, existingKeys, defaultBoxId }` または `failure(...)` |
-| `rows[]` | `{ position, photo, recognizedTitle, volume, uncertain, notes, match, titleId, titleName, candidates }` |
+| `rows[]` | `{ position, photo, recognizedTitle, recognizedAuthor, volume, uncertain, notes, match, titleId, titleName, candidates }` |
 | `existingKeys` | 登録済みの `TitleID|巻数` 一覧（クライアントでの重複判定用、`getLibraryKeys()`） |
 | `defaultBoxId` | Box の初期値。最後に登録した書籍の Box（存在する場合）、なければ `M_Box` の先頭（`getDefaultPhotoImportBoxId()`） |
 
@@ -347,7 +359,7 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 - `output_config.format` に JSON スキーマ（`PHOTO_IMPORT_SCHEMA`）を指定し、次の形式で応答させます。
 
 ```json
-{ "books": [ { "position": 1, "photo": 1, "recognizedTitle": "作品名", "volumeDisplay": "12", "uncertain": false, "notes": "" } ] }
+{ "books": [ { "position": 1, "photo": 1, "recognizedTitle": "作品名", "recognizedAuthor": "作者名", "volumeDisplay": "12", "uncertain": false, "notes": "" } ] }
 ```
 
 | 項目 | 内容 |
@@ -355,6 +367,7 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 | `position` | 1 枚目の左から順の通し番号 |
 | `photo` | 写っている写真の番号（1 始まり） |
 | `recognizedTitle` | 読み取った作品名（副題・作者・出版社は除く） |
+| `recognizedAuthor` | 表紙・背表紙に書かれた作者名（複数なら `/` 区切り、役割は付けない。読めなければ空文字）。作品を追加するとき、楽天で作者が見つからなければ使う |
 | `volumeDisplay` | 巻数（数字のみ。「上」等はそのまま。不明は空文字） |
 | `uncertain` | 作品名・巻数に自信がない場合 `true` |
 
@@ -394,8 +407,9 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 
 | 項目 | 内容 |
 |---|---|
-| 引数 | `{ name, seriesId, newSeriesName, type, completed }`（`seriesId` か `newSeriesName` のどちらか必須） |
-| 戻り値 | `{ success: true, message, title: { id, name, completed }, series: { id, name, created } }` |
+| 引数 | `{ name, seriesId, newSeriesName, type, completed, authorHint }`（`seriesId` か `newSeriesName` のどちらか必須。`authorHint` は写真から読み取った作者） |
+| 作者 | ロックの前に `lookupTitleAuthor` で楽天ブックスから取得し、見つからなければ `authorHint` を入れる |
+| 戻り値 | `{ success: true, message, title: { id, name, completed, type, label, author, publisher }, series: { id, name, created } }`（作者があれば `message` の末尾に `（作者: …）`） |
 | 排他 | スクリプトロック（10 秒待機。取得できなければ失敗） |
 
 処理:
@@ -611,6 +625,7 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 |---|---|
 | `getTitleMaster` | `refreshMasterData`, `loadLibraryAddForm`, `loadPhotoImportView` |
 | `getTitleListWithOwnership` | `loadTitleList` |
+| `updateTitleAuthorWeb` / `fillTitleAuthorsWeb` | `openTitleAuthorEditor`（作品の詳細の作者の [編集]）/ `fillTitleAuthors`（作品一覧の [作者・出版社を補完]） |
 | `getWishList` / `addWishes` / `deleteWish` | `loadWishListView`・`reloadWishList` / `addWishFromForm`・`addPhotoRowToWishList`・`addReleaseToWish`（発売予定・ホーム）/ `deleteWishItem` |
 | `getHomeDataWeb` | `loadHomeView`（ホームを開いたとき・起動時・欲しい巻への追加や読了の後） |
 | `setReadStatusWeb` | `setReadStatus`（書籍一覧の [にする]（まとめて変更）、作品の詳細・ホームの [n巻を読了]） |

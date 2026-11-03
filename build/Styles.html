@@ -872,13 +872,15 @@
     #libraryListTable th:nth-child(5), #libraryListTable td:nth-child(5) { width: 9% !important; max-width: none !important; }
     #libraryListTable th:nth-child(6), #libraryListTable td:nth-child(6) { width: 12% !important; max-width: none !important; }
     #libraryListTable th:nth-child(7), #libraryListTable td:nth-child(7) { width: 20% !important; max-width: none !important; }
-    #titleListTable th:nth-child(1), #titleListTable td:nth-child(1) { width: 7% !important; max-width: none !important; }
-    #titleListTable th:nth-child(2), #titleListTable td:nth-child(2) { width: 22% !important; max-width: none !important; }
-    #titleListTable th:nth-child(3), #titleListTable td:nth-child(3) { width: 17% !important; max-width: none !important; }
-    #titleListTable th:nth-child(4), #titleListTable td:nth-child(4) { width: 9% !important; max-width: none !important; }
-    #titleListTable th:nth-child(5), #titleListTable td:nth-child(5) { width: 10% !important; max-width: none !important; }
-    #titleListTable th:nth-child(6), #titleListTable td:nth-child(6) { width: 19% !important; max-width: none !important; }
-    #titleListTable th:nth-child(7), #titleListTable td:nth-child(7) { width: 16% !important; max-width: none !important; }
+    #titleListTable th:nth-child(1), #titleListTable td:nth-child(1) { width: 6% !important; max-width: none !important; }
+    #titleListTable th:nth-child(2), #titleListTable td:nth-child(2) { width: 17% !important; max-width: none !important; }
+    #titleListTable th:nth-child(3), #titleListTable td:nth-child(3) { width: 11% !important; max-width: none !important; }
+    #titleListTable th:nth-child(4), #titleListTable td:nth-child(4) { width: 14% !important; max-width: none !important; }
+    #titleListTable th:nth-child(5), #titleListTable td:nth-child(5) { width: 9% !important; max-width: none !important; }
+    #titleListTable th:nth-child(6), #titleListTable td:nth-child(6) { width: 6% !important; max-width: none !important; }
+    #titleListTable th:nth-child(7), #titleListTable td:nth-child(7) { width: 7% !important; max-width: none !important; }
+    #titleListTable th:nth-child(8), #titleListTable td:nth-child(8) { width: 14% !important; max-width: none !important; }
+    #titleListTable th:nth-child(9), #titleListTable td:nth-child(9) { width: 16% !important; max-width: none !important; }
     #seriesListTable th:nth-child(1), #seriesListTable td:nth-child(1) { width: 10% !important; max-width: none !important; }
     #seriesListTable th:nth-child(2), #seriesListTable td:nth-child(2) { width: 34% !important; max-width: none !important; }
     #seriesListTable th:nth-child(3), #seriesListTable td:nth-child(3) { width: 12% !important; max-width: none !important; }
@@ -1044,6 +1046,8 @@
   .list-filter select { margin: 0; box-sizing: border-box; min-width: 0; }
   .list-filter-keyword { flex: 1 1 220px; }
   .list-filter-select { flex: 0 1 180px; }
+  /* 入力式の絞り込み（作者など） */
+  .list-filter-input { flex: 1 1 200px; }
   .list-filter-footer {
     flex-basis: 100%;
     display: flex;
@@ -1687,6 +1691,14 @@
   button.volume-chip { margin: 0; min-height: 0; box-shadow: none; cursor: pointer; font-family: inherit; }
   button.volume-chip:hover { filter: brightness(1.15); outline: 2px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 1px; }
   .volume-chip.is-wished { box-shadow: inset 0 -3px 0 var(--anime); }
+  /* 作品の詳細の作者・出版社 */
+  .title-publisher { color: var(--text-muted); }
+  .ownership-line .title-author-edit { background: var(--neutral); color: var(--on-neutral); }
+  .ownership-line .title-author-edit:hover { background: var(--neutral-hover); }
+  .title-author-editor { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 1 1 auto; }
+  .title-author-editor input { flex: 1 1 180px; width: auto; margin: 0; padding: 6px 10px; }
+  .title-author-editor button { margin: 0; }
+  .title-author-editor .title-author-cancel { padding: 5px 12px; font-size: 0.8rem; }
   .volume-hint { margin: 6px 0 0; font-size: 0.78rem; color: var(--text-subtle); }
   .volume-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 0.78rem; color: var(--text-muted); }
   .volume-legend span { display: inline-flex; align-items: center; gap: 4px; }
@@ -2072,6 +2084,7 @@
     /* 一覧の絞り込み */
     .list-filter-keyword { flex-basis: 100%; }
     .list-filter-select { flex: 1 1 calc(50% - 4px); }
+    .list-filter-input { flex-basis: 100%; }
     .list-filter-clear { min-height: 40px; }
 
     /* オートコンプリート候補 */

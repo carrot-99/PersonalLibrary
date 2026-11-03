@@ -1194,6 +1194,8 @@ function deleteListRow(btn){
 //   columns: [{ key, compare?: (a, b) => number }]  … テーブルの列順。compare 省略時は値で比較
 //   keywordKeys: ['name', ...]                      … キーワードの検索対象
 //   filters: [{ key, label, options?: [...] }]      … 選択式フィルタ。options 省略時は行の値から作る
+//            [{ key, label, input: true, match(row, value), suggest(rows) }]
+//                                                   … 入力式フィルタ（候補は suggest の値の datalist）。match で行が合うか判定
 //   defaultSort: { key, dir: 'asc' | 'desc' }
 //   idKey: 'id'                                    … 行の ID（編集・削除でサーバーに渡す）
 //   edit: { update, remove?, onSaved }               … 行の [編集]・[削除]（listEditConfigs 参照）。
@@ -1205,6 +1207,7 @@ function deleteListRow(btn){
 //   updateRows(ids, patch) … 複数の行に同じ patch を上書きして再描画
 //   getFilteredRows()      … キーワード・絞り込みに合う行（全ページ分。並べ替え前）
 //   removeRow(id)          … ID の行を消して再描画
+//   setFilter(key, value)  … 絞り込みの値を設定して再描画（他の画面から条件付きで開くとき）
 // }
 //////////////////////////////
 function createListFilter(options){
@@ -1236,7 +1239,27 @@ function createListFilter(options){
   panel.appendChild(keywordInput);
 
   const selects = {};
+  const inputs = {};
   (options.filters || []).forEach(filter => {
+    if(filter.input){
+      const input = document.createElement('input');
+      input.type = 'search';
+      input.className = 'list-filter-select list-filter-input';
+      input.placeholder = `${filter.label}で絞り込み`;
+      input.setAttribute('aria-label', filter.label);
+      const list = document.createElement('datalist');
+      list.id = `${options.tableId}_${filter.key}_list`;
+      input.setAttribute('list', list.id);
+      input.oninput = function(){
+        state.values[filter.key] = input.value.trim();
+        state.page = 1;
+        render();
+      };
+      inputs[filter.key] = { input, list };
+      panel.appendChild(input);
+      panel.appendChild(list);
+      return;
+    }
     const select = document.createElement('select');
     select.className = 'list-filter-select';
     select.onchange = function(){
@@ -1261,6 +1284,7 @@ function createListFilter(options){
     state.values = {};
     keywordInput.value = '';
     Object.values(selects).forEach(select => { select.value = ''; });
+    Object.values(inputs).forEach(item => { item.input.value = ''; });
     state.page = 1;
     render();
   };
@@ -1292,6 +1316,16 @@ function createListFilter(options){
 
   function fillSelectOptions(){
     (options.filters || []).forEach(filter => {
+      if(filter.input){
+        const list = inputs[filter.key].list;
+        list.innerHTML = '';
+        (filter.suggest ? filter.suggest(state.rows) : []).forEach(value => {
+          const option = document.createElement('option');
+          option.value = value;
+          list.appendChild(option);
+        });
+        return;
+      }
       const select = selects[filter.key];
       const values = filter.options || Array.from(new Set(
         state.rows.map(row => String(row[filter.key] ?? '').trim()).filter(Boolean)
@@ -1332,7 +1366,9 @@ function createListFilter(options){
       }
       return (options.filters || []).every(filter => {
         const value = state.values[filter.key];
-        return !value || String(row[filter.key] ?? '').trim() === value;
+        if(!value) return true;
+        if(filter.match) return filter.match(row, value);
+        return String(row[filter.key] ?? '').trim() === value;
       });
     });
   }
@@ -1406,10 +1442,62 @@ function createListFilter(options){
       state.rows = state.rows.filter(r => String(r[idKey]) !== String(id));
       fillSelectOptions();
       render();
+    },
+    setFilter(key, value){
+      const text = String(value ?? '').trim();
+      state.values[key] = text;
+      if(inputs[key]) inputs[key].input.value = text;
+      if(selects[key]) selects[key].value = text;
+      state.page = 1;
+      render();
     }
   };
   if(listEditConfigs[options.tableId]) listEditConfigs[options.tableId].filter = api;
   return api;
+}
+
+//////////////////////////////
+// 作者（作品の作者欄。複数なら「/」区切り。楽天ブックスの作者欄と同じ）
+// 照合は空白・全角半角・大文字小文字を無視し、「原作:」「（著）」などの役割の表記は外す
+//////////////////////////////
+const AUTHOR_ROLE_WORDS = '原作|漫画|作画|原案|作・画|作|画|著|文|絵|イラスト|キャラクター原案|キャラクターデザイン|構成|脚本|ネーム|翻訳|訳';
+const AUTHOR_ROLE_PREFIX = new RegExp(`^(?:${AUTHOR_ROLE_WORDS})\\s*[:：]\\s*`);
+const AUTHOR_ROLE_SUFFIX = new RegExp(`\\s*[（(](?:${AUTHOR_ROLE_WORDS})[)）]$`);
+const AUTHOR_ROLE_ONLY = new RegExp(`^(?:${AUTHOR_ROLE_WORDS})$`);
+
+// 作者欄 → 一人ずつの名前（表示用。役割の表記を外す）
+function splitAuthors(text){
+  return String(text ?? '')
+    .split(/[\/／、,，;；]/)
+    .map(name => name.trim().replace(AUTHOR_ROLE_PREFIX, '').replace(AUTHOR_ROLE_SUFFIX, '').trim())
+    .filter(name => name && !AUTHOR_ROLE_ONLY.test(name));
+}
+
+// 照合用のキー（空白を除き、全角半角・大文字小文字をそろえる）
+function toAuthorKey(name){
+  return String(name ?? '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
+}
+
+// 作者欄の一覧から、表記ゆれをまとめた作者名（最初に出た表記）と、作者欄 → 照合キーの関数を作る
+// 戻り値: { names: [作者名, ...], keysOf(text) → [キー, ...] }
+function buildAuthorIndex(texts){
+  const names = new Map();
+  (texts || []).forEach(text => {
+    splitAuthors(text).forEach(name => {
+      const key = toAuthorKey(name);
+      if(key && !names.has(key)) names.set(key, name);
+    });
+  });
+  return {
+    names: Array.from(names.values()),
+    keysOf: text => splitAuthors(text).map(toAuthorKey).filter(Boolean)
+  };
+}
+
+// 作者の絞り込み: 作品の作者のキーのどれかに入力（空白などを除いたもの）が含まれるか
+function matchAuthorFilter(keys, value){
+  const key = toAuthorKey(value);
+  return !key || (keys || []).some(k => k.includes(key));
 }
 
 //////////////////////////////
