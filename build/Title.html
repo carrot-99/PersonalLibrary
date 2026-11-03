@@ -18,7 +18,7 @@ function showTitle(titleId){
       renderTitleHero(title, rows);
       renderTitleOwnershipSummary(rows.map(row => row.volume), title ? title.completed : '', title);
       appendTitleReadLine(rows, id);
-      renderTitleVolumeGrid(rows, []);
+      renderTitleVolumeGrid(rows, [], id);
       appendTitleWishLine(id, rows);
       renderTableReadOnly('titleTable', rows, ['volume','box','read'], {
         box: row => openBoxDetail(row.box)
@@ -64,7 +64,8 @@ function buildTitleStats(rows, completed){
 }
 
 // 巻の一覧（1 巻から最大巻まで並べ、所持・読書・抜け・欲しい巻を色で示す）
-function renderTitleVolumeGrid(rows, wishVolumes){
+// 持っている巻は押すと 読了 ⇄ 未読（読書中は読了）を切り替えて表示し直す（titleId があるとき）
+function renderTitleVolumeGrid(rows, wishVolumes, titleId){
   const section = document.getElementById('titleVolumeSection');
   const grid = document.getElementById('titleVolumeGrid');
   if(!section || !grid) return;
@@ -77,46 +78,67 @@ function renderTitleVolumeGrid(rows, wishVolumes){
   }
   const STATE_LABELS = { read: '読了', reading: '読書中', unread: '未読', missing: '未所持', wish: '欲しい巻' };
   cells.forEach(cell => {
-    const chip = document.createElement('span');
+    const clickable = Boolean(cell.id && titleId);
+    const chip = document.createElement(clickable ? 'button' : 'span');
     chip.className = `volume-chip is-${cell.state}${cell.wished && cell.state !== 'wish' ? ' is-wished' : ''}`;
     chip.textContent = cell.label;
-    chip.title = `${cell.label}${/^\d+$/.test(cell.label) ? '巻' : ''}: ${STATE_LABELS[cell.state]}${cell.wished && cell.state !== 'wish' ? '（欲しい巻）' : ''}`;
+    chip.title = `${cell.label}${/^\d+(\.\d+)?$/.test(cell.label) ? '巻' : ''}: ${STATE_LABELS[cell.state]}${cell.wished && cell.state !== 'wish' ? '（欲しい巻）' : ''}`;
+    if(clickable){
+      const next = getVolumeToggleStatus(cell.state);
+      chip.type = 'button';
+      chip.title += `（押すと${next}に）`;
+      chip.addEventListener('click', function(){
+        setReadStatus([cell.id], next, function(){ showTitle(titleId); }, chip);
+      });
+    }
     grid.appendChild(chip);
   });
   section.style.display = 'block';
 }
 
-// 巻の一覧のデータ（DOM を使わない）。数字の巻は 1 から最大巻まで（未所持も含める）、数字以外の巻は後ろに並べる
-// rows: [{ volume, read }]、wishVolumes: 欲しい巻リストの巻
-// 戻り値: [{ label, state: 'read'|'reading'|'unread'|'missing'|'wish', wished }]
+// 巻の一覧で押したときの読書状況（DOM を使わない）。読了 → 未読、未読・読書中 → 読了
+function getVolumeToggleStatus(state){
+  return state === 'read' ? '未読' : '読了';
+}
+
+// 巻の一覧のデータ（DOM を使わない）。整数の巻は 1 から最大巻まで（未所持も含める）、小数の巻（5.5 など）は
+// 持っているか欲しい巻にあるものだけを数の順に間へ入れ、数字以外の巻は後ろに並べる
+// rows: [{ id, volume, read }]、wishVolumes: 欲しい巻リストの巻
+// 戻り値: [{ label, state: 'read'|'reading'|'unread'|'missing'|'wish', wished, id }]（id は持っている巻の書籍 ID）
 function buildTitleVolumeGrid(rows, wishVolumes){
   const normalize = v => {
     const text = String(v == null ? '' : v).trim();
-    return /^\d+$/.test(text) ? String(Number(text)) : text;
+    return /^\d+(\.\d+)?$/.test(text) ? String(Number(text)) : text;
   };
   const owned = new Map();
   (rows || []).forEach(row => {
     const key = normalize(row.volume);
-    if(key) owned.set(key, row.read || '未読');
+    if(key) owned.set(key, row);
   });
   const wished = new Set((wishVolumes || []).map(normalize).filter(Boolean));
 
   const readState = read => read === '読了' ? 'read' : (read === '読書中' ? 'reading' : 'unread');
-  const toCell = key => ({
-    label: key,
-    state: owned.has(key) ? readState(owned.get(key)) : (wished.has(key) ? 'wish' : 'missing'),
-    wished: wished.has(key)
-  });
+  const toCell = key => {
+    const row = owned.get(key);
+    return {
+      label: key,
+      state: row ? readState(row.read || '未読') : (wished.has(key) ? 'wish' : 'missing'),
+      wished: wished.has(key),
+      id: row && row.id ? row.id : ''
+    };
+  };
 
-  const keys = [...owned.keys(), ...wished];
-  const numbers = keys.filter(k => /^\d+$/.test(k)).map(Number);
-  const max = numbers.length > 0 ? Math.max(...numbers) : 0;
-  const cells = [];
-  for(let n = 1; n <= max; n++) cells.push(toCell(String(n)));
-  Array.from(new Set(keys.filter(k => !/^\d+$/.test(k))))
-    .sort(compareVolumes)
-    .forEach(key => cells.push(toCell(key)));
-  return cells;
+  const keys = Array.from(new Set([...owned.keys(), ...wished]));
+  const isNumber = k => /^\d+(\.\d+)?$/.test(k);
+  const integers = keys.filter(k => /^\d+$/.test(k)).map(Number);
+  const max = integers.length > 0 ? Math.max(...integers) : 0;
+  const numberKeys = new Set(keys.filter(isNumber));
+  for(let n = 1; n <= max; n++) numberKeys.add(String(n));
+
+  return [
+    ...Array.from(numberKeys).sort((a, b) => Number(a) - Number(b)),
+    ...keys.filter(k => !isNumber(k)).sort(compareVolumes)
+  ].map(toCell);
 }
 
 // 作品表示の所持状況（シリーズ・所持巻・抜け・次の巻）
@@ -262,7 +284,7 @@ function appendTitleWishLine(titleId, rows){
     const prefix = `${titleId}|`;
     const volumes = (keys || []).filter(k => k.startsWith(prefix)).map(k => k.slice(prefix.length));
     if(volumes.length === 0) return;
-    if(rows) renderTitleVolumeGrid(rows, volumes);
+    if(rows) renderTitleVolumeGrid(rows, volumes, titleId);
 
     const summary = summarizeOwnedVolumes(volumes);
     const parts = [];

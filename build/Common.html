@@ -1635,12 +1635,13 @@ function formatOwnershipText(summary, completed){
   return text;
 }
 
-// 巻数の並べ替え用（数値の巻を昇順、その後に数値以外）
+// 巻数の並べ替え用（数値の巻を昇順、その後に数値以外）。5.5 などの小数の巻も数値として間に入れる
+// （サーバーの getNextReadVolume と同じ順。読了にする順番・次に読む巻を実際に読む順にそろえる）
 function compareVolumes(a, b){
   const textA = String(a ?? '').trim();
   const textB = String(b ?? '').trim();
-  const numA = /^\d+$/.test(textA);
-  const numB = /^\d+$/.test(textB);
+  const numA = /^\d+(\.\d+)?$/.test(textA);
+  const numB = /^\d+(\.\d+)?$/.test(textB);
   if(numA && numB) return Number(textA) - Number(textB);
   if(numA) return -1;
   if(numB) return 1;

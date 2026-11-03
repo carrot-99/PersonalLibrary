@@ -34,22 +34,35 @@ test('buildTitleStats: 完結済は全巻所持かどうか、本がなければ
 
 test('buildTitleVolumeGrid: 1 巻から最大巻まで並べ、読書状況・未所持・欲しい巻を区別する', () => {
   assert.deepEqual(plain(client.buildTitleVolumeGrid(rows, ['3', '6'])), [
-    { label: '1', state: 'read', wished: false },
-    { label: '2', state: 'reading', wished: false },
-    { label: '3', state: 'wish', wished: true },
-    { label: '4', state: 'unread', wished: false },
-    { label: '5', state: 'missing', wished: false },
-    { label: '6', state: 'wish', wished: true },
-    { label: '特装版', state: 'unread', wished: false }
+    { label: '1', state: 'read', wished: false, id: '' },
+    { label: '2', state: 'reading', wished: false, id: '' },
+    { label: '3', state: 'wish', wished: true, id: '' },
+    { label: '4', state: 'unread', wished: false, id: '' },
+    { label: '5', state: 'missing', wished: false, id: '' },
+    { label: '6', state: 'wish', wished: true, id: '' },
+    { label: '特装版', state: 'unread', wished: false, id: '' }
   ]);
 });
 
 test('buildTitleVolumeGrid: 所持していて欲しい巻にもある巻は所持の色で wished、0 埋めの巻もまとめる', () => {
-  assert.deepEqual(plain(client.buildTitleVolumeGrid([{ volume: '02', read: '読了' }], ['2'])), [
-    { label: '1', state: 'missing', wished: false },
-    { label: '2', state: 'read', wished: true }
+  assert.deepEqual(plain(client.buildTitleVolumeGrid([{ id: 'L2', volume: '02', read: '読了' }], ['2'])), [
+    { label: '1', state: 'missing', wished: false, id: '' },
+    { label: '2', state: 'read', wished: true, id: 'L2' }
   ]);
   assert.deepEqual(plain(client.buildTitleVolumeGrid([], [])), []);
+});
+
+test('buildTitleVolumeGrid: 小数の巻（5.5 など）は数の順に間へ入れ、最大巻より後の小数も並べる', () => {
+  const owned = ['1', '2', '3', '2.5', '3.5', '特装版'].map(v => ({ id: 'L' + v, volume: v, read: '未読' }));
+  assert.deepEqual(plain(client.buildTitleVolumeGrid(owned, ['1.5'])).map(c => `${c.label}:${c.state}`), [
+    '1:unread', '1.5:wish', '2:unread', '2.5:unread', '3:unread', '3.5:unread', '特装版:unread'
+  ]);
+});
+
+test('getVolumeToggleStatus: 巻を押したときの読書状況（読了 → 未読、それ以外 → 読了）', () => {
+  assert.equal(client.getVolumeToggleStatus('read'), '未読');
+  assert.equal(client.getVolumeToggleStatus('unread'), '読了');
+  assert.equal(client.getVolumeToggleStatus('reading'), '読了');
 });
 
 test('pickVolumesToMarkRead: 選んだ巻まで（巻の順）の、まだ読了でない巻', () => {

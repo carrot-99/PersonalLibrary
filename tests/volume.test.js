@@ -79,3 +79,20 @@ test('compareVolumes: 数値の巻を昇順、その後に数値以外', () => {
   const sorted = ['10', '上', '2', '1'].sort(client.compareVolumes);
   assert.deepEqual(sorted, ['1', '2', '10', '上']);
 });
+
+test('compareVolumes: 小数の巻（5.5 など）は読む順どおり数の間に入れる', () => {
+  const sorted = ['12', '5.5', '9.5', '1', '12.5', '5', '6', '上'].sort(client.compareVolumes);
+  assert.deepEqual(sorted, ['1', '5', '5.5', '6', '9.5', '12', '12.5', '上']);
+});
+
+test('pickNextReadVolume / pickVolumesToMarkRead: 小数の巻も読む順で選ぶ', () => {
+  const rows = [
+    { id: 'L5', volume: '5', read: '読了' },
+    { id: 'L55', volume: '5.5', read: '未読' },
+    { id: 'L6', volume: '6', read: '未読' },
+    { id: 'L12', volume: '12', read: '未読' }
+  ];
+  assert.equal(client.pickNextReadVolume(rows).id, 'L55');
+  const titleClient = loadClient(['Common.html', 'title/Title.html']);
+  assert.deepEqual([...titleClient.pickVolumesToMarkRead(rows, '6')], ['L55', 'L6']);
+});

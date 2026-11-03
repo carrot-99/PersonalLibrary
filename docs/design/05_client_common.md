@@ -250,7 +250,7 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | `summarizeOwnedVolumes(volumes)` | 巻数の配列から `{ count, numbers, others, max, missing, next }` を返す。数値の巻（`/^d+$/`）は重複を除いて昇順、`missing` は 1〜最大巻の未所持巻、`next` は最大巻＋1。数値以外の巻は `others` |
 | `formatVolumeRanges(numbers)` | `[1,2,3,5]` → `1〜3, 5` |
 | `formatOwnershipText(summary, completed)` | 一覧用の短い表記（`1〜12巻（抜け: 7巻）` 等） |
-| `compareVolumes(a, b)` | 巻数の並べ替え（数値の巻を昇順、その後に数値以外） |
+| `compareVolumes(a, b)` | 巻数の並べ替え（数値の巻を昇順、その後に数値以外）。5.5 などの小数の巻も数値として間に入れる（1, 5, 5.5, 6, …, 12, 12.5）。サーバーの `getNextReadVolume` と同じ順 |
 
 ## 5.11 上部バーの検索
 
