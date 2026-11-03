@@ -102,6 +102,9 @@ test('buildRakutenKeyword / getMaxOwnedVolume', () => {
   assert.equal(gas.buildRakutenKeyword('顔に出ない柏田さんと顔に出る太田君＋'), '顔に出ない柏田さんと顔に出る太田君');
   assert.equal(gas.buildRakutenKeyword('とある科学の超電磁砲（小説）'), 'とある科学の超電磁砲');
   assert.equal(gas.buildRakutenKeyword('IS〈インフィニット・ストラトス〉'), 'IS インフィニット ストラトス');
+  assert.deepEqual(plain(gas.buildRakutenKeywords('D・N・A2')), ['D N A2', 'D・N・A2', 'A2']);
+  assert.deepEqual(plain(gas.buildRakutenKeywords('烈!!!伊達先パイ')), ['烈 伊達先パイ', '伊達先パイ']);
+  assert.deepEqual(plain(gas.buildRakutenKeywords('よつばと!')), ['よつばと']);
   assert.equal(gas.getMaxOwnedVolume(['1', '12', '上', '３']), 12);
   assert.equal(gas.getMaxOwnedVolume(['外伝']), 0);
   assert.equal(gas.getMaxOwnedVolume(undefined), 0);
@@ -135,6 +138,33 @@ test('matchReleaseItems: 未発売の巻がなく最新刊が 1 年以上前な�
   const recent = gas.matchReleaseItems([ITEM('ヒナまつり 19', '2025年11月01日')], 'ヒナまつり', ['19'], TODAY);
   assert.equal(recent.stale, false);
   assert.equal(gas.matchReleaseItems([], 'ヒナまつり', [], TODAY).stale, false);
+});
+
+test('parseRakutenVolume: 作品名が数字で終わり、巻数との間が空白でも巻と読む', () => {
+  const { gas } = loadServer({});
+  assert.deepEqual(plain(gas.parseRakutenVolume('U19 3 （ジャンプコミックス）', 'U19')), { volume: 3, edition: '' });
+  assert.deepEqual(plain(gas.parseRakutenVolume('D・N・A2（5） （ジャンプコミックス）', 'D・N・A2')), { volume: 5, edition: '' });
+  assert.equal(gas.parseRakutenVolume('U149 19', 'U19'), null);
+});
+
+test('searchRakutenTitleItems: 作品の巻が見つからなければ次のキーワードで検索し直す', () => {
+  const rakuten = fakeRakuten({
+    '烈 伊達先パイ': [],
+    '伊達先パイ': [ITEM('烈！！！伊達先パイ（1） （ジャンプコミックス）', '2011年01月04日')],
+    'よつばと': [ITEM('よつばと! 16', '2026年11月28日')]
+  });
+  const { gas, sleeps } = loadServer({}, { fetch: rakuten.fetch });
+  const credentials = { applicationId: 'a', accessKey: 'k' };
+  const keywordOf = call => decodeURIComponent(call.url.match(/[?&]title=([^&]*)/)[1]);
+
+  assert.equal(gas.searchRakutenTitleItems('烈!!!伊達先パイ', credentials).length, 1);
+  assert.deepEqual(rakuten.calls.map(keywordOf), ['烈 伊達先パイ', '伊達先パイ']);
+  assert.equal(sleeps.length, 1);
+
+  // 1 つ目で見つかれば検索し直さない
+  rakuten.calls.length = 0;
+  assert.equal(gas.searchRakutenTitleItems('よつばと!', credentials).length, 1);
+  assert.equal(rakuten.calls.length, 1);
 });
 
 test('fetchRakutenBooks: コミック・新しい順で検索し、Referer と認証情報を付ける', () => {

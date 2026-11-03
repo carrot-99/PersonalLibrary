@@ -1,7 +1,7 @@
 // ======================================================
 // TitleAuthorService.gs
 // 作品の作者・出版社（M_Title の G〜I 列）。楽天ブックス書籍検索 API から取得する
-// 取得は ReleaseService.js の fetchRakutenBooks / buildRakutenKeyword / parseRakutenVolume を使う
+// 取得は ReleaseService.js の searchRakutenTitleItems / parseRakutenVolume を使う
 // ======================================================
 
 const TITLE_AUTHOR_FILL = {
@@ -50,7 +50,7 @@ function lookupTitleAuthor(name, type, credentials){
   if(!creds || !String(name || '').trim()) return null;
   try{
     const genreType = RELEASE_GENRES[String(type || '').trim()] ? String(type).trim() : '漫画';
-    const items = fetchRakutenBooks(buildRakutenKeyword(name), creds, genreType);
+    const items = searchRakutenTitleItems(name, creds, genreType);
     const picked = pickTitleAuthor(items, name);
     return { author: picked ? picked.author : '', publisher: picked ? picked.publisher : '', fetched: true };
   } catch(e){
@@ -109,7 +109,7 @@ function fillTitleAuthorsWeb(options){
     }
     try{
       const genreType = RELEASE_GENRES[String(row[3] || '').trim()] ? String(row[3]).trim() : '漫画';
-      const items = fetchRakutenBooks(buildRakutenKeyword(row[1]), credentials, genreType);
+      const items = searchRakutenTitleItems(row[1], credentials, genreType);
       results.set(String(row[0]).trim(), pickTitleAuthor(items, row[1]) || { author: '', publisher: '' });
     } catch(e){
       // 認証エラー・回数制限は続けても同じなので打ち切る（取得できた分は保存する）

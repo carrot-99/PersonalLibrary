@@ -69,13 +69,41 @@ function toReleaseSearchName(name){
 }
 
 // 作品名 → 検索キーワード（記号は検索で 0 件になりやすいので空白に置き換える。「2.5次元」のような数字の間の . は残す）
-function buildRakutenKeyword(name){
+// keepDot: 「・」を残す（「D・N・A2」のように 1 文字ずつ区切られた名前は「D N A2」だと見つからない）
+function buildRakutenKeyword(name, keepDot){
+  const pattern = keepDot
+    ? /[!?:〜~「」『』()【】\[\]<>〈〉《》≪≫'"’”#&\/☆★♪、。,×+≡─―]/g
+    : /[!?・:〜~「」『』()【】\[\]<>〈〉《》≪≫'"’”#&\/☆★♪、。,×+≡─―]/g;
   return toReleaseSearchName(name)
     .normalize('NFKC')
-    .replace(/[!?・:〜~「」『』()【】\[\]<>〈〉《》≪≫'"’”#&\/☆★♪、。,×+≡─―]/g, ' ')
+    .replace(pattern, ' ')
     .replace(/(?<!\d)\.|\.(?!\d)/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+// 検索キーワードの候補（先頭から順に試す。重複は除く）
+// 1. 記号を空白にしたもの  2. 「・」を残したもの  3. 1 文字の語を除いたもの（「烈!!!伊達先パイ」→「伊達先パイ」。
+//    楽天は「烈！！！伊達先パイ」を 1 語として扱うようで、「烈 伊達先パイ」では見つからない）
+function buildRakutenKeywords(name){
+  const keyword = buildRakutenKeyword(name);
+  const longWords = keyword.split(' ').filter(word => word.length > 1).join(' ');
+  return [keyword, buildRakutenKeyword(name, true), longWords]
+    .filter((value, i, list) => value && list.indexOf(value) === i);
+}
+
+// 作品の巻の商品を楽天ブックスで探す
+// 1 つ目のキーワードで作品の巻と読める商品がなければ、次の候補で検索し直す（間隔を空ける）
+// 戻り値: 商品の配列（作品の巻と読める商品があったキーワードの結果。どれもなければ最初の結果）
+function searchRakutenTitleItems(name, credentials, type){
+  let first = null;
+  for(const [i, keyword] of buildRakutenKeywords(name).entries()){
+    if(i > 0) Utilities.sleep(RAKUTEN.WAIT_MS);
+    const items = fetchRakutenBooks(keyword, credentials, type);
+    if(items.some(entry => parseRakutenVolume((entry.Item || entry).title, name))) return items;
+    if(!first) first = items;
+  }
+  return first || [];
 }
 
 
@@ -197,7 +225,8 @@ function parseRakutenVolume(itemTitle, titleName){
     const itemKey = toReleaseVolumeKey(text);
     const index = itemKey.indexOf(nameKey);
     if(index >= 0){
-      const rest = itemKey.slice(index + nameKey.length);
+      // 作品名が数字で終わると、巻数との間の空白が「|」になる（「U19 1」→「u19|1」）
+      const rest = itemKey.slice(index + nameKey.length).replace(/^\|(?=\d)/, '');
       if(rest === '' && index === 0) return { volume: 1, edition: '' };
 
       const match = rest.match(/^第?(\d+(?:_\d+)?)(.*)$/);
@@ -361,7 +390,7 @@ function testRakutenMatching(type){
 
     let items;
     try{
-      items = fetchRakutenBooks(buildRakutenKeyword(title.name), credentials, title.type);
+      items = searchRakutenTitleItems(title.name, credentials, title.type);
     } catch(e){
       // 認証エラーは全件同じ結果になるので打ち切る
       if(/拒否|許可されていません/.test(e.message)) throw e;
@@ -473,7 +502,7 @@ function fetchReleaseResult(title, ownedVolumes, credentials, now){
 
   let items;
   try{
-    items = fetchRakutenBooks(buildRakutenKeyword(title.name), credentials, title.type);
+    items = searchRakutenTitleItems(title.name, credentials, title.type);
   } catch(e){
     if(/拒否|許可されていません/.test(e.message)) throw e;
     return { releases: null, check: [title.id, now, RELEASE_RESULTS.ERROR, '', '', false, e.message] };
