@@ -3,6 +3,32 @@
 // M_Title 関連処理
 // ======================================================
 
+// M_Title の末尾に足した列（1 始まりの列番号）。既存の列（A〜F）の並びは変えない
+// 作者は複数なら「/」区切り（楽天ブックスの作者欄と同じ）。取得日は楽天から作者を取りに行った日（見つからなくても入れる）
+const TITLE_AUTHOR_COLUMNS = { AUTHOR: 7, PUBLISHER: 8, AUTHOR_FETCHED: 9 };
+const TITLE_AUTHOR_HEADERS = ['作者', '出版社', '作者の取得日'];
+const AUTHOR_MAX_LENGTH = 200;
+
+// 作者・出版社の列の見出し（G1〜I1）が空なら入れる（書き込む処理の前に呼ぶ）
+function ensureTitleAuthorHeaders(){
+  const sheet = getSheet(SHEETS.TITLE);
+  if(!sheet) return;
+  const range = sheet.getRange(1, TITLE_AUTHOR_COLUMNS.AUTHOR, 1, TITLE_AUTHOR_HEADERS.length);
+  const current = range.getValues()[0];
+  if(current.some((value, i) => String(value || '').trim() !== TITLE_AUTHOR_HEADERS[i])){
+    range.setValues([TITLE_AUTHOR_HEADERS]);
+  }
+}
+
+// 作者・出版社の入力の確認（空欄可）
+function checkTitleAuthorInputs(author, publisher){
+  const checkedAuthor = checkText(author, '作者', { max: AUTHOR_MAX_LENGTH });
+  if(!checkedAuthor.valid) return checkedAuthor;
+  const checkedPublisher = checkText(publisher, '出版社');
+  if(!checkedPublisher.valid) return checkedPublisher;
+  return { valid: true, author: checkedAuthor.value, publisher: checkedPublisher.value };
+}
+
 
 // ----------------------
 // マスタ取得
@@ -26,7 +52,9 @@ function getTitleMaster(){
     seriesId: row[2],
     seriesName: seriesMap.get(row[2]) || '',
     type: row[3],
-    completed: row[4]
+    completed: row[4],
+    author: String(row[TITLE_AUTHOR_COLUMNS.AUTHOR - 1] || '').trim(),
+    publisher: String(row[TITLE_AUTHOR_COLUMNS.PUBLISHER - 1] || '').trim()
   }));
 }
 
@@ -61,12 +89,15 @@ function getTitles(){
 // ----------------------
 // 追加
 // ----------------------
+// 作者・出版社は楽天ブックスから取得して入れる（ロックの外で取得する。取れなくても作品は追加する）
 function addTitleMasterWeb(name, seriesId, type, completed){
-  return withScriptLock(() => addTitleMasterCore(name, seriesId, type, completed));
+  const info = lookupTitleAuthor(name, type);
+  return withScriptLock(() => addTitleMasterCore(name, seriesId, type, completed, info));
 }
 
 // ロックなし版（ロック取得済みの処理から呼ぶ）
-function addTitleMasterCore(name, seriesId, type, completed){
+// info: lookupTitleAuthor の結果（{ author, publisher, fetched }。省略・null なら作者なし）
+function addTitleMasterCore(name, seriesId, type, completed, info){
 
   const checkedName = checkText(name, '作品名', { required: true });
   if(!checkedName.valid){
@@ -97,16 +128,22 @@ function addTitleMasterCore(name, seriesId, type, completed){
     const lastId = getMaxId(SHEETS.TITLE);
     const newId  = generateNextId('T', lastId);
 
+    const author = checkTitleAuthorInputs(info && info.author, info && info.publisher);
+    ensureTitleAuthorHeaders();
     sheet.appendRow([
       newId,
       name,
       seriesId || '',
       type || '',
       completed || '',
-      0  // 予備列（既存仕様維持）
+      0,  // 予備列（既存仕様維持）
+      author.valid ? author.author : '',
+      author.valid ? author.publisher : '',
+      info && info.fetched ? new Date() : ''
     ]);
 
-    return success(`${name} を追加しました（${newId}）`);
+    const authorText = author.valid && author.author ? `。作者: ${author.author}` : '';
+    return success(`${name} を追加しました（${newId}）${authorText}`);
 
   } catch(e){
 
@@ -117,11 +154,10 @@ function addTitleMasterCore(name, seriesId, type, completed){
 
 // ----------------------
 // 更新
-// values対応：
-// 0: name
-// 1: シリーズ名 or seriesId（画面の表示値）
-// 2: type
-// 3: completed
+// values対応（作品一覧の編集できる列の順）：
+// 4 つ: [name, シリーズ名 or seriesId（画面の表示値）, type, completed]
+// 5 つ: [name, シリーズ, 作者, type, completed]
+// 6 つ: [name, シリーズ, 作者, 出版社, type, completed]（作品一覧に作者・出版社の列を足した順）
 // ----------------------
 function updateTitleMaster(id, values){
   return withScriptLock(() => updateTitleMasterCore(id, values));
@@ -142,9 +178,21 @@ function updateTitleMasterCore(id, values){
     return failure(checkedName.message);
   }
   const name = checkedName.value;
-  const options = checkTitleOptions(values[2], values[3]);
+  const hasAuthor = values.length >= 5;
+  const hasPublisher = values.length >= 6;
+  // 種別・完結はいつも末尾の 2 つ
+  const [typeValue, completedValue] = values.slice(-2);
+  const options = checkTitleOptions(typeValue, completedValue);
   if(!options.valid){
     return failure(options.message);
+  }
+  const checkedAuthor = checkText(hasAuthor ? values[2] : '', '作者', { max: AUTHOR_MAX_LENGTH });
+  if(hasAuthor && !checkedAuthor.valid){
+    return failure(checkedAuthor.message);
+  }
+  const checkedPublisher = checkText(hasPublisher ? values[3] : '', '出版社');
+  if(hasPublisher && !checkedPublisher.valid){
+    return failure(checkedPublisher.message);
   }
 
   try{
@@ -170,16 +218,20 @@ function updateTitleMasterCore(id, values){
       }
     }
 
-    const updated = updateRowById(
-      SHEETS.TITLE,
-      id,
-      {
-        2: name,
-        3: seriesId,
-        4: options.type,
-        5: options.completed
-      }
-    );
+    const columns = {
+      2: name,
+      3: seriesId,
+      4: options.type,
+      5: options.completed
+    };
+    if(hasAuthor){
+      ensureTitleAuthorHeaders();
+      columns[TITLE_AUTHOR_COLUMNS.AUTHOR] = checkedAuthor.value;
+    }
+    if(hasPublisher){
+      columns[TITLE_AUTHOR_COLUMNS.PUBLISHER] = checkedPublisher.value;
+    }
+    const updated = updateRowById(SHEETS.TITLE, id, columns);
 
     if(!updated){
       return failure('該当データが見つかりません');

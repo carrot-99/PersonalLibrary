@@ -275,13 +275,13 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | `tableId` | 対象テーブル。直前に絞り込み欄（`.list-filter`）を作る |
 | `columns` | `[{ key, compare?, edit?, editOptions?, link?, button? }]`。テーブルの列順。`link` で詳細画面へのリンク、`button` で行ごとの操作ボタン（上記 5.4）。`edit`（`true` または行から初期値を返す関数）で編集対象、`editOptions` で選択式。`compare(a, b)` を省略すると値で比較（数値なら数値、それ以外は日本語の自然順） |
 | `keywordKeys` | キーワードの検索対象のキー |
-| `filters` | `[{ key, label, options? }]`。選択式の絞り込み。`options` 省略時は行の値から選択肢を作る（「ラベル: すべて」が先頭） |
+| `filters` | `[{ key, label, options? }]`。選択式の絞り込み。`options` 省略時は行の値から選択肢を作る（「ラベル: すべて」が先頭）。`{ key, label, input: true, match(row, value), suggest(rows) }` は入力式（`<input type="search">` と datalist。候補は `suggest` の値、合うかは `match`。作品一覧の作者） |
 | `defaultSort` | 初期の並び `{ key, dir }` |
 | `pageSize` | 1 ページの件数（既定 20） |
 | `idKey` | 行の ID のキー（既定 `id`）。編集・削除でサーバーに渡す |
 | `edit` | `{ update, remove?, onSaved }`。指定すると各行に操作列を付ける（表の最後に操作列の見出しを置く。[5.7](#57-インライン編集)） |
 
-戻り値 `{ setRows(rows), updateRow(id, patch), updateRows(ids, patch), removeRow(id), getFilteredRows() }`。`updateRows` は複数の行に同じ `patch` を上書き（書籍一覧の読書状況のまとめて変更）、`getFilteredRows` はキーワード・絞り込みに合う行（全ページ分）を返します。`setRows` は行を入れ替えて再描画します（条件・並び順・ページは保持。編集中の行があれば描き直さない）。`updateRow` は ID の行に `patch` を上書き、`removeRow` は ID の行を消して再描画します（インライン編集の保存・削除の直後）。描画は `renderPagedTableDOM`、見出しにはクラス `sortable` / `sort-asc` / `sort-desc` を付けます。表にはクラス `card-list` を付け、スマホ幅（720px 以下）では 1 行を 1 枚のカードで表示します（[04 章 4.1](04_screen_design.md#レスポンシブ)。CSS のみ）。
+戻り値 `{ setRows(rows), updateRow(id, patch), updateRows(ids, patch), removeRow(id), getFilteredRows(), setFilter(key, value) }`。`setFilter` は絞り込みの値を設定して再描画（作品の詳細の作者名から作者で絞り込んだ一覧を開くとき）。`updateRows` は複数の行に同じ `patch` を上書き（書籍一覧の読書状況のまとめて変更）、`getFilteredRows` はキーワード・絞り込みに合う行（全ページ分）を返します。`setRows` は行を入れ替えて再描画します（条件・並び順・ページは保持。編集中の行があれば描き直さない）。`updateRow` は ID の行に `patch` を上書き、`removeRow` は ID の行を消して再描画します（インライン編集の保存・削除の直後）。描画は `renderPagedTableDOM`、見出しにはクラス `sortable` / `sort-asc` / `sort-desc` を付けます。表にはクラス `card-list` を付け、スマホ幅（720px 以下）では 1 行を 1 枚のカードで表示します（[04 章 4.1](04_screen_design.md#レスポンシブ)。CSS のみ）。
 
 ## 5.13 デザイントークンと配色
 
@@ -306,3 +306,14 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 - `renderDetailHero(heroId, name, chips, stats)`（`Common.html`）: 詳細画面（作品・シリーズ・箱）の見出し（`.detail-hero`）の中の `.detail-hero-name` に名前、`.detail-hero-meta` にバッジ（`chips: [{ text, className? }]`）、`.stat-tiles` に数字のまとめ（`stats: [{ label, value, tone? }]`。`tone` は `ok`（緑）/ `warning`（黄））を描いて表示します。数字は `buildTitleStats`（作品）・`buildGroupStats` / `buildSeriesStats`（箱・シリーズ）、バッジは `buildGroupTypeChips` で作ります（いずれも DOM を使わない）。
 - 画面の見出し行 `.view-header`: 見出し（`h3`）と操作ボタン（`.master-toolbar`）を左右に並べます（一覧画面・視聴中の一覧・発売予定・今期のアニメ）。スマホ幅ではボタンを見出しの下に全幅で並べます。控えめなボタンは `is-secondary`、アニメの色は `is-anime`。
 - 追加フォームの `.form-grid`: 入力欄を幅に合わせて横に並べ、説明・ボタンは 1 行使います（シリーズ・作品・箱・書籍の追加、シリーズの統合、アニメの登録）。
+
+## 5.15 作者の分割と照合
+
+`Common.html` の関数（DOM を使わない）。作品一覧の作者の絞り込み・キーワード検索と作品の詳細の作者のリンクで使います。
+
+| 関数 | 仕様 |
+|---|---|
+| `splitAuthors(text)` | 作者欄を `/`・`／`・`、`・`,`・`;` で一人ずつに分け、`原作:`・`漫画：` などの先頭の役割、`（著）`・`(原作)` などの末尾の役割を外す。役割だけの項目は捨てる（`AUTHOR_ROLE_WORDS`） |
+| `toAuthorKey(name)` | 照合用のキー（NFKC で全角半角をそろえ、空白を除き、小文字に） |
+| `buildAuthorIndex(texts)` | 作者欄の一覧から `{ names, keysOf(text) }`。`names` は同じキーの名前を 1 つにまとめた作者名（最初に出た表記）、`keysOf` は作者欄 → キーの配列 |
+| `matchAuthorFilter(keys, value)` | 作品の作者のキーのどれかに、入力のキーが含まれるか（「小畑」でも小畑健の作品が合う） |

@@ -245,6 +245,7 @@ async function analyzePhotoImport(){
         rowId: `${Date.now()}-${idx}`,
         checked: true,
         recognizedTitle: row.recognizedTitle,
+        recognizedAuthor: row.recognizedAuthor || '',
         recognizedVolume: row.volume,
         titleId: row.titleId,
         titleName: row.titleName,
@@ -494,6 +495,7 @@ function renderPhotoImportRows(){
     const recognized = document.createElement('div');
     recognized.className = 'photo-import-recognized';
     const recognizedParts = [`読み取り: ${row.recognizedTitle || '（不明）'} ${row.recognizedVolume || ''}`.trim()];
+    if(row.recognizedAuthor) recognizedParts.push(`作者: ${row.recognizedAuthor}`);
     if(row.candidates.length > 1) recognizedParts.push(`候補: ${row.candidates.join(' / ')}`);
     if(row.notes) recognizedParts.push(row.notes);
     if(row.photo > 0 && photoImportState.images[row.photo - 1]){
@@ -717,7 +719,9 @@ function buildPhotoTitleAddPanel(row){
         seriesId: isNew ? '' : String(series.id),
         newSeriesName: isNew ? newSeriesInput.value.trim() : '',
         type: typeSelect.value,
-        completed: completedSelect.value
+        completed: completedSelect.value,
+        // 楽天ブックスで作者が見つからないときに使う（写真から読み取った作者）
+        authorHint: row.recognizedAuthor || ''
       });
   };
 

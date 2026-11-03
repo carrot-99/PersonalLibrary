@@ -11,7 +11,9 @@ test('addTitleMasterWeb: 新しい作品を最大 ID + 1 で追加する', () =>
   const res = gas.addTitleMasterWeb(' ワンピース ', 'S000001', '漫画', '');
   assert.equal(res.success, true);
   assert.equal(res.message, 'ワンピース を追加しました（T000004）');
-  assert.deepEqual(ss.rows('M_Title')[3], ['T000004', 'ワンピース', 'S000001', '漫画', '', 0]);
+  assert.deepEqual(ss.rows('M_Title')[3], ['T000004', 'ワンピース', 'S000001', '漫画', '', 0, '', '', '']);
+  // 作者・出版社の列の見出しを足す（楽天が未設定なので作者は空・取得日もなし）
+  assert.deepEqual(ss.getSheetByName('M_Title').getRange(1, 7, 1, 3).getValues()[0], ['作者', '出版社', '作者の取得日']);
 });
 
 test('addTitleMasterWeb: 名前（正規化後）と種別が同じ作品は登録できない', () => {
@@ -57,7 +59,8 @@ test('getTitleMaster / getTitleListWithOwnership: シリーズ名・ラベル・
   const res = plain(gas.getTitleListWithOwnership());
   assert.deepEqual(res.titles[0], {
     id: 'T000001', name: '進撃の巨人', label: '進撃の巨人',
-    seriesId: 'S000001', seriesName: '進撃シリーズ', type: '漫画', completed: '完結済'
+    seriesId: 'S000001', seriesName: '進撃シリーズ', type: '漫画', completed: '完結済',
+    author: '', publisher: ''
   });
   assert.deepEqual(res.volumes.T000001, ['1', '2']);
 });

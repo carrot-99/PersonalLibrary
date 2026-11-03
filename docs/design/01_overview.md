@@ -75,6 +75,7 @@ PersonalLibrary/
     │   ├── LibraryService.js    M_Library 関連 API ＋ 検索系 API
     │   ├── LibrarySummary.gs    サマリー集計
     │   ├── TitleService.js      M_Title 関連 API
+    │   ├── TitleAuthorService.js 作品の作者・出版社（楽天ブックスから取得・一括補完）
     │   ├── SeriesService.js     M_Series 関連 API
     │   ├── BoxService.js        M_Box 関連 API
     │   ├── PhotoImportService.js 写真解析（AI）・作品照合・一括登録 API

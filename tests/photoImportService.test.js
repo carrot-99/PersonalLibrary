@@ -18,7 +18,7 @@ test('validateSpineResult: 不正な項目を除き、巻数・写真番号を�
   const { gas } = loadServer({});
   const books = plain(gas.validateSpineResult({
     books: [
-      { position: 2, photo: 3, recognizedTitle: ' B ', volumeDisplay: '05', uncertain: true, notes: ' 帯 ' },
+      { position: 2, photo: 3, recognizedTitle: ' B ', recognizedAuthor: ' 作者B ', volumeDisplay: '05', uncertain: true, notes: ' 帯 ' },
       { position: 1, photo: 1, recognizedTitle: 'A', volumeDisplay: '上', uncertain: 'yes' },
       { position: 3, photo: 1, recognizedTitle: 1, volumeDisplay: '1' },
       null
@@ -26,8 +26,8 @@ test('validateSpineResult: 不正な項目を除き、巻数・写真番号を�
   }, 2));
 
   assert.deepEqual(books, [
-    { position: 1, photo: 1, recognizedTitle: 'A', volumeDisplay: '上', uncertain: false, notes: '' },
-    { position: 2, photo: 0, recognizedTitle: 'B', volumeDisplay: '5', uncertain: true, notes: '帯' }
+    { position: 1, photo: 1, recognizedTitle: 'A', recognizedAuthor: '', volumeDisplay: '上', uncertain: false, notes: '' },
+    { position: 2, photo: 0, recognizedTitle: 'B', recognizedAuthor: '作者B', volumeDisplay: '5', uncertain: true, notes: '帯' }
   ]);
   assert.throws(() => gas.validateSpineResult({}, 1), /AIの応答が不正/);
 });
