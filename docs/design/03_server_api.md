@@ -334,7 +334,8 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
                                            ├ requestSpineAnalysis … AI に背表紙の読み取りを依頼（JSON スキーマ指定）
                                            ├ validateSpineResult … 応答の検証・正規化
                                            └ matchExistingTitles … M_Title と照合
-確認画面で修正（作品・巻数・Box）◀── rows / existingKeys / wishKeys / defaultBoxId
+確認画面で修正（作品・巻数・Box）◀── rows / existingKeys / readStatuses / wishKeys / defaultBoxId
+  （所持済みの本は markPhotoBooksRead でまとめて読了にできる）
   （マスタ未登録なら addTitleFromPhotoImport で作品・シリーズを追加）
 登録確定 ──rows──▶ bulkAddLibraryFromPhoto
                     └ addBulkVolumesWeb（＋最終巻指定の作品を完結済へ更新、登録した巻を欲しい巻リストから外す）
@@ -346,9 +347,10 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 | 項目 | 内容 |
 |---|---|
 | 引数 | `images: [{ mimeType, data(base64) }]` |
-| 戻り値 | `{ success: true, rows, existingKeys, defaultBoxId }` または `failure(...)` |
+| 戻り値 | `{ success: true, rows, existingKeys, readStatuses, wishKeys, defaultBoxId }` または `failure(...)` |
 | `rows[]` | `{ position, photo, recognizedTitle, recognizedAuthor, volume, uncertain, notes, match, titleId, titleName, candidates }` |
 | `existingKeys` | 登録済みの `TitleID|巻数` 一覧（クライアントでの重複判定用、`getLibraryKeys()`） |
+| `readStatuses` | 登録済みの本の読書状況 `{ "TitleID|巻数": 状況 }`（`getLibraryReadStatuses()`。`M_Read` に行のない本は読了。同じ巻が複数あれば読了でないほう） |
 | `defaultBoxId` | Box の初期値。最後に登録した書籍の Box（存在する場合）、なければ `M_Box` の先頭（`getDefaultPhotoImportBoxId()`） |
 
 入力エラー: 写真なし / 6 枚以上 / 非対応形式 / サイズ超過 / `ANTHROPIC_API_KEY` 未設定。
@@ -418,6 +420,14 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 2. 新規シリーズ指定時: 同名シリーズがあれば失敗。なければ `addSeriesMasterWeb` で追加
 3. 既存シリーズ指定時: SeriesID の存在を確認
 4. `addTitleMasterWeb` で作品を追加し、採番された ID を返す
+
+### `markPhotoBooksRead(keys)` — 所持済みの本をまとめて読了にする
+
+| 項目 | 内容 |
+|---|---|
+| 引数 | `keys: ["TitleID|巻数", ...]`（重複は 1 つにまとめる。200 件まで） |
+| 処理 | スクリプトロック内で `M_Library` から巻ごとの LibraryID を探し（同じ巻が複数あればすべて）、`writeReadStatuses` で `読了` にする |
+| 戻り値 | `success("n冊を読了にしました")` に `updatedKeys`（読了にした巻）・`notFound`（登録されていない巻）を付ける。対象なし・どれも登録されていなければ `failure` |
 
 ### `bulkAddLibraryFromPhoto(rows, options)` — 確定行の一括登録
 
@@ -652,7 +662,7 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 | `deleteTitleMaster` / `deleteSeriesMaster` / `deleteBoxMaster` | `deleteListRow`（作品一覧・シリーズ一覧・箱一覧の [削除]） |
 | `getSeries` / `getBoxes` | `loadPhotoImportView` |
 | `analyzeBookSpines` | `analyzePhotoImport`（写真で確認・登録の [チェック]） |
-| `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` | 作品追加パネルの「追加して選択」 / `registerPhotoImport` |
+| `addTitleFromPhotoImport` / `bulkAddLibraryFromPhoto` / `markPhotoBooksRead` | 作品追加パネルの「追加して選択」 / `registerPhotoImport` / `markPhotoImportRead` |
 | `getTitles`, `addBulkVolumesWeb`, `getOwnedVolumesByTitle` | サーバー内部から使用（`analyzeBookSpines`, `bulkAddLibraryFromPhoto`） |
 | `testAnthropicConnection` | Apps Script エディタから手動実行 |
 | `getAnimeData` | `loadAnimeData`（視聴中の一覧・アニメ一覧）。サーバー内部から `getSeriesListWithCounts` / `getSeriesOverview` / `getCurrentSeasonAnimeWeb` |

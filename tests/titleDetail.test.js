@@ -85,3 +85,15 @@ test('getPhotoImportStep: 写真を選ぶ → 所持を確認 → 未所持を�
   assert.equal(client.getPhotoImportStep({ reviewing: true, mode: 'register', hasResult: true }), 3);
   assert.equal(client.getPhotoImportStep({ reviewing: false, mode: 'check', hasResult: true }), 4);
 });
+
+test('pickPhotoReadKeys: 所持済みで読了でなく、外していない巻（同じ巻は 1 つ）', () => {
+  const statuses = { 'T1|1': '未読', 'T1|2': '読了', 'T1|3': '読書中' };
+  const keys = client.pickPhotoReadKeys([
+    { key: 'T1|1', owned: true, markRead: true },
+    { key: 'T1|1', owned: true, markRead: true },
+    { key: 'T1|2', owned: true, markRead: true },
+    { key: 'T1|3', owned: true, markRead: false },
+    { key: 'T1|4', owned: false, markRead: true }
+  ], statuses);
+  assert.deepEqual(Array.from(keys), ['T1|1']);
+});

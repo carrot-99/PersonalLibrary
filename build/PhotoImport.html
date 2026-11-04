@@ -22,6 +22,8 @@ const photoImportState = {
   images: [],
   rows: [],
   existingKeys: new Set(),
+  // 登録済みの本の読書状況（{ 'TitleID|巻数': 状況 }）
+  readStatuses: {},
   wishKeys: new Set(),
   // 'check': 所持チェック結果の表示のみ／'register': 未所持の本の登録（Box・登録確定などを表示）
   mode: 'check',
@@ -83,7 +85,7 @@ function fillPhotoImportBoxOptions(select, selectedId){
 
 function setPhotoImportBusy(busy){
   photoImportState.busy = busy;
-  ['photoImportAnalyzeButton', 'photoImportRegisterButton', 'photoImportStartRegister'].forEach(id => {
+  ['photoImportAnalyzeButton', 'photoImportRegisterButton', 'photoImportStartRegister', 'photoImportMarkRead'].forEach(id => {
     const button = document.getElementById(id);
     if(button) button.disabled = busy;
   });
@@ -234,6 +236,7 @@ async function analyzePhotoImport(){
       }
 
       photoImportState.existingKeys = new Set(res.existingKeys || []);
+      photoImportState.readStatuses = res.readStatuses || {};
       photoImportState.wishKeys = new Set(res.wishKeys || []);
       const bulkSelect = document.getElementById('photoImportBulkBox');
       if(!bulkSelect.value && res.defaultBoxId){
@@ -254,6 +257,8 @@ async function analyzePhotoImport(){
         needsReview: row.match !== 'exact' || row.uncertain,
         uncertain: row.uncertain,
         markCompleted: false,
+        // 所持済みの本を [読了にする] の対象にするか（読了でない本は初めから対象）
+        markRead: true,
         photo: row.photo || 0,
         candidates: row.candidates || [],
         notes: row.notes
@@ -341,7 +346,8 @@ function getPhotoImportVerdict(row){
     return { status: PHOTO_VERDICT.UNKNOWN, detail: ownedText || 'この作品は未所持です' };
   }
   if(isPhotoRowOwned(row)){
-    return { status: PHOTO_VERDICT.OWNED, detail: ownedText };
+    const read = getPhotoRowReadStatus(row);
+    return { status: PHOTO_VERDICT.OWNED, detail: read ? `読書: ${read} ／ ${ownedText}` : ownedText };
   }
   if(owned.count === 0){
     return { status: PHOTO_VERDICT.NEW_TITLE, detail: 'この作品はまだ1冊も持っていません' };
@@ -376,6 +382,52 @@ function getPhotoImportVerdict(row){
   const before = together.filter(n => n < target && n > owned.max).sort((a, b) => a - b);
   const prefix = before.length > 0 ? `この一覧の${formatVolumeRanges(before)}巻と合わせて` : '';
   return { status: PHOTO_VERDICT.NEXT, detail: withOwned(`${prefix}続きになります`) };
+}
+
+// 所持済みの本の読書状況（所持していなければ ''）
+function getPhotoRowReadStatus(row){
+  if(!isPhotoRowOwned(row)) return '';
+  return photoImportState.readStatuses[`${row.titleId}|${getSinglePhotoVolume(row)}`] || '読了';
+}
+
+// [読了にする] の対象（DOM を使わない）。items: [{ key: 'TitleID|巻数', owned, markRead }]
+// 所持済みで、読了でなく、対象から外していない巻（同じ巻は 1 つ）
+function pickPhotoReadKeys(items, readStatuses){
+  const keys = [];
+  (items || []).forEach(item => {
+    if(!item.owned || !item.markRead || !item.key) return;
+    if((readStatuses[item.key] || '読了') === '読了' || keys.includes(item.key)) return;
+    keys.push(item.key);
+  });
+  return keys;
+}
+
+function getPhotoReadKeys(){
+  return pickPhotoReadKeys(photoImportState.rows.map(row => ({
+    key: row.titleId ? `${row.titleId}|${getSinglePhotoVolume(row)}` : '',
+    owned: isPhotoRowOwned(row),
+    markRead: row.markRead
+  })), photoImportState.readStatuses);
+}
+
+// 所持済みの本をまとめて読了にする（一気に読んだ本を撮って使う）
+function markPhotoImportRead(){
+  if(photoImportState.busy) return;
+  const keys = getPhotoReadKeys();
+  if(keys.length === 0) return showError('読了にする本がありません');
+
+  setPhotoImportBusy(true);
+  callGAS('markPhotoBooksRead', function(res){
+    setPhotoImportBusy(false);
+    if(res && res.success){
+      (res.updatedKeys || []).forEach(key => { photoImportState.readStatuses[key] = '読了'; });
+      showSuccess(res.message);
+      loadLibrarySummary('libraryGlobal');
+      refreshPhotoImportStatuses();
+    } else {
+      showError(res && res.message ? res.message : '読了にできませんでした');
+    }
+  }, keys);
 }
 
 function isPhotoRowWished(row){
@@ -540,6 +592,16 @@ function renderPhotoImportRows(){
     };
     recognized.appendChild(finalToggle);
 
+    // 所持済みの本: [読了にする] の対象に含めるか（確認のときだけ）
+    const readToggle = document.createElement('button');
+    readToggle.type = 'button';
+    readToggle.className = 'photo-import-final-toggle photo-import-read-toggle check-only';
+    readToggle.onclick = function(){
+      row.markRead = !row.markRead;
+      refreshPhotoImportStatuses();
+    };
+    recognized.appendChild(readToggle);
+
     card.appendChild(verdict);
     card.appendChild(check);
     card.appendChild(titleInput);
@@ -588,6 +650,14 @@ function renderPhotoImportRows(){
       }
 
       card.classList.toggle('is-unchecked', !row.checked);
+
+      const read = getPhotoRowReadStatus(row);
+      readToggle.style.display = read ? '' : 'none';
+      readToggle.disabled = read === '読了';
+      readToggle.classList.toggle('is-active', read !== '読了' && row.markRead);
+      readToggle.textContent = read === '読了'
+        ? '読了済み'
+        : (row.markRead ? `✓ 読了にする（今: ${read}）` : `読了にしない（今: ${read}）`);
 
       const title = photoImportState.titles.find(t => String(t.id) === String(row.titleId));
       const alreadyCompleted = !!title && String(title.completed || '').trim() === '完結済';
@@ -796,8 +866,14 @@ function refreshPhotoImportStatuses(){
   summary.style.display = total > 0 ? 'block' : 'none';
 
   const start = document.getElementById('photoImportStartRegister');
-  start.textContent = `未所持の本を登録する（${notOwned}冊）`;
+  // ボタンは 2 つ並べるので短く（未所持の本を登録する／所持済みの本を読了にする）
+  start.textContent = `登録（${notOwned}冊）`;
   start.disabled = photoImportState.busy || notOwned === 0;
+
+  const readCount = getPhotoReadKeys().length;
+  const markRead = document.getElementById('photoImportMarkRead');
+  markRead.textContent = `読了（${readCount}冊）`;
+  markRead.disabled = photoImportState.busy || readCount === 0;
 
   updatePhotoImportRegisterButton();
 }
@@ -991,5 +1067,6 @@ window.analyzePhotoImport = analyzePhotoImport;
 window.applyPhotoImportBulkBox = applyPhotoImportBulkBox;
 window.registerPhotoImport = registerPhotoImport;
 window.startPhotoImportRegister = startPhotoImportRegister;
+window.markPhotoImportRead = markPhotoImportRead;
 window.backToPhotoImportCheck = backToPhotoImportCheck;
 </script>
