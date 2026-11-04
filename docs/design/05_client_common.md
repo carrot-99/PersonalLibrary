@@ -235,7 +235,7 @@ createDeleteButton(onConfirm) は確定時の処理を受け取る（欲しい�
 | `listEditConfigs` | `Common.html` | 一覧のインライン編集の設定（テーブル ID → `{ columns, update, remove, onSaved, filter }`。`filter` はその一覧の `createListFilter` の戻り値） |
 | `serverCacheMemory` / `serverCacheSeq` | `Common.html` | `callGASCached` の前回の結果（JSON。`localStorage` にも保存）と、`cacheKey` ごとの最後に呼んだ取得の番号 |
 | `messageTimeout` | `Common.html` | 通知自動消去タイマー |
-| `photoImportState` | `PhotoImport.html` | 写真で確認・登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `wishKeys`, `mode`（`check` / `register`）, `busy`） |
+| `photoImportState` | `PhotoImport.html` | 写真で確認・登録の状態（`titles`, `series`, `boxes`, `images`, `rows`, `existingKeys`, `readStatuses`, `wishKeys`, `mode`（`check` / `register`）, `busy`） |
 | `wishState` | `Wish.html` | 欲しい巻リストの状態（`list`, `selectedTitleId`, `nextVolume`） |
 | `READ_STATUS_OPTIONS` | `Common.html` | 読書状況の選択肢（`未読` / `読書中` / `読了`。サーバーの `READ_STATUSES` と同じ）。`pickNextReadVolume(rows)` は次に読む巻（サーバーの `getNextReadVolume` と同じ判定）、`setReadStatus(ids, status, onDone, btn)` は `setReadStatusWeb` を呼んでサマリーを取り直す |
 | `releaseState` | `Release.html` | 発売予定の状態（`data`: `getReleaseViewWeb` の戻り値、`busy`: 取得中、`view`: `calendar`（既定）/ `list`（`localStorage` の `personalLibrary.releaseView` に保存）、`month`: カレンダーで表示中の月 `yyyyMM`、`day`: カレンダーで選んだ日の `sortKey`（`others` はその月の日付のない巻）。月・日は画面を開き直しても保持） |

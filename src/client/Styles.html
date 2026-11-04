@@ -296,6 +296,7 @@
   .photo-import-add-toggle,
   .photo-title-add-cancel,
   .photo-import-back,
+  .photo-import-mark-read,
   .list-filter-clear,
   .wish-next,
   .anime-action.anime-drop,
@@ -312,6 +313,7 @@
   .photo-import-add-toggle:hover,
   .photo-title-add-cancel:hover,
   .photo-import-back:hover,
+  .photo-import-mark-read:hover,
   .list-filter-clear:hover,
   .wish-next:hover,
   .anime-action.anime-drop:hover,
@@ -1281,6 +1283,8 @@
   .photo-import-panel.is-check-mode .register-only,
   .photo-import-panel:not(.is-check-mode) .check-only { display: none !important; }
   .photo-import-back { margin-left: 8px; }
+  .photo-import-check-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .photo-import-check-actions button { margin: 0; }
   /* 確認モードではチェック欄を詰め、未チェック（所持済み）も薄くしない */
   .photo-import-panel.is-check-mode .photo-import-row {
     grid-template-columns: 0 minmax(160px, 2fr) 80px minmax(140px, 1.4fr);
@@ -2131,8 +2135,22 @@
     .photo-title-add-mode label { min-height: 44px; font-size: 1rem; }
     .photo-title-add-mode input { width: 22px; height: 22px; }
     .photo-title-add-actions button { flex: 1 1 0; }
-    #photoImportRegisterButton,
-    #photoImportStartRegister {
+    /* 確認モードの 2 つのボタンは横に並べてまとめて固定する */
+    .photo-import-check-actions {
+      position: sticky;
+      bottom: calc(76px + env(safe-area-inset-bottom));
+      z-index: 5;
+      flex-wrap: nowrap;
+    }
+    .photo-import-check-actions button {
+      flex: 1 1 0;
+      min-height: 56px;
+      padding: 8px 10px;
+      font-size: 0.95rem;
+      line-height: 1.3;
+      box-shadow: var(--shadow-lg);
+    }
+    #photoImportRegisterButton {
       position: sticky;
       bottom: calc(76px + env(safe-area-inset-bottom));
       z-index: 5;

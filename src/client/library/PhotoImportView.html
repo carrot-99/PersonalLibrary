@@ -11,7 +11,7 @@
   </ol>
 
   <div id="photoImportPanel" class="photo-import-panel is-check-mode">
-    <p class="photo-import-note">本の表紙・背表紙を撮ると、持っている巻かを確認できます。持っていない本はそのまま登録できます。</p>
+    <p class="photo-import-note">本の表紙・背表紙を撮ると、持っている巻かを確認できます。持っていない本はそのまま登録でき、持っている本はまとめて読了にできます。</p>
     <label for="photoImportFiles">本の写真（最大5枚）</label>
     <input id="photoImportFiles" type="file" accept="image/*" multiple onchange="previewPhotoImportFiles()">
     <div id="photoImportPreview" class="photo-import-preview"></div>
@@ -29,7 +29,12 @@
       <datalist id="photoImportSeriesList"></datalist>
       <div id="photoImportRows" class="photo-import-rows"></div>
 
-      <button id="photoImportStartRegister" class="check-only" type="button" onclick="startPhotoImportRegister()">未所持の本を登録する</button>
+      <!-- 確認モードの操作（スマホ幅では 2 つ並べて画面下に固定） -->
+      <div class="photo-import-check-actions check-only">
+        <button id="photoImportStartRegister" type="button" title="未所持の本を登録する" onclick="startPhotoImportRegister()">登録</button>
+        <!-- 所持済みで読了でない本をまとめて読了にする（行の [読了にしない] で外せる。markPhotoImportRead） -->
+        <button id="photoImportMarkRead" class="photo-import-mark-read" type="button" title="所持済みの本を読了にする" onclick="markPhotoImportRead()">読了</button>
+      </div>
       <label class="register-only photo-import-read"><input type="checkbox" id="photoImportReadDone"> 読了として登録（チェックなしは未読）</label>
       <button id="photoImportRegisterButton" class="register-only" type="button" onclick="registerPhotoImport()">登録確定</button>
       <button id="photoImportBackToCheck" class="register-only photo-import-back" type="button" onclick="backToPhotoImportCheck()">確認結果に戻る</button>

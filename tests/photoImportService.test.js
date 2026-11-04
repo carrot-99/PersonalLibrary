@@ -137,3 +137,34 @@ test('bulkAddLibraryFromPhoto: 空・上限超えはエラー', () => {
   assert.match(gas.bulkAddLibraryFromPhoto([]).message, /登録対象がありません/);
   assert.match(gas.bulkAddLibraryFromPhoto(Array(201).fill({})).message, /200件まで/);
 });
+
+// ---------- 所持済みの本をまとめて読了にする ----------
+
+const READ_HEADER = ['LibraryID', '状況', '更新日'];
+
+test('getLibraryReadStatuses / markPhotoBooksRead: 所持済みの巻の読書状況を返し、まとめて読了にする', () => {
+  const sheets = Object.assign(baseSheets({
+    M_Library: [
+      ['L000001', 'T000001', 'B01', '1', new Date(2026, 0, 10)],
+      ['L000002', 'T000001', 'B01', '2', new Date(2026, 0, 11)],
+      ['L000003', 'T000001', 'B02', '2', new Date(2026, 0, 12)],
+      ['L000004', 'T000002', 'B02', '1', new Date(2026, 1, 1)]
+    ]
+  }), { M_Read: [READ_HEADER, ['L000001', '未読', ''], ['L000002', '読了', ''], ['L000003', '読書中', '']] });
+  const { gas, ss, lock } = loadServer(sheets);
+
+  // 行のない本は読了。同じ巻が複数あれば読了でないほう
+  assert.deepEqual(plain(gas.getLibraryReadStatuses()), { 'T000001|1': '未読', 'T000001|2': '読書中', 'T000002|1': '読了' });
+
+  const res = plain(gas.markPhotoBooksRead(['T000001|1', 'T000001|2', 'T000001|1', 'T000009|1']));
+  assert.equal(res.success, true);
+  assert.deepEqual(res.updatedKeys, ['T000001|1', 'T000001|2']);
+  assert.deepEqual(res.notFound, ['T000009|1']);
+  assert.match(res.message, /2冊を読了にしました（1冊は登録されていない/);
+  const statuses = Object.fromEntries(ss.rows('M_Read').map(r => [r[0], r[1]]));
+  assert.deepEqual([statuses.L000001, statuses.L000002, statuses.L000003], ['読了', '読了', '読了']);
+  assert.equal(lock.held, false);
+
+  assert.match(gas.markPhotoBooksRead([]).message, /読了にする本がありません/);
+  assert.match(gas.markPhotoBooksRead(['T000009|1']).message, /見つかりません/);
+});

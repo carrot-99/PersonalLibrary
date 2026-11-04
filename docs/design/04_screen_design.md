@@ -220,14 +220,16 @@
      作品・巻数の読み取り違いはカード内の入力欄で修正（即時に再判定）
      マスタにない作品は [作品を追加] から作品（＋必要ならシリーズ）を追加できる
      ここで終われば登録しない（書店での確認用）
-④ [未所持の本を登録する（n冊）] → 登録モード
+     所持済みの本は判定に読書状況を添え、[✓ 読了にする（今: 未読）] で対象に含めるかを切り替える（初めは読了でない本すべて）
+     [読了（n冊）]（所持済みの本を読了にする） → markPhotoBooksRead で対象の本をまとめて読了にする（一気に読んだ本を撮って使う）
+④ [登録（n冊）]（未所持の本を登録する） → 登録モード
      所持済みの本は非表示・登録対象外、未所持の本のみチェック ON
      作品・巻数・Box を確認・修正。マスタにない作品は [作品を追加]、必要に応じて [最終巻]
      [確認結果に戻る] で確認モードへ
 ⑤ [登録確定（n件）] → bulkAddLibraryFromPhoto → 結果表示
 ```
 
-モードは `photoImportState.mode`（`check` / `register`）で、パネルのクラス `is-check-mode` により表示を切り替えます。登録用の要素（チェック・Box・状態・最終巻・一括Box・登録確定）はクラス `register-only`（[作品を追加] は両モードで表示）、[未所持の本を登録する] は `check-only`。
+モードは `photoImportState.mode`（`check` / `register`）で、パネルのクラス `is-check-mode` により表示を切り替えます。登録用の要素（チェック・Box・状態・最終巻・一括Box・登録確定）はクラス `register-only`（[作品を追加] は両モードで表示）、[未所持の本を登録する]・[所持済みの本を読了にする]・行の読了の切り替えは `check-only`。
 
 ### 画面項目
 
@@ -237,7 +239,8 @@
 | | プレビュー | `#photoImportPreview` | サムネイル。押すと拡大ビューア（`#photoImportViewer`、画像タップで拡大／縮小） |
 | | チェックボタン | `#photoImportAnalyzeButton` | 処理中は無効化 |
 | 確認 | まとめ | `#photoImportSummary` | 「n冊中 所持済み x冊 ／ 未所持 y冊」 |
-| | 登録へ進む | `#photoImportStartRegister` | 確認モードのみ。「未所持の本を登録する（n冊）」。未所持 0 冊・処理中は無効 |
+| | 登録へ進む | `#photoImportStartRegister` | 確認モードのみ。「登録（n冊）」。未所持 0 冊・処理中は無効 |
+| | 読了にする | `#photoImportMarkRead` | 確認モードのみ。「読了（n冊）」。所持済みで読了でなく、行の切り替えで外していない巻（`pickPhotoReadKeys`）。0 冊・処理中は無効。スマホ幅では [未所持の本を登録する] と横に並べて画面下に固定（`.photo-import-check-actions`） |
 | 登録 | 一括Box | `#photoImportBulkBox` | 変更すると**全行**の Box を上書き。解析時、未選択ならサーバーの初期値を設定 |
 | | 行カード | `#photoImportRows` | 下表 |
 | | 読了として登録 | `#photoImportReadDone` | 登録モードのみ。チェックすると登録する本を読了にする（`bulkAddLibraryFromPhoto` の `options.read`）。チェックなしは未読 |

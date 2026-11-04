@@ -81,6 +81,7 @@ function analyzeBookSpines(images){
       success: true,
       rows,
       existingKeys: getLibraryKeys(),
+      readStatuses: getLibraryReadStatuses(),
       wishKeys: getWishKeys(),
       defaultBoxId: getDefaultPhotoImportBoxId()
     };
@@ -471,6 +472,60 @@ function getLibraryKeys(){
   return getData(SHEETS.LIBRARY).map(row =>
     `${String(row[1]).trim()}|${String(row[3]).trim()}`
   );
+}
+
+
+// ----------------------
+// 登録済みの本の読書状況（{ 'TitleID|巻数': 状況 }。同じ巻が複数あれば、読了でないものを優先）
+// ----------------------
+function getLibraryReadStatuses(){
+  const readMap = getReadStatusMap();
+  const statuses = {};
+  getData(SHEETS.LIBRARY).forEach(row => {
+    const key = `${String(row[1]).trim()}|${String(row[3]).trim()}`;
+    const status = getReadStatus(readMap, row[0]);
+    if(!statuses[key] || statuses[key] === '読了') statuses[key] = status;
+  });
+  return statuses;
+}
+
+
+// ----------------------
+// 写真で確認した所持済みの本をまとめて読了にする
+// keys: ['TitleID|巻数', ...]（同じ巻の本が複数あればすべて読了にする）
+// 戻り値: success / failure に updatedKeys（読了にした巻）、notFound（登録されていない巻）を付ける
+// ----------------------
+function markPhotoBooksRead(keys){
+  const targets = Array.from(new Set((Array.isArray(keys) ? keys : []).map(key => String(key || '').trim()).filter(Boolean)));
+  if(targets.length === 0){
+    return failure('読了にする本がありません');
+  }
+  if(targets.length > PHOTO_IMPORT.MAX_REGISTER_ROWS){
+    return failure(`一度に読了にできるのは${PHOTO_IMPORT.MAX_REGISTER_ROWS}件までです`);
+  }
+
+  return withScriptLock(() => {
+    try{
+      const idsByKey = new Map();
+      getData(SHEETS.LIBRARY).forEach(row => {
+        const key = `${String(row[1]).trim()}|${String(row[3]).trim()}`;
+        if(!idsByKey.has(key)) idsByKey.set(key, []);
+        idsByKey.get(key).push(String(row[0]).trim());
+      });
+
+      const updatedKeys = targets.filter(key => idsByKey.has(key));
+      const notFound = targets.filter(key => !idsByKey.has(key));
+      if(updatedKeys.length === 0){
+        return failure('登録されている本が見つかりません');
+      }
+
+      writeReadStatuses(updatedKeys.flatMap(key => idsByKey.get(key)), '読了');
+      const extra = notFound.length > 0 ? `（${notFound.length}冊は登録されていないため外しました）` : '';
+      return Object.assign(success(`${updatedKeys.length}冊を読了にしました${extra}`), { updatedKeys, notFound });
+    } catch(e){
+      return failure(e.message);
+    }
+  });
 }
 
 
