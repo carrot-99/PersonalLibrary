@@ -94,7 +94,6 @@ test('addTitleFromPhotoImport: 同名作品・登録済みシリーズ名・存�
   assert.match(gas.addTitleFromPhotoImport({ name: '進撃の巨人', seriesId: 'S000001', type: '漫画' }).message, /同じ名前・種別/);
   assert.match(gas.addTitleFromPhotoImport({ name: '新作', newSeriesName: '進撃シリーズ' }).message, /既に登録されています/);
   assert.match(gas.addTitleFromPhotoImport({ name: '新作', seriesId: 'S999999' }).message, /シリーズが存在しません/);
-  assert.match(gas.addTitleFromPhotoImport({ name: '新作' }).message, /シリーズを選択/);
   assert.match(gas.addTitleFromPhotoImport({}).message, /作品名は必須/);
 });
 
@@ -130,6 +129,17 @@ test('bulkAddLibraryFromPhoto: 登録・重複・不正を行ごとに振り分�
   assert.deepEqual(ss.rows('M_Wish'), []);
   assert.equal(ss.rows('M_Library').length, 4);
   assert.equal(lock.held, false);
+});
+
+test('bulkAddLibraryFromPhoto: Box は任意（空ならBoxなしで登録する）', () => {
+  const { gas, ss } = loadServer(baseSheets());
+  const res = plain(gas.bulkAddLibraryFromPhoto([
+    { rowId: 'r1', titleId: 'T000002', volume: '2', boxId: '', label: 'よつばと 2' }
+  ]));
+  assert.equal(res.success, true, res.message);
+  assert.deepEqual(res.addedRowIds, ['r1']);
+  const added = ss.rows('M_Library').at(-1);
+  assert.deepEqual([added[1], added[2], added[3]], ['T000002', '', '2']);
 });
 
 test('bulkAddLibraryFromPhoto: 空・上限超えはエラー', () => {

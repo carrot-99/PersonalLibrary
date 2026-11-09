@@ -67,10 +67,10 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 | 対象 | 項目 |
 |---|---|
-| 作品 | 作品名（必須）。種別は `漫画` / `ラノベ`、完結状態は `連載中` / `完結済` / `未完結`（どちらも空欄は未設定として可。`checkTitleOptions`）。追加時のシリーズは存在する ID |
+| 作品 | 作品名（必須）。種別は `漫画` / `ラノベ`、完結状態は `連載中` / `完結済` / `未完結`（どちらも空欄は未設定として可。`checkTitleOptions`）。追加時のシリーズは任意（指定したときは存在する ID）。作者（200 文字）・出版社は任意 |
 | シリーズ | シリーズ名（必須） |
 | Box | BoxID（必須・20 文字）・保管場所（必須。更新でも空欄不可） |
-| 書籍 | 巻数式（3.1.3）。書籍一覧の更新の巻数は 1 巻だけ |
+| 書籍 | 巻数式（3.1.3）。書籍一覧の更新の巻数は 1 巻だけ。Box は任意（指定したときは存在する Box） |
 | 欲しい巻 | メモ（200 文字） |
 | アニメ | 作品名・期名（必須）・シリーズ名 |
 | 写真から登録の作品追加 | 作品名・新規シリーズ名・種別・完結状態 |
@@ -96,13 +96,13 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 |---|---|---|
 | `titleId` | string | 作品 ID（前後空白除去） |
 | `volume` | string | 巻数式（3.1.3） |
-| `boxId` | string | Box ID |
+| `boxId` | string | Box ID（任意。空なら Box なしで登録） |
 
 処理:
 
-1. `titleId` または `boxId` が空 → `failure('入力が不完全です')`
+1. `titleId` が空 → `failure('入力が不完全です')`
 2. 巻数式を解析。不正 → `failure(<解析エラーメッセージ>)`
-3. 作品・Box がマスタに存在するか確認。なければ `failure('作品ID … が存在しません')` / `failure('BoxID … が存在しません')`
+3. 作品・Box（指定したときだけ）がマスタに存在するか確認。なければ `failure('作品ID … が存在しません')` / `failure('BoxID … が存在しません')`
 4. 解析した全巻について、`M_Library` に同一 (TitleID, 巻数) が存在するか確認。1 件でもあれば
    `failure('同じ作品に既に登録済みの巻数があります: <巻数一覧>')`（**全件登録しない**）
 5. 巻ごとに ID を採番し `[LibraryID, TitleID, BoxID, 巻数, 今日(Date)]` を `appendLibraryRows` で一括書き込み（`setValues` 1 回）
@@ -151,8 +151,8 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 処理:
 
 1. `id` 空 → `failure('IDが指定されていません')`、`values` 要素数 < 3 → `failure('更新値が不正です')`
-2. いずれか空 → `failure('作品名・巻数・Boxは必須です')`。巻数は巻数式（3.1.3）で 1 巻だけ（`1-3` などは `巻数は 1 巻だけ入力してください`）。`id` の行がなければ `failure('該当データが見つかりません')`
-3. `resolveMasterId` で作品（ID or 作品名）→ TitleID、Box（ID or 保管場所）→ BoxID に変換。同名が複数ある場合は現在の紐付け先を優先。見つからなければ `failure('作品「…」が見つかりません')` / `failure('Box「…」が見つかりません')`
+2. 作品名・巻数のいずれか空 → `failure('作品名・巻数は必須です')`（Box は空欄なら Box なしにする）。巻数は巻数式（3.1.3）で 1 巻だけ（`1-3` などは `巻数は 1 巻だけ入力してください`）。`id` の行がなければ `failure('該当データが見つかりません')`
+3. `resolveMasterId` で作品（ID or 作品名）→ TitleID、Box（ID or 保管場所。入力したときだけ）→ BoxID に変換。同名が複数ある場合は現在の紐付け先を優先。見つからなければ `failure('作品「…」が見つかりません')` / `failure('Box「…」が見つかりません')`
 4. 自分以外に同一 (TitleID, 巻数) があれば `failure('同じ作品・巻数のデータが既に存在します')`
 5. `updateRowById` で 2 列目（TitleID）・3 列目（BoxID）・4 列目（巻数）を更新
 6. 読書状況の指定があり、今と違えば `M_Read` に書く（`未読` / `読書中` / `読了` 以外は手順 2 で `failure`）→ 成功は `success('更新成功しました')`
@@ -172,7 +172,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 |---|---|
 | 引数 | `entries: [{ titleId, volume, boxId }]`、`readStatus`: 登録した本の読書状況（省略時は `未読`） |
 | 戻り値 | `{ success: true, added, errors: [{ line, message }], messages: [] }` |
-| 処理 | 行ごとに必須・作品/Box 存在・重複をチェックし、OK の行だけ最後に `appendLibraryRows` でまとめて書き込み（部分成功） |
+| 処理 | 行ごとに必須（作品・巻数。`boxId` は任意）・作品/Box（指定したときだけ）存在・重複をチェックし、OK の行だけ最後に `appendLibraryRows` でまとめて書き込み（部分成功） |
 | 備考 | 巻数式は解釈しない（1 行 1 巻）。重複エラーには `duplicate: true` を付与。写真から登録の `bulkAddLibraryFromPhoto` から呼び出される（排他は呼び出し側で実施） |
 
 ### `getTitleDetail(titleId)` — 作品別検索
@@ -237,13 +237,13 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 
 戻り値 `[{ id, name }]`。写真解析時に、AI へ渡す作品名一覧と照合対象として使用（`analyzeBookSpines`）。
 
-### `addTitleMasterWeb(name, seriesId, type, completed)`
+### `addTitleMasterWeb(name, seriesId, type, completed, author, publisher)`
 
 | 項目 | 内容 |
 |---|---|
 | 必須 | `name`（空なら `failure('作品名は必須です')`）。名前・種別・完結状態は 3.1.4 で検証し、`seriesId` を指定したときは `M_Series` にあること（なければ `シリーズが存在しません`） |
 | 重複 | 同じ名前（正規化して比較）**かつ同じ種別**の作品があれば `failure('同じ名前・種別の作品が既に登録されています（…）')`。種別が違えば登録可 |
-| 作者 | ロックの前に楽天ブックスを作品名で検索して作者・出版社を取得（`lookupTitleAuthor`。3.5.1）。楽天が未設定・通信エラーなら作者なしで追加する |
+| 作者 | `author`・`publisher` は任意（作者 200 文字・出版社 100 文字、「=」始まり不可。`checkTitleAuthorInputs`）。入力した値を優先し、空の項目だけロックの前に楽天ブックスを作品名で検索して埋める（`lookupTitleAuthor`。3.5.1。両方入力したときは検索しない。`mergeTitleAuthorInfo`）。楽天が未設定・通信エラーなら空のまま追加する。作者の取得日は楽天に問い合わせたときだけ入れる |
 | 処理 | スクリプトロック内で（`addTitleMasterCore(name, seriesId, type, completed, info)`）`T` で採番し `[ID, name, seriesId, type, completed, 0, 作者, 出版社, 作者の取得日]` を追加。未指定項目は空文字 |
 | 成功 | `success('<name> を追加しました（<ID>）')`。作者が取れたら末尾に `。作者: <作者>` |
 
@@ -409,16 +409,16 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 
 | 項目 | 内容 |
 |---|---|
-| 引数 | `{ name, seriesId, newSeriesName, type, completed, authorHint }`（`seriesId` か `newSeriesName` のどちらか必須。`authorHint` は写真から読み取った作者） |
-| 作者 | ロックの前に `lookupTitleAuthor` で楽天ブックスから取得し、見つからなければ `authorHint` を入れる |
-| 戻り値 | `{ success: true, message, title: { id, name, completed, type, label, author, publisher }, series: { id, name, created } }`（作者があれば `message` の末尾に `（作者: …）`） |
+| 引数 | `{ name, seriesId, newSeriesName, type, completed, author, publisher, authorHint }`（シリーズは任意。`seriesId`・`newSeriesName` のどちらも空ならシリーズなし。`author`・`publisher` は任意の手入力、`authorHint` は写真から読み取った作者） |
+| 作者 | 入力した作者・出版社を優先し、空の項目はロックの前に `lookupTitleAuthor` で楽天ブックスから取得する（`addTitleMasterWeb` と同じ）。それでも作者がなければ `authorHint` を入れる |
+| 戻り値 | `{ success: true, message, title: { id, name, completed, type, label, author, publisher }, series: { id, name, created } }`（シリーズなしなら `series: null`）（作者があれば `message` の末尾に `（作者: …）`） |
 | 排他 | スクリプトロック（10 秒待機。取得できなければ失敗） |
 
 処理:
 
 1. 正規化後の作品名が既存作品と一致 → 失敗（既存作品を選ぶよう案内）
 2. 新規シリーズ指定時: 同名シリーズがあれば失敗。なければ `addSeriesMasterWeb` で追加
-3. 既存シリーズ指定時: SeriesID の存在を確認
+3. 既存シリーズ指定時: SeriesID の存在を確認（どちらも未指定ならシリーズなし）
 4. `addTitleMasterWeb` で作品を追加し、採番された ID を返す
 
 ### `markPhotoBooksRead(keys)` — 所持済みの本をまとめて読了にする
@@ -439,7 +439,7 @@ Box・シリーズの詳細の集計に使います（`getBoxOverview` / `getSer
 
 処理:
 
-1. 行ごとに巻数を `parseVolumeExpression` で検証（**1 行につき 1 巻のみ**）。Box の存在を確認。NG の行は `failed` へ
+1. 行ごとに巻数を `parseVolumeExpression` で検証（**1 行につき 1 巻のみ**）。Box は任意（空なら Box なし）で、指定したときは存在を確認。NG の行は `failed` へ
 2. OK の行を `addBulkVolumesWeb` で登録。重複は `duplicates`、その他のエラーは `failed` に振り分け（部分成功）
 3. 登録できた行のうち `markCompleted: true` の作品の完結状態を `完結済` に更新し、作品名を `completedTitles` に設定
 

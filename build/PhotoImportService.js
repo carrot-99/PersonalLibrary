@@ -362,8 +362,10 @@ function matchExistingTitles(books, titles){
 
 // ----------------------
 // 確認画面からの作品追加（ユーザー操作時のみ。必要ならシリーズも新規作成）
-// input: { name, seriesId, newSeriesName, type, completed, authorHint }
-// 作者・出版社は楽天ブックスから取得し、見つからなければ写真から読み取った作者（authorHint）を入れる
+// input: { name, seriesId, newSeriesName, type, completed, author, publisher, authorHint }
+// シリーズは任意（seriesId・newSeriesName のどちらも空ならシリーズなし）。
+// 作者・出版社は任意入力。入力した値を優先し、空の項目は楽天ブックスから取得する。
+// それでも作者がなければ写真から読み取った作者（authorHint）を入れる
 // ----------------------
 function addTitleFromPhotoImport(input){
 
@@ -373,12 +375,10 @@ function addTitleFromPhotoImport(input){
   const type = String((input && input.type) || '').trim();
   const completed = String((input && input.completed) || '').trim();
   const authorHint = String((input && input.authorHint) || '').trim();
+  const manual = checkTitleAuthorInputs(input && input.author, input && input.publisher);
 
   if(!name){
     return failure('作品名は必須です');
-  }
-  if(!seriesId && !newSeriesName){
-    return failure('シリーズを選択するか、新規シリーズ名を入力してください');
   }
   for(const [value, label] of [[name, '作品名'], [newSeriesName, '新規シリーズ名']]){
     const checked = checkText(value, label);
@@ -388,10 +388,14 @@ function addTitleFromPhotoImport(input){
   if(!options.valid){
     return failure(options.message);
   }
+  if(!manual.valid){
+    return failure(manual.message);
+  }
 
-  // 楽天への問い合わせはロックの外で行う
-  const looked = lookupTitleAuthor(name, options.type);
-  const info = looked && looked.author ? looked : Object.assign({}, looked || {}, { author: authorHint });
+  // 楽天への問い合わせはロックの外で行う（作者・出版社とも入力済みなら問い合わせない）
+  const looked = manual.author && manual.publisher ? null : lookupTitleAuthor(name, options.type);
+  const info = mergeTitleAuthorInfo(manual, looked);
+  if(!info.author) info.author = authorHint;
 
   const lock = LockService.getScriptLock();
   if(!lock.tryLock(10000)){
@@ -418,7 +422,7 @@ function addTitleFromPhotoImport(input){
       if(!seriesRes.success) return seriesRes;
       series = { id: String(getMaxId(SHEETS.SERIES)), name: newSeriesName, created: true };
 
-    } else {
+    } else if(seriesId){
       const found = seriesRows.find(row => String(row[0]).trim() === seriesId);
       if(!found){
         return failure('シリーズが存在しません');
@@ -426,14 +430,14 @@ function addTitleFromPhotoImport(input){
       series = { id: String(found[0]).trim(), name: String(found[1]), created: false };
     }
 
-    const titleRes = addTitleMasterCore(name, series.id, type, completed, info);
+    const titleRes = addTitleMasterCore(name, series ? series.id : '', type, completed, info);
     if(!titleRes.success) return titleRes;
 
     const titleId = String(getMaxId(SHEETS.TITLE));
 
     return {
       success: true,
-      message: (series.created
+      message: (series && series.created
         ? `シリーズ「${series.name}」と作品「${name}」を追加しました`
         : `作品「${name}」を追加しました`) + (info.author ? `（作者: ${info.author}）` : ''),
       title: { id: titleId, name, completed, type, label: buildTitleLabelMap(getData(SHEETS.TITLE)).get(titleId) || name, author: info.author || '', publisher: info.publisher || '' },
@@ -560,7 +564,9 @@ function bulkAddLibraryFromPhoto(rows, options){
       return;
     }
 
-    const boxId = boxIdMap.get(String((row && row.boxId) || '').trim());
+    // Box は任意（空ならBoxなしで登録）
+    const boxInput = String((row && row.boxId) || '').trim();
+    const boxId = boxInput ? boxIdMap.get(boxInput) : '';
     if(boxId === undefined){
       invalid.push({ rowId, label, message: 'Boxが存在しません' });
       return;

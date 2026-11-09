@@ -70,7 +70,7 @@ function fillPhotoImportBoxOptions(select, selectedId){
   select.innerHTML = '';
   const placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = 'Boxを選択';
+  placeholder.textContent = 'Boxなし';
   select.appendChild(placeholder);
 
   photoImportState.boxes.forEach(box => {
@@ -298,7 +298,6 @@ function getPhotoImportStatus(row, index){
   if(!parsed.valid || parsed.values.length !== 1) return PHOTO_STATUS.INPUT_ERROR;
 
   if(row.needsReview) return PHOTO_STATUS.REVIEW;
-  if(!row.boxId) return PHOTO_STATUS.INPUT_ERROR;
 
   const key = `${row.titleId}|${parsed.values[0]}`;
   if(photoImportState.existingKeys.has(key)) return PHOTO_STATUS.DUPLICATE;
@@ -470,7 +469,7 @@ function getPhotoImportStatusDetail(row, status){
   if(status === PHOTO_STATUS.UNREGISTERED) return '作品マスタに無い作品です（自動作成しません）';
   if(status === PHOTO_STATUS.DUPLICATE) return '同じ作品・巻数が登録済みです';
   if(status === PHOTO_STATUS.INPUT_ERROR){
-    return row.boxId ? '巻数は1つだけ入力してください' : 'Boxを選択してください';
+    return '巻数は1つだけ入力してください';
   }
   if(status === PHOTO_STATUS.REVIEW){
     if(!String(row.volume || '').trim()) return '巻数を入力してください';
@@ -708,7 +707,7 @@ function buildPhotoTitleAddPanel(row){
   const seriesInput = document.createElement('input');
   seriesInput.className = 'photo-title-add-series';
   seriesInput.setAttribute('list', 'photoImportSeriesList');
-  seriesInput.placeholder = '既存シリーズを選択';
+  seriesInput.placeholder = '既存シリーズを選択（任意）';
 
   const newSeriesInput = document.createElement('input');
   newSeriesInput.className = 'photo-title-add-series';
@@ -734,6 +733,15 @@ function buildPhotoTitleAddPanel(row){
     option.textContent = value;
     completedSelect.appendChild(option);
   });
+
+  // 作者・出版社は任意。空欄の項目は楽天ブックスから取得する（作者が見つからなければ写真から読み取った作者）
+  const authorInput = document.createElement('input');
+  authorInput.placeholder = '作者（任意）';
+  authorInput.setAttribute('aria-label', '作者');
+
+  const publisherInput = document.createElement('input');
+  publisherInput.placeholder = '出版社（任意）';
+  publisherInput.setAttribute('aria-label', '出版社');
 
   const actions = document.createElement('div');
   actions.className = 'photo-title-add-actions';
@@ -762,11 +770,16 @@ function buildPhotoTitleAddPanel(row){
     const series = photoImportState.series.find(s => String(s.name).trim() === seriesName);
 
     if(!name) return showError('作品名を入力してください');
-    if(!isNew && !series) return showError('既存シリーズを一覧から選択してください');
+    // シリーズは任意（既存シリーズ欄が空ならシリーズなし）
+    if(!isNew && seriesName && !series) return showError('既存シリーズは一覧から選択してください（シリーズなしなら空欄）');
     if(isNew && !newSeriesInput.value.trim()) return showError('新規シリーズ名を入力してください');
+    const author = authorInput.value.trim();
+    const publisher = publisherInput.value.trim();
     const message = checkTextInputs([
       ['作品名', name],
-      ['新規シリーズ名', isNew ? newSeriesInput.value : '']
+      ['新規シリーズ名', isNew ? newSeriesInput.value : ''],
+      ['作者', author, { max: 200 }],
+      ['出版社', publisher]
     ]);
     if(message) return showError(message);
 
@@ -786,16 +799,18 @@ function buildPhotoTitleAddPanel(row){
       })
       .addTitleFromPhotoImport({
         name,
-        seriesId: isNew ? '' : String(series.id),
+        seriesId: isNew || !series ? '' : String(series.id),
         newSeriesName: isNew ? newSeriesInput.value.trim() : '',
         type: typeSelect.value,
         completed: completedSelect.value,
-        // 楽天ブックスで作者が見つからないときに使う（写真から読み取った作者）
+        author,
+        publisher,
+        // 作者が空欄で楽天ブックスでも見つからないときに使う（写真から読み取った作者）
         authorHint: row.recognizedAuthor || ''
       });
   };
 
-  [nameInput, modeArea, seriesInput, newSeriesInput, typeSelect, completedSelect, actions]
+  [nameInput, modeArea, seriesInput, newSeriesInput, typeSelect, completedSelect, authorInput, publisherInput, actions]
     .forEach(el => panel.appendChild(el));
   return panel;
 }
