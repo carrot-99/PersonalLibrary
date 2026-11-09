@@ -1,6 +1,6 @@
 // ======================================================
 // JumpService.gs
-// ジャンプ作品（週刊少年ジャンプで 2000 年以降に連載が始まった作品のうち、持っていない作品を管理する）
+// ジャンプ作品（週刊少年ジャンプ（前身の『少年ジャンプ』を含む）の連載作品のうち、持っていない作品を管理する）
 // 作品の一覧は JumpTitles.js の JUMP_TITLES。作品ごとの印（気になる・興味なし・持っている）を M_JumpCheck に保存する
 // 持っているかは M_Title（ラノベを除く）の作品名との照合と、M_Library の所持冊数で決める
 // ======================================================
@@ -46,7 +46,8 @@ function getJumpMatchKeys(name){
   const keys = [];
   let text = toReleaseSearchName(name);
   for(let i = 0; i < 3 && text; i++){
-    const key = normalizeTitleForMatch(text);
+    // ハート（「ジャングルの王者ターちゃん♡」）は付けずに登録することが多いので除く
+    const key = normalizeTitleForMatch(text.replace(/[♡♥❤]/g, ''));
     if(key && !keys.includes(key)) keys.push(key);
     const stripped = text.replace(JUMP_SUBTITLE_PATTERN, '');
     if(stripped === text) break;
@@ -94,7 +95,8 @@ function parseJumpIssue(value){
 // ----------------------
 // 画面の内容
 // 戻り値: { success, items: [{ no, name, author, start, end, startYear, endYear, ongoing,
-//   status, owned, ownedBy（'auto' / 'mark' / ''）, titleId, titleName, volumes }] }
+//   totalVolumes, status, owned, ownedBy（'auto' / 'mark' / ''）, titleId, titleName, volumes }] }
+// totalVolumes: 完結済みの作品の全巻数（JUMP_TITLES の 6 列目。不明は 0）
 // owned: 照合した作品の所持冊数が 1 冊以上、または「持っている」の印がある
 // ----------------------
 function getJumpViewWeb(){
@@ -107,7 +109,7 @@ function getJumpViewWeb(){
   const index = buildJumpTitleIndex(getData(SHEETS.TITLE), volumeCounts);
   const statuses = getJumpStatusMap();
 
-  const items = JUMP_TITLES.map(([no, name, author, start, end]) => {
+  const items = JUMP_TITLES.map(([no, name, author, start, end, totalVolumes]) => {
     const title = findJumpTitle(name, index);
     const status = statuses.get(String(no)) || '';
     const volumes = title ? title.volumes : 0;
@@ -123,6 +125,7 @@ function getJumpViewWeb(){
       startYear: startIssue ? startIssue.year : 0,
       endYear: endIssue ? endIssue.year : 0,
       ongoing: !end,
+      totalVolumes: totalVolumes || 0,
       status,
       owned: ownedBy !== '',
       ownedBy,

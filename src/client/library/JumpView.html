@@ -1,9 +1,9 @@
 <!-- JumpView.html -->
-<!-- ジャンプ作品（週刊少年ジャンプで 2000 年以降に連載が始まった作品のうち、持っていない作品を管理する） -->
+<!-- ジャンプ作品（週刊少年ジャンプの連載作品のうち、持っていない作品を管理する） -->
 <div id="JumpView" class="view" style="display:none;">
   <h3>ジャンプ作品</h3>
 
-  <p class="photo-import-note">週刊少年ジャンプで 2000 年以降に連載が始まった作品です。持っているかは作品一覧の作品名と照合して自動で判定します（名前が違って判定されないときは [持っている] で印を付けられます）。</p>
+  <p class="photo-import-note">週刊少年ジャンプ（1968 年の創刊から）の連載作品です。全巻数は完結済みの作品だけ表示します（Wikipedia の記載）。持っているかは作品一覧の作品名と照合して自動で判定します（名前が違って判定されないときは [持っている] で印を付けられます）。</p>
 
   <div class="list-mode-switch jump-filter" role="group" aria-label="表示する作品">
     <button type="button" data-jump-filter="unowned" onclick="setJumpFilter('unowned')">未所持</button>
@@ -15,6 +15,16 @@
 
   <div class="list-filter">
     <input id="jumpKeywordInput" class="list-filter-keyword" type="search" placeholder="作品名・作者で絞り込み" autocomplete="off" oninput="renderJumpView()">
+    <select id="jumpDecadeSelect" class="list-filter-select" aria-label="連載開始の年代" onchange="renderJumpView()">
+      <option value="">すべての年代</option>
+      <option value="2020">2020 年代</option>
+      <option value="2010">2010 年代</option>
+      <option value="2000">2000 年代</option>
+      <option value="1990">1990 年代</option>
+      <option value="1980">1980 年代</option>
+      <option value="1970">1970 年代</option>
+      <option value="1960">1960 年代</option>
+    </select>
     <label class="jump-ongoing"><input id="jumpOngoingOnly" type="checkbox" onchange="renderJumpView()"> 連載中のみ</label>
   </div>
 

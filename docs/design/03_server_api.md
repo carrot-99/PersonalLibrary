@@ -632,13 +632,13 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 
 ## 3.9.7 ジャンプ作品（`server/JumpService.js`）
 
-週刊少年ジャンプで 2000 年以降に連載が始まった作品（定数 `JUMP_TITLES`。`server/JumpTitles.js`）を、作品一覧の作品名と照合して持っているかを判定し、作品ごとの印を `M_JumpCheck`（2.3.13）に保存します。外部 API は使いません。
+週刊少年ジャンプの連載作品（定数 `JUMP_TITLES`。`server/JumpTitles.js`）を、作品一覧の作品名と照合して持っているかを判定し、作品ごとの印を `M_JumpCheck`（2.3.13）に保存します。外部 API は使いません。
 
 | 関数 | 内容 |
 |---|---|
-| `getJumpViewWeb()` | 画面用。戻り値 `{ success, items: [{ no, name, author, start, end, startYear, endYear, ongoing, status, owned, ownedBy, titleId, titleName, volumes }] }`（`JUMP_TITLES` の順）。`titleId` / `titleName` / `volumes` は照合できた `M_Title` の作品と `M_Library` の冊数。`ownedBy` は `auto`（冊数が 1 冊以上）/ `mark`（冊数 0 で印が `持っている`）/ 空。`owned` は `ownedBy` が空でないとき。`status` は印（なければ空） |
+| `getJumpViewWeb()` | 画面用。戻り値 `{ success, items: [{ no, name, author, start, end, startYear, endYear, ongoing, totalVolumes, status, owned, ownedBy, titleId, titleName, volumes }] }`（`JUMP_TITLES` の順）。`totalVolumes` は全巻数（完結済みのみ。不明は 0）。`titleId` / `titleName` / `volumes` は照合できた `M_Title` の作品と `M_Library` の冊数。`ownedBy` は `auto`（冊数が 1 冊以上）/ `mark`（冊数 0 で印が `持っている`）/ 空。`owned` は `ownedBy` が空でないとき。`status` は印（なければ空） |
 | `setJumpStatusWeb(no, status)` | 印を `気になる` / `興味なし` / `持っている` に変更、空文字なら外す（スクリプトロック）。戻り値 `success('「作品名」を「気になる」にしました')` / `success('「作品名」の印を外しました')`。エラー: No が `JUMP_TITLES` にない / 印がこの 3 つ以外 |
-| `getJumpMatchKeys(name)` | 作品名の照合キー。末尾の注記（「（小説）」など）を除いて `normalizeTitleForMatch` した名前と、末尾の副題（` -…-`・`〜…〜`・`（…）`・`【…】`）を最大 2 回除いた名前。例「BORUTO -ボルト- -NARUTO NEXT GENERATIONS-」→ 3 つ、「マッシュル-MASHLE-」→「マッシュルmashle」「マッシュル」 |
+| `getJumpMatchKeys(name)` | 作品名の照合キー。ハート（♡♥）と末尾の注記（「（小説）」など）を除いて `normalizeTitleForMatch` した名前と、末尾の副題（` -…-`・`〜…〜`・`（…）`・`【…】`）を最大 2 回除いた名前。例「BORUTO -ボルト- -NARUTO NEXT GENERATIONS-」→ 3 つ、「マッシュル-MASHLE-」→「マッシュルmashle」「マッシュル」 |
 
 - 照合は**照合キーが完全に一致したときだけ**（`buildJumpTitleIndex` / `findJumpTitle`）。似ているだけ・片方を含むだけでは一致にしない（「NARUTO -ナルト- 外伝〜…〜」を「NARUTO -ナルト-」と取り違えない）。同じキーの作品が複数あれば冊数の多いほう。ラノベの作品とは照合しない。
 - 表記が違う作品（「DEATH NOTE」と「デスノート」など）は判定されないので、画面の [持っている] で印を付ける。
