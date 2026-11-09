@@ -1,0 +1,23 @@
+<!-- JumpView.html -->
+<!-- ジャンプ作品（週刊少年ジャンプで 2000 年以降に連載が始まった作品のうち、持っていない作品を管理する） -->
+<div id="JumpView" class="view" style="display:none;">
+  <h3>ジャンプ作品</h3>
+
+  <p class="photo-import-note">週刊少年ジャンプで 2000 年以降に連載が始まった作品です。持っているかは作品一覧の作品名と照合して自動で判定します（名前が違って判定されないときは [持っている] で印を付けられます）。</p>
+
+  <div class="list-mode-switch jump-filter" role="group" aria-label="表示する作品">
+    <button type="button" data-jump-filter="unowned" onclick="setJumpFilter('unowned')">未所持</button>
+    <button type="button" data-jump-filter="interested" onclick="setJumpFilter('interested')">気になる</button>
+    <button type="button" data-jump-filter="dismissed" onclick="setJumpFilter('dismissed')">興味なし</button>
+    <button type="button" data-jump-filter="owned" onclick="setJumpFilter('owned')">持っている</button>
+    <button type="button" data-jump-filter="all" onclick="setJumpFilter('all')">すべて</button>
+  </div>
+
+  <div class="list-filter">
+    <input id="jumpKeywordInput" class="list-filter-keyword" type="search" placeholder="作品名・作者で絞り込み" autocomplete="off" oninput="renderJumpView()">
+    <label class="jump-ongoing"><input id="jumpOngoingOnly" type="checkbox" onchange="renderJumpView()"> 連載中のみ</label>
+  </div>
+
+  <div id="jumpSummary" class="photo-import-summary"></div>
+  <div id="jumpGroups"></div>
+</div>
