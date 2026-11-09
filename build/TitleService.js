@@ -89,10 +89,22 @@ function getTitles(){
 // ----------------------
 // 追加
 // ----------------------
-// 作者・出版社は楽天ブックスから取得して入れる（ロックの外で取得する。取れなくても作品は追加する）
-function addTitleMasterWeb(name, seriesId, type, completed){
-  const info = lookupTitleAuthor(name, type);
+// 作者・出版社は任意入力。入力した値を優先し、空の項目だけ楽天ブックスから取得して入れる
+// （ロックの外で取得する。取れなくても作品は追加する。両方入力したときは取得しない）
+function addTitleMasterWeb(name, seriesId, type, completed, author, publisher){
+  const manual = checkTitleAuthorInputs(author, publisher);
+  if(!manual.valid) return failure(manual.message);
+  const looked = manual.author && manual.publisher ? null : lookupTitleAuthor(name, type);
+  const info = mergeTitleAuthorInfo(manual, looked);
   return withScriptLock(() => addTitleMasterCore(name, seriesId, type, completed, info));
+}
+
+// 手入力の作者・出版社と楽天の取得結果をまとめる（手入力を優先し、空の項目だけ取得結果で埋める）
+// manual: { author, publisher }、looked: lookupTitleAuthor の結果（null 可）
+// 戻り値: addTitleMasterCore の info（{ author, publisher, fetched }）
+function mergeTitleAuthorInfo(manual, looked){
+  const pick = key => String((manual && manual[key]) || '').trim() || String((looked && looked[key]) || '').trim();
+  return { author: pick('author'), publisher: pick('publisher'), fetched: !!(looked && looked.fetched) };
 }
 
 // ロックなし版（ロック取得済みの処理から呼ぶ）

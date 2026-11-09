@@ -180,9 +180,9 @@
 | 画面 | 項目 | 備考 |
 |---|---|---|
 | シリーズ一覧 | シリーズ名 `#newSeriesName` | 必須。ID は自動採番。API `addSeriesMasterWeb` |
-| 作品一覧 | 作品名 `#newTitleName`、シリーズ `#newTitleSeriesInput`（オートコンプリート）、種別 `#newTitleType`、完結状態 `#newTitleCompleted` | 作品名・シリーズは必須。API `addTitleMasterWeb` |
+| 作品一覧 | 作品名 `#newTitleName`、シリーズ `#newTitleSeriesInput`（オートコンプリート）、種別 `#newTitleType`、完結状態 `#newTitleCompleted`、作者 `#newTitleAuthor`、出版社 `#newTitlePublisher` | 作品名だけ必須。シリーズは任意（入力したときは候補から選ぶ）。作者（複数なら `/` 区切り）・出版社は任意で、空欄の項目は楽天ブックスから取得する。API `addTitleMasterWeb` |
 | 箱一覧 | BoxID `#newBoxId`、場所 `#newBoxPlace` | 必須。BoxID は**利用者が入力**、重複不可。API `addBoxMasterWeb` |
-| 書籍一覧 | 作品名 `#libraryAddTitleInput`（datalist）、巻数 `#libraryAddVolumeInput`、Box `#libraryAddBoxInput`（datalist、`<ID> : <場所>`） | すべて必須。巻数は巻数式（例 `1-31` / `1, 3, 5-7`）で一括登録可。候補は画面を開いたときに取得（`loadLibraryAddForm`）。API `addNewVolumeWeb` |
+| 書籍一覧 | 作品名 `#libraryAddTitleInput`（datalist）、巻数 `#libraryAddVolumeInput`、Box `#libraryAddBoxInput`（datalist、`<ID> : <場所>`） | 作品名・巻数は必須。Box は任意（空欄なら Box なし。入力したときは候補から選ぶ）。巻数は巻数式（例 `1-31` / `1, 3, 5-7`）で一括登録可。候補は画面を開いたときに取得（`loadLibraryAddForm`）。API `addNewVolumeWeb` |
 
 ### シリーズの統合（シリーズ一覧）
 
@@ -197,7 +197,8 @@
 ```
 [保存] → addLibraryMaster()
    ├ 作品・Box を datalist から ID に解決、巻数を取得
-   ├ いずれか空 → エラー通知「作品名・巻数・Boxは必須です」
+   ├ 作品名・巻数のいずれか空 → エラー通知「作品名・巻数は必須です」
+   ├ Box を入力したのに候補にない → エラー通知（Box なしなら空欄）
    └ addNewVolumeWeb(titleId, volume, boxId)
         ├ 成功 → 成功通知、フォームクリア、最近追加／サマリー／一覧／選択肢を再読込
         └ 失敗 → エラー通知（重複巻・巻数式エラー等）
@@ -242,7 +243,7 @@
 | 確認 | まとめ | `#photoImportSummary` | 「n冊中 所持済み x冊 ／ 未所持 y冊」 |
 | | 登録へ進む | `#photoImportStartRegister` | 確認モードのみ。「登録（n冊）」。未所持 0 冊・処理中は無効 |
 | | 読了にする | `#photoImportMarkRead` | 確認モードのみ。「読了（n冊）」。所持済みで読了でなく、行の切り替えで外していない巻（`pickPhotoReadKeys`）。0 冊・処理中は無効。スマホ幅では [未所持の本を登録する] と横に並べて画面下に固定（`.photo-import-check-actions`） |
-| 登録 | 一括Box | `#photoImportBulkBox` | 変更すると**全行**の Box を上書き。解析時、未選択ならサーバーの初期値を設定 |
+| 登録 | 一括Box | `#photoImportBulkBox` | 変更すると**全行**の Box を上書き。解析時、未選択ならサーバーの初期値を設定。先頭の「Boxなし」を選ぶと Box なしで登録 |
 | | 行カード | `#photoImportRows` | 下表 |
 | | 読了として登録 | `#photoImportReadDone` | 登録モードのみ。チェックすると登録する本を読了にする（`bulkAddLibraryFromPhoto` の `options.read`）。チェックなしは未読 |
 | | 登録確定 | `#photoImportRegisterButton` | 登録モードのみ。「照合済み」かつチェック済みの行数を表示。0 件・処理中は無効 |
@@ -257,11 +258,11 @@
 | チェック（登録のみ） | 登録対象にするか（初期値: 未所持なら ON、所持済みなら OFF） |
 | 作品 | 作品名入力（datalist）。**完全一致**した作品のみ選択扱い |
 | 巻数 | 1 巻のみ（巻数式の範囲・複数指定は入力エラー） |
-| Box（登録のみ） | セレクト |
+| Box（登録のみ） | セレクト（任意。「Boxなし」も選べる） |
 | 状態（登録のみ） | 状態バッジ＋説明。「要確認」で巻数ありの場合は [OK] ボタン |
 | 読み取り情報 | 写真番号リンク（拡大表示）、AI が読み取った作品名・巻数（修正しても変わらない）、候補（2 件以上の場合）、AI の補足 |
 | 欲しい巻に追加（確認のみ） | 作品・巻数が決まり、所持済みでも欲しい巻でもない行に表示。押すと `addWishes` で追加 |
-| 作品を追加 | 作品名（読み取り結果を初期値）、既存シリーズ／新規シリーズ（作品名を初期値）、種別、完結状態 → [追加して選択] |
+| 作品を追加 | 作品名（読み取り結果を初期値）、既存シリーズ（任意。空欄ならシリーズなし）／新規シリーズ（作品名を初期値）、種別、完結状態、作者・出版社（任意。空欄なら楽天ブックス→写真の読み取り結果の順で入れる） → [追加して選択] |
 | 最終巻（登録のみ） | ON で登録時に作品を `完結済` に更新。作品未選択時は非表示、既に完結済の作品は「完結済の作品」と表示し操作不可 |
 
 ### 行の状態判定（`getPhotoImportStatus`）
@@ -274,9 +275,8 @@
 | 2 | 巻数が空 | 要確認 | 巻数を入力してください |
 | 3 | 巻数が不正、または 2 巻以上 | 入力エラー | 巻数は1つだけ入力してください |
 | 4 | 要確認フラグあり | 要確認 | 作品・巻数を確認して「OK」を押してください |
-| 5 | Box 未選択 | 入力エラー | Boxを選択してください |
-| 6 | 登録済み（`existingKeys`）、またはチェック済みの前の行と同じ作品・巻 | 重複 | 同じ作品・巻数が登録済みです |
-| 7 | 上記以外 | 照合済み | 登録可能 |
+| 5 | 登録済み（`existingKeys`）、またはチェック済みの前の行と同じ作品・巻 | 重複 | 同じ作品・巻数が登録済みです |
+| 6 | 上記以外 | 照合済み | 登録可能（Box は任意） |
 
 要確認フラグは、照合結果が `exact` 以外、または AI が `uncertain` を返した行で ON になります。作品・巻数を編集するか [OK] で OFF になります。
 

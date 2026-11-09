@@ -56,6 +56,41 @@ test('addTitleMasterWeb: 楽天でエラーになっても作品は追加する�
   assert.deepEqual(titleRow(ss, 'T000004').slice(6, 9), ['', '', '']);
 });
 
+test('addTitleMasterWeb: 入力した作者・出版社を優先し、空の項目だけ楽天から入れる（両方入力なら楽天に問い合わせない）', () => {
+  const calls = [];
+  const { gas, ss } = loadServer(baseSheets(), {
+    properties: RAKUTEN_KEYS,
+    fetch: fakeRakuten(() => [book('デスノート（12）', '大場 つぐみ/小畑 健', '集英社')], calls)
+  });
+  // 作者だけ入力 → 出版社は楽天から
+  assert.equal(gas.addTitleMasterWeb('デスノート', 'S000001', '漫画', '完結済', ' 大場つぐみ/小畑健 ', '').success, true);
+  assert.deepEqual(titleRow(ss, 'T000004').slice(6, 8), ['大場つぐみ/小畑健', '集英社']);
+  assert.ok(titleRow(ss, 'T000004')[8] instanceof Date);
+  assert.deepEqual(calls, ['デスノート']);
+
+  // 両方入力 → 楽天に問い合わせず、取得日も入れない。シリーズなしでも追加できる
+  const res = gas.addTitleMasterWeb('バクマン。', '', '漫画', '完結済', '大場つぐみ/小畑健', '集英社');
+  assert.equal(res.success, true, res.message);
+  assert.deepEqual(titleRow(ss, 'T000005').slice(2, 9), ['', '漫画', '完結済', 0, '大場つぐみ/小畑健', '集英社', '']);
+  assert.deepEqual(calls, ['デスノート']);
+});
+
+test('addTitleMasterWeb: 作者・出版社の入力も確かめる（「=」始まり・長すぎる作者はエラー）', () => {
+  const { gas, ss } = loadServer(baseSheets());
+  assert.match(gas.addTitleMasterWeb('新作', '', '漫画', '', '=A1', '').message, /作者は「=」で始められません/);
+  assert.match(gas.addTitleMasterWeb('新作', '', '漫画', '', 'あ'.repeat(201), '').message, /作者は200文字以内/);
+  assert.match(gas.addTitleMasterWeb('新作', '', '漫画', '', '', '=A1').message, /出版社は「=」で始められません/);
+  assert.equal(ss.rows('M_Title').length, 3);
+});
+
+test('mergeTitleAuthorInfo: 手入力を優先し、空の項目だけ取得結果で埋める', () => {
+  const { gas } = loadServer({});
+  assert.deepEqual(plain(gas.mergeTitleAuthorInfo({ author: 'A', publisher: '' }, { author: 'X', publisher: 'Y', fetched: true })),
+    { author: 'A', publisher: 'Y', fetched: true });
+  assert.deepEqual(plain(gas.mergeTitleAuthorInfo({ author: '', publisher: '' }, null)),
+    { author: '', publisher: '', fetched: false });
+});
+
 test('updateTitleMaster: 5 つの値（作品名・シリーズ・作者・種別・完結）で作者を更新し、4 つなら作者はそのまま', () => {
   const { gas, ss } = loadServer(baseSheets());
   assert.equal(gas.updateTitleMaster('T000001', ['進撃の巨人', '進撃シリーズ', '諫山創', '漫画', '完結済']).success, true);
@@ -135,6 +170,21 @@ test('addTitleFromPhotoImport: 楽天で見つからなければ写真から読�
   assert.equal(res.success, true);
   assert.equal(res.title.author, '藤本タツキ');
   assert.equal(titleRow(ss, 'T000004')[6], '藤本タツキ');
+});
+
+test('addTitleFromPhotoImport: 入力した作者・出版社を優先し、シリーズなしでも追加できる', () => {
+  const calls = [];
+  const { gas, ss } = loadServer(baseSheets(), {
+    properties: RAKUTEN_KEYS,
+    fetch: fakeRakuten(() => [book('チェンソーマン（1）', '藤本 タツキ', '集英社')], calls)
+  });
+  const res = plain(gas.addTitleFromPhotoImport({ name: 'チェンソーマン', type: '漫画', completed: '連載中', author: '藤本タツキ', authorHint: '別の人' }));
+  assert.equal(res.success, true, res.message);
+  assert.equal(res.series, null);
+  assert.equal(res.message, '作品「チェンソーマン」を追加しました（作者: 藤本タツキ）');
+  assert.deepEqual(titleRow(ss, 'T000004').slice(2, 3).concat(titleRow(ss, 'T000004').slice(6, 8)), ['', '藤本タツキ', '集英社']);
+  assert.deepEqual(calls, ['チェンソーマン']);
+  assert.match(gas.addTitleFromPhotoImport({ name: '新作', author: '=A1' }).message, /作者は「=」で始められません/);
 });
 
 // ---------- 画面（作者の分割・照合） ----------

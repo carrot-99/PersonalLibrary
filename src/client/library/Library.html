@@ -194,8 +194,13 @@ function addLibraryMaster(){
     '';
   const volume = document.getElementById('libraryAddVolumeInput').value.trim();
 
-  if(!titleId || !boxId || !volume){
-    return showError('作品名・巻数・Boxは必須です');
+  // Box は任意（空ならBoxなしで登録）
+  if(!titleId || !volume){
+    return showError('作品名・巻数は必須です');
+  }
+  const boxText = document.getElementById('libraryAddBoxInput').value.trim();
+  if(boxText && !boxId){
+    return showError('Boxは候補から選んでください（Boxなしなら空欄）');
   }
 
   callGAS('addNewVolumeWeb', function(res){
@@ -232,7 +237,8 @@ function loadLibraryList(options = {}){
         // 作品名は作品名→巻数の順で並べる
         { key: 'title', edit: true, required: true, link: row => openTitleDetail(row.titleId), compare: (a, b) => a.title.localeCompare(b.title, 'ja') || compareVolumes(a.volume, b.volume) },
         { key: 'volume', edit: true, required: true, validate: checkSingleVolumeInput, compare: (a, b) => compareVolumes(a.volume, b.volume) },
-        { key: 'box', edit: true, required: true, link: row => openBoxDetail(row.boxId) },
+        // Box は任意（空欄で保存するとBoxなし）
+        { key: 'box', edit: true, link: row => openBoxDetail(row.boxId) },
         // 読書状況（未読・読書中・読了。編集の 4 つ目の値として updateLibraryMaster に渡す）
         { key: 'read', edit: true, editOptions: READ_STATUS_OPTIONS },
         { key: 'date', compare: (a, b) => (a.dateValue - b.dateValue) || a.id.localeCompare(b.id) }

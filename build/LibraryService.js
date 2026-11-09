@@ -76,7 +76,7 @@ function appendLibraryRows(rows){
 }
 
 // ----------------------
-// 新刊追加
+// 新刊追加（Box は任意。空ならBoxなしで登録する）
 // ----------------------
 function addNewVolumeWeb(titleId, volume, boxId){
   return withScriptLock(() => addNewVolumeCore(titleId, volume, boxId));
@@ -85,8 +85,9 @@ function addNewVolumeWeb(titleId, volume, boxId){
 function addNewVolumeCore(titleId, volume, boxId){
 
   const normalizedTitleId = String(titleId || '').trim();
+  boxId = String(boxId || '').trim();
 
-  if(!normalizedTitleId || !boxId){
+  if(!normalizedTitleId){
     return failure('入力が不完全です');
   }
 
@@ -103,7 +104,7 @@ function addNewVolumeCore(titleId, volume, boxId){
     if(!getData(SHEETS.TITLE).some(r => String(r[0]).trim() === normalizedTitleId)){
       return failure(`作品ID ${normalizedTitleId} が存在しません`);
     }
-    if(!getData(SHEETS.BOX).some(r => String(r[0]).trim() === String(boxId).trim())){
+    if(boxId && !getData(SHEETS.BOX).some(r => String(r[0]).trim() === boxId)){
       return failure(`BoxID ${boxId} が存在しません`);
     }
 
@@ -177,7 +178,7 @@ function getRecentLibrary(){
 
 // ----------------------
 // バルク追加（複数行）
-// entries: [{titleId, volume, boxId}, ...]
+// entries: [{titleId, volume, boxId}, ...]（boxId は任意。空ならBoxなし）
 // 戻り値: { added: number, errors: [{line, message}], messages: [] }
 // ----------------------
 // readStatus: 登録した本の読書状況（省略時は未読）
@@ -189,7 +190,7 @@ function addBulkVolumesWeb(entries, readStatus){
 
   const data  = getData(SHEETS.LIBRARY);
   const titles = getData(SHEETS.TITLE).map(r => r[0]);
-  const boxes  = getData(SHEETS.BOX).map(r => r[0]);
+  const boxes  = getData(SHEETS.BOX).map(r => String(r[0]).trim());
 
   const errors = [];
   const rows = [];
@@ -201,9 +202,9 @@ function addBulkVolumesWeb(entries, readStatus){
       const line = idx + 1;
       const titleId = String(e.titleId || '').trim();
       const volume = String(e.volume || '').trim();
-      const boxId = e.boxId;
+      const boxId = String(e.boxId || '').trim();
 
-      if(!titleId || !volume || !boxId){
+      if(!titleId || !volume){
         errors.push({ line, message: '入力が不完全です' });
         return;
       }
@@ -213,7 +214,7 @@ function addBulkVolumesWeb(entries, readStatus){
         errors.push({ line, message: `作品ID ${titleId} が存在しません` });
         return;
       }
-      if(boxes.indexOf(boxId) === -1){
+      if(boxId && boxes.indexOf(boxId) === -1){
         errors.push({ line, message: `BoxID ${boxId} が存在しません` });
         return;
       }
@@ -298,8 +299,9 @@ function updateLibraryMasterCore(id, values){
     // 読書状況（書籍一覧の編集。省略可）
     const readInput = values.length > 3 ? String(values[3] ?? '').trim() : '';
 
-    if(!titleInput || !volumeInput || !boxInput){
-      return failure('作品名・巻数・Boxは必須です');
+    // Box は任意（空欄ならBoxなしにする）
+    if(!titleInput || !volumeInput){
+      return failure('作品名・巻数は必須です');
     }
     // 巻数は 1 巻だけ（巻数式で検証する）
     const parsedVolume = parseVolumeExpression(volumeInput);
@@ -328,8 +330,8 @@ function updateLibraryMasterCore(id, values){
       return failure(`作品「${titleInput}」が見つかりません`);
     }
 
-    const newBoxId = resolveMasterId(boxRows, boxInput, currentRow[2]);
-    if(!newBoxId){
+    const newBoxId = boxInput ? resolveMasterId(boxRows, boxInput, currentRow[2]) : '';
+    if(boxInput && !newBoxId){
       return failure(`Box「${boxInput}」が見つかりません`);
     }
 

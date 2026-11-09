@@ -514,10 +514,20 @@ function addTitleMaster(){
   const seriesId  = getAutocompleteValue('newTitleSeriesInput') || document.getElementById('newTitleSeries').value;
   const type      = document.getElementById('newTitleType').value.trim();
   const completed = document.getElementById('newTitleCompleted').value;
+  // シリーズ・作者・出版社は任意（作者・出版社の空欄はサーバーで楽天ブックスから取得する）
+  const seriesText = document.getElementById('newTitleSeriesInput').value.trim();
+  const author    = document.getElementById('newTitleAuthor').value.trim();
+  const publisher = document.getElementById('newTitlePublisher').value.trim();
 
-  if(!name || !seriesId)
-    return showError("作品名とシリーズは必須です");
-  const message = checkTextInput(name, '作品名', { required: true });
+  if(!name)
+    return showError("作品名は必須です");
+  if(seriesText && !seriesId)
+    return showError("シリーズは候補から選んでください（シリーズなしなら空欄）");
+  const message = checkTextInputs([
+    ['作品名', name, { required: true }],
+    ['作者', author, { max: 200 }],
+    ['出版社', publisher]
+  ]);
   if(message) return showError(message);
 
   callGAS('addTitleMasterWeb', function(res){
@@ -526,12 +536,16 @@ function addTitleMaster(){
       document.getElementById('newTitleName').value = '';
       document.getElementById('newTitleType').value = '';
       document.getElementById('newTitleCompleted').value = '連載中';
+      document.getElementById('newTitleSeriesInput').value = '';
+      document.getElementById('newTitleSeriesInput').dataset.selectedId = '';
+      document.getElementById('newTitleAuthor').value = '';
+      document.getElementById('newTitlePublisher').value = '';
       loadTitleList({ refresh: true });
       refreshMasterData();
     }else{
       showError(res.message);
     }
-  }, name, seriesId, type, completed);
+  }, name, seriesId || '', type, completed, author, publisher);
 }
 
 window.showTitle = showTitle;

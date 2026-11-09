@@ -16,7 +16,7 @@
 
     <input type="text" id="newTitleName" placeholder="作品名">
 
-    <input id="newTitleSeriesInput" list="newTitleSeriesList" placeholder="シリーズを入力">
+    <input id="newTitleSeriesInput" list="newTitleSeriesList" placeholder="シリーズ（任意）">
     <datalist id="newTitleSeriesList"></datalist>
     <select id="newTitleSeries" style="display:none;"></select>
 
@@ -30,6 +30,10 @@
       <option value="完結済">完結済</option>
       <option value="未完結">未完結</option>
     </select>
+
+    <!-- 作者・出版社は任意。空欄の項目は楽天ブックスから取得する -->
+    <input type="text" id="newTitleAuthor" placeholder="作者（任意。複数なら / 区切り）">
+    <input type="text" id="newTitlePublisher" placeholder="出版社（任意）">
 
     <button onclick="addTitleMaster()">保存</button>
   </div>

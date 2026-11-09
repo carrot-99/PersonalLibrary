@@ -51,6 +51,17 @@ test('addNewVolumeWeb: 入力不備・存在しない作品や Box はエラー'
   assert.equal(ss.rows('M_Library').length, 3);
 });
 
+test('addNewVolumeWeb / addBulkVolumesWeb: Box は任意（空ならBoxなしで登録する）', () => {
+  const { gas, ss } = loadServer(baseSheets());
+  const res = gas.addNewVolumeWeb('T000002', '2', '');
+  assert.equal(res.success, true, res.message);
+  assert.deepEqual(ss.rows('M_Library').at(-1).slice(1, 4), ['T000002', '', '2']);
+
+  const bulk = plain(gas.addBulkVolumesWeb([{ titleId: 'T000002', volume: '3' }]));
+  assert.equal(bulk.added, 1);
+  assert.deepEqual(ss.rows('M_Library').at(-1).slice(1, 4), ['T000002', '', '3']);
+});
+
 test('addNewVolumeWeb: ロック中は登録しない', () => {
   const { gas, ss } = loadServer(baseSheets(), { lockAvailable: false });
   assert.equal(gas.addNewVolumeWeb('T000002', '5', 'B01').success, false);
@@ -88,6 +99,13 @@ test('updateLibraryMaster: 作品名・巻数・Box 名で更新できる', () =
   const res = gas.updateLibraryMaster('L000003', ['進撃の巨人', '3', '押入れ']);
   assert.equal(res.success, true, res.message);
   assert.deepEqual(ss.rows('M_Library')[2].slice(0, 4), ['L000003', 'T000001', 'B02', '3']);
+});
+
+test('updateLibraryMaster: Box を空欄にするとBoxなしにする', () => {
+  const { gas, ss } = loadServer(baseSheets());
+  const res = gas.updateLibraryMaster('L000003', ['進撃の巨人', '3', '']);
+  assert.equal(res.success, true, res.message);
+  assert.deepEqual(ss.rows('M_Library')[2].slice(0, 4), ['L000003', 'T000001', '', '3']);
 });
 
 test('updateLibraryMaster: 同名作品は「作品名（種別）」のラベルで選び分ける', () => {
