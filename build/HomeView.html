@@ -32,6 +32,13 @@
       <div id="homeReading" class="wish-groups"></div>
     </details>
 
+    <!-- 最近読了した漫画（直近 30 日に読了にした巻を作品ごとに。getRecentReadSummary） -->
+    <details class="home-section" data-section="readDone" open>
+      <summary><h4 class="release-heading"><span class="home-icon" aria-hidden="true">✅</span>最近読了した漫画 <span id="homeReadDoneCount" class="release-count"></span>
+        <a href="#" class="home-more" onclick="event.preventDefault(); event.stopPropagation(); showTab('LibraryListView');">書籍一覧 →</a></h4></summary>
+      <div id="homeReadDone" class="wish-groups"></div>
+    </details>
+
     <details class="home-section" data-section="week" open>
       <summary><h4 class="release-heading"><span class="home-icon" aria-hidden="true">🆕</span>今週の発売 <span id="homeWeekCount" class="release-count"></span>
         <a href="#" class="home-more" onclick="event.preventDefault(); event.stopPropagation(); showTab('ReleaseView');">発売予定 →</a></h4></summary>

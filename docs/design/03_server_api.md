@@ -561,7 +561,7 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 
 | 関数 | 内容 |
 |---|---|
-| `getHomeDataWeb()` | 画面用。戻り値 `{ success, release, wishes, watching, plannedCount, reading }`。`reading` は `getUnreadSummary()`（3.9.5）。`release` は `getReleaseViewWeb` の結果を分けたもの `{ success, configured, lastFetchedAt, thisWeek, thisMonth, laterCount, unowned }`（`thisWeek` / `thisMonth` の要素は `upcoming`、`unowned` は「完結済みかも」を除いた `unowned`。発売予定の取得に失敗したときは `{ success: false, message }` で、他の欄は返す）。`wishes` は `getWishList()`、`watching` は `getAnimeData()` の `seasons` のうち状況が `視聴中` のもの（最近更新した順）、`plannedCount` は `視聴予定` の件数 |
+| `getHomeDataWeb()` | 画面用。戻り値 `{ success, release, wishes, watching, plannedCount, reading, recentRead }`。`reading` は `getUnreadSummary()`、`recentRead` は `getRecentReadSummary(今日)`（3.9.5）。`release` は `getReleaseViewWeb` の結果を分けたもの `{ success, configured, lastFetchedAt, thisWeek, thisMonth, laterCount, unowned }`（`thisWeek` / `thisMonth` の要素は `upcoming`、`unowned` は「完結済みかも」を除いた `unowned`。発売予定の取得に失敗したときは `{ success: false, message }` で、他の欄は返す）。`wishes` は `getWishList()`、`watching` は `getAnimeData()` の `seasons` のうち状況が `視聴中` のもの（最近更新した順）、`plannedCount` は `視聴予定` の件数 |
 | `splitHomeReleases(upcoming, today)` | 発売予定（発売日順）を分ける。戻り値 `{ thisWeek, thisMonth, laterCount }`。今週: 日付まで分かっていて今日から 7 日以内（今日を含む。`HOME_WEEK_DAYS`、月をまたいでもよい）。今月: 今週以外で今月中（「11月下旬」「11月頃」など日付のないものを含む）。それ以外は件数だけ |
 
 ---
@@ -574,6 +574,7 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 |---|---|
 | `setReadStatusWeb(libraryIds, status)` | 画面用。複数の書籍をまとめて同じ状況にする（スクリプトロック）。戻り値 `success('進撃の巨人 3巻を「読了」にしました')`（1 冊のときは作品の表示ラベルと巻。複数なら `n冊を「読了」にしました`）。エラー: 状況が 3 つ以外 / 書籍の指定なし / `M_Library` にない ID（`書籍が見つかりません: …`。1 件でもあれば何も書かない） |
 | `getUnreadSummary()` | 積読のまとめ。戻り値 `{ unreadCount, readingCount, titles: [{ titleId, titleName, titleType, unreadVolumes, readingVolumes, next: { id, volume, read } }] }`。`titles` は未読・読書中の巻がある作品で、読書中の作品が先、その後は最後に登録した日の新しい順。`titleName` は表示ラベル（同名作品は「作品名（種別）」） |
+| `getRecentReadSummary(today)` | 最近読了にした本。`M_Read` の状況が `読了` で更新日が今日から 30 日以内（今日を含む。`READ_RECENT_DAYS`）の巻を作品ごとにまとめる。戻り値 `{ days, count, titles: [{ titleId, titleName, titleType, volumes, lastReadAt }] }`。`titles` は最後に読了にした日の新しい順（同じ日は作品名順）、`volumes` は期間内に読了にした巻（巻順）、`lastReadAt` は `MM/dd`。行のない書籍（記録を始める前の本）は日付が分からないので含めない。写真から「読了として登録」した本は登録日に読了にしたものとして含まれる |
 | `getUnreadCountByTitle()` | 作品ごとの読了していない巻（未読・読書中）の冊数。戻り値 `{ TitleID: 冊数 }`（1 冊以上の作品だけ）。作品一覧の「読書」の絞り込みに使用 |
 | `getNextReadVolume(volumes)` | 次に読む巻。`volumes: [{ id, volume, read }]` のうち読書中の巻（巻順で最初）、なければ未読のうち最小の巻。なければ `null`。数字以外の巻は数字の巻の後ろ。画面の `pickNextReadVolume`（`Common.html`）も同じ判定 |
 | `getReadStatusMap()` / `getReadStatus(map, libraryId)` | LibraryID → 状況（シートにある分だけ）と、行がなければ `読了` を返す取得 |

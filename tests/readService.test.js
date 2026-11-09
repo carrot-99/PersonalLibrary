@@ -167,3 +167,38 @@ test('getTitleReadStatus: 作品一覧の「読書」の絞り込みの値', () 
   assert.equal(client.getTitleReadStatus(3, 0), 'すべて読了');
   assert.equal(client.getTitleReadStatus(0, 0), '');
 });
+
+test('getRecentReadSummary: 直近 30 日に読了にした巻を作品ごとに、最後に読了にした日の新しい順で返す', () => {
+  const today = new Date(2026, 10, 30);  // 2026/11/30
+  const { gas } = loadServer(readSheets([
+    ['L000001', '読了', new Date(2026, 10, 1)],   // 30 日前（含む）
+    ['L000002', '読了', new Date(2026, 10, 20)],
+    ['L000003', '読了', new Date(2026, 10, 25)],
+    ['L000004', '読了', new Date(2026, 9, 31)]    // 31 日前（含まない）
+  ]));
+  const recent = plain(gas.getRecentReadSummary(today));
+
+  assert.equal(recent.days, 30);
+  assert.equal(recent.count, 3);
+  assert.deepEqual(recent.titles, [
+    { titleId: 'T000002', titleName: 'よつばと!（漫画）', titleType: '漫画', volumes: ['1'], lastReadAt: '11/25' },
+    { titleId: 'T000001', titleName: '進撃の巨人', titleType: '漫画', volumes: ['1', '2'], lastReadAt: '11/20' }
+  ]);
+});
+
+test('getRecentReadSummary: 未読・読書中の行、M_Read に行のない書籍、シートがない場合は含めない', () => {
+  const today = new Date(2026, 10, 30);
+  const { gas } = loadServer(readSheets([
+    ['L000001', '未読', new Date(2026, 10, 29)],
+    ['L000002', '読書中', new Date(2026, 10, 29)]
+  ]));
+  assert.deepEqual(plain(gas.getRecentReadSummary(today)), { days: 30, count: 0, titles: [] });
+  assert.deepEqual(plain(loadServer(baseSheets()).gas.getRecentReadSummary(today)), { days: 30, count: 0, titles: [] });
+});
+
+test('getHomeDataWeb: 最近読了にした本を含める', () => {
+  const { gas } = loadServer(readSheets([['L000003', '読了', new Date()]]));
+  const home = plain(gas.getHomeDataWeb());
+  assert.equal(home.recentRead.count, 1);
+  assert.deepEqual(home.recentRead.titles.map(t => t.titleId), ['T000002']);
+});
