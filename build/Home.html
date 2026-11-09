@@ -95,6 +95,7 @@ function renderHome(data){
   }
 
   renderHomeReading(data.reading || { unreadCount: 0, readingCount: 0, titles: [] });
+  renderHomeReadDone(data.recentRead || { days: 30, count: 0, titles: [] });
   renderHomeReleases('homeWeek', 'homeWeekCount', release.thisWeek || [], '今週発売の巻はありません');
   const later = release.laterCount ? `（来月以降 ${release.laterCount}冊）` : '';
   renderHomeReleases('homeMonth', 'homeMonthCount', release.thisMonth || [], '今月発売の巻はありません', later);
@@ -160,6 +161,36 @@ function renderHomeReading(reading){
   });
   const rest = titles.length - HOME_LIST_LIMIT;
   container.appendChild(createHomeCard('release-group is-reading', lines, rest > 0 ? `ほか ${rest}作品` : ''));
+}
+
+// 最近読了にした本（最後に読了にした日の新しい順）。日付 / 種別＋作品名＋読了にした巻
+function renderHomeReadDone(recent){
+  const container = document.getElementById('homeReadDone');
+  container.innerHTML = '';
+  const titles = recent.titles || [];
+  document.getElementById('homeReadDoneCount').textContent = `${titles.length}作品・${recent.count || 0}冊（${recent.days}日以内）`;
+  if(titles.length === 0) return renderHomeEmpty(container, `${recent.days}日以内に読了にした本はありません`);
+
+  const lines = titles.slice(0, HOME_LIST_LIMIT).map(group => {
+    const line = document.createElement('div');
+    line.className = 'wish-item release-item';
+
+    const day = document.createElement('span');
+    day.className = 'release-day';
+    day.textContent = group.lastReadAt;
+
+    const text = document.createElement('span');
+    text.className = 'release-title';
+    text.appendChild(createReleaseTypeBadge(group));
+    text.appendChild(createReleaseTitleLink(group));
+    text.appendChild(document.createTextNode(` ${formatHomeVolumes(group.volumes)}`));
+
+    line.appendChild(day);
+    line.appendChild(text);
+    return line;
+  });
+  const rest = titles.length - HOME_LIST_LIMIT;
+  container.appendChild(createHomeCard('release-group', lines, rest > 0 ? `ほか ${rest}作品` : ''));
 }
 
 function renderHomeReleases(containerId, countId, items, emptyText, suffix = ''){

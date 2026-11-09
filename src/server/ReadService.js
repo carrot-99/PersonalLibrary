@@ -207,3 +207,60 @@ function getUnreadSummary(){
 
   return { unreadCount, readingCount, titles: result };
 }
+
+
+// ----------------------
+// 最近読了にした本（M_Read の状況が「読了」で、更新日が今日から READ_RECENT_DAYS 日以内）
+// 行のない書籍（記録を始める前の本）は日付が分からないので含めない
+// 戻り値: { days, count, titles: [{ titleId, titleName, titleType, volumes: ['3', '4'], lastReadAt: 'MM/dd' }] }
+// titles は最後に読了にした日の新しい順（同じ日は作品名順）。volumes は期間内に読了にした巻（巻順）
+// ----------------------
+const READ_RECENT_DAYS = 30;
+
+function getRecentReadSummary(today){
+  const result = { days: READ_RECENT_DAYS, count: 0, titles: [] };
+  if(!getSheet(SHEETS.READ)) return result;
+
+  const d = today || new Date();
+  const from = new Date(d.getFullYear(), d.getMonth(), d.getDate() - READ_RECENT_DAYS + 1).getTime();
+  const readDates = new Map();
+  getData(SHEETS.READ).forEach(row => {
+    const id = String(row[0]).trim();
+    const value = getDateValue(row[2]);
+    if(id && String(row[1] || '').trim() === '読了' && value >= from) readDates.set(id, value);
+  });
+  if(readDates.size === 0) return result;
+
+  const titles = getData(SHEETS.TITLE);
+  const labelMap = buildTitleLabelMap(titles);
+  const typeMap = new Map(titles.map(r => [String(r[0]).trim(), String(r[3] || '').trim()]));
+
+  const groups = new Map();
+  getData(SHEETS.LIBRARY).forEach(row => {
+    const id = String(row[0]).trim();
+    if(!readDates.has(id)) return;
+    const titleId = String(row[1]).trim();
+    if(!groups.has(titleId)){
+      groups.set(titleId, { titleId, titleName: labelMap.get(titleId) || titleId, titleType: typeMap.get(titleId) || '', volumes: [], latest: 0 });
+    }
+    const group = groups.get(titleId);
+    group.volumes.push(String(row[3]).trim());
+    group.latest = Math.max(group.latest, readDates.get(id));
+    result.count++;
+  });
+
+  const toNumber = v => {
+    const n = Number(v);
+    return v !== '' && Number.isFinite(n) ? n : Infinity;
+  };
+  result.titles = Array.from(groups.values())
+    .sort((a, b) => (b.latest - a.latest) || a.titleName.localeCompare(b.titleName, 'ja'))
+    .map(group => ({
+      titleId: group.titleId,
+      titleName: group.titleName,
+      titleType: group.titleType,
+      volumes: group.volumes.sort((a, b) => (toNumber(a) - toNumber(b)) || a.localeCompare(b, 'ja')),
+      lastReadAt: formatDateCell(new Date(group.latest), 'MM/dd')
+    }));
+  return result;
+}
