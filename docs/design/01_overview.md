@@ -19,6 +19,7 @@
 | 欲しい巻リスト | 買いたい巻を記録（作品＋巻数式）。写真で確認・登録の確認結果・発売予定からも追加でき、登録すると自動でリストから外れる |
 | 発売予定 | 完結状態が「連載中」の漫画・ラノベについて、楽天ブックスから持っている巻より先の巻と発売日を取得（毎日 5 時台に自動）。発売予定を月ごとに、発売済みで持っていない巻を作品ごとに表示し、欲しい巻リストに追加できる。見つからない作品は作品名を直して [再取得] |
 | おすすめ | 持っている作品・読書状況・欲しい巻・視聴したアニメから好みを推定し、まだ持っていない漫画を AI（Anthropic Messages API）が理由付きで紹介。楽天ブックスで実在を確かめた作品だけを表示し、[気になる] / [興味なし] を次回のおすすめに使う |
+| ジャンプ作品 | 週刊少年ジャンプで 2000 年以降に連載が始まった作品（Wikipedia の連載作品一覧から作った固定の一覧）を、作品一覧の作品名と照合して持っている・持っていないに分けて表示。持っていない作品に [気になる] / [興味なし]、名前が違って判定されない作品に [持っている] の印を付けられる |
 | アニメ | 視聴したアニメを作品・期（TV の各期・OVA・劇場版）単位で記録。視聴中の一覧（+1話・視聴済・中断。アニメの登録もこの画面から）、今期のアニメ（Annict から取得した期の作品一覧。登録状況の表示と、[登録] で登録フォームを開いて確認してから登録）、アニメ一覧（期ごと／作品ごとに切り替え、絞り込み・インライン編集・期の削除）、登録。シリーズは書籍と共通で、シリーズ一覧・詳細は両方のモードから開く。サイドメニュー先頭の切り替えで書籍とアニメのメニューを出し分ける |
 | 常時表示（書籍モード） | 所蔵サマリー（所蔵冊数・漫画/ラノベ別冊数・作品数・Box 数・最新登録日）、最近追加した書籍（10 件） |
 | 常時表示（アニメモード） | アニメのサマリー（状況別の期数・登録作品数・視聴話数の合計） |
@@ -87,6 +88,8 @@ PersonalLibrary/
     │   ├── HomeService.js       ホーム画面（積読・発売予定・欲しい巻・視聴中のアニメをまとめて取得）
     │   ├── ReadService.js       M_Read（書籍の読書状況）関連 API
     │   ├── RecommendService.js  おすすめの漫画（AI に依頼・楽天で実在を確認・M_Recommend に保存）
+    │   ├── JumpService.js       ジャンプ作品（作品一覧との照合・印を M_JumpCheck に保存）
+    │   ├── JumpTitles.js        週刊少年ジャンプ（2000 年以降開始）の作品一覧の定数
     │   └── Code.js              旧実装（全行コメントアウト済み）
     └── client/              クライアントサイド（HTML テンプレート）
         ├── Index.html           ベースレイアウト
@@ -95,7 +98,7 @@ PersonalLibrary/
         ├── Common.html          共通 JS
         ├── Scripts.html         空テンプレート（未使用）
         ├── home/     Home.html(JS)    / HomeView
-        ├── library/  Library.html(JS) / PhotoImport.html(JS) / Wish.html(JS) / Release.html(JS) / Recommend.html(JS) / PhotoImportView / WishListView / ReleaseView / RecommendView / LibraryListView
+        ├── library/  Library.html(JS) / PhotoImport.html(JS) / Wish.html(JS) / Release.html(JS) / Recommend.html(JS) / Jump.html(JS) / PhotoImportView / WishListView / ReleaseView / RecommendView / JumpView / LibraryListView
         ├── title/    Title.html(JS)   / TitleView / TitleListView
         ├── series/   Series.html(JS)  / SeriesView / SeriesListView
         ├── box/      Box.html(JS)     / BoxView / BoxListView

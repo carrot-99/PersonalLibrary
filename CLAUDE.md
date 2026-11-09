@@ -19,6 +19,7 @@
 - ID 採番は最終行 + 1（シート並べ替えに弱い）
 - 巻数式の解析はサーバー `parseVolumeExpression`（`LibraryService.js`）とクライアント `parseVolumeInput`（`Library.html`）の 2 か所。仕様変更時は両方直す。文字の入力の検証もサーバー `checkText`（`Commons.js`）とクライアント `checkTextInput`（`Common.html`）の 2 か所で、新しい入力項目を足すときは両方で確かめる。一括登録は既存の `addBulkVolumesWeb` / `parseVolumeExpression` を再利用する
 - クライアント → サーバーは `google.script.run`。外部ライブラリは Bootstrap CSS のみ
+- クライアントの JS に URL などの `//` を書かない（GAS は配信時に、文字列・テンプレートリテラルの中でも `//` 以降をコメントとして消す）。`'https:\/\/…'` と書く。`tests/clientScripts.test.js` で検出する
 - 自動テストは `npm test`（Node 標準の `node:test`、依存パッケージなし）。`tests/helpers/gasHarness.js` が `src/server` を vm で読み込み、スプレッドシート等の GAS サービスをメモリ上のフェイクに置き換える。クライアントは DOM を使わない関数のみ対象。Lint なし
 - サーバー・クライアントのロジックを変えたら `tests/` も更新し、`clasp push` の前に `npm test` を通す
 - CI（GitHub Actions `.github/workflows/test.yml`）が PR で `npm test` を実行する。CI が失敗している PR はマージしない

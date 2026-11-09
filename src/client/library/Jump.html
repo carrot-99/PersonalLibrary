@@ -1,0 +1,239 @@
+<!-- Jump.html -->
+<script>
+//////////////////////////////
+// ジャンプ作品（2000 年以降に連載が始まった週刊少年ジャンプの作品）
+//////////////////////////////
+const JUMP_FILTERS = ['unowned', 'interested', 'dismissed', 'owned', 'all'];
+const JUMP_FILTER_LABELS = { unowned: '未所持', interested: '気になる', dismissed: '興味なし', owned: '持っている', all: 'すべて' };
+
+const jumpState = {
+  items: null,
+  filter: 'unowned'
+};
+
+// refresh: true なら前回の結果を描画せず取り直すだけ（印の変更の後）
+function loadJumpView(refresh){
+  if(jumpState.items) renderJumpView();
+  callGASCached('jump.view', 'getJumpViewWeb', function(res){
+    if(!res || !res.success) return showError(res && res.message ? res.message : 'ジャンプ作品の読み込みに失敗しました');
+    jumpState.items = res.items || [];
+    renderJumpView();
+  }, { viewId: 'JumpView', refresh: refresh === true, errorMessage: 'ジャンプ作品の読み込みに失敗しました' });
+}
+
+function setJumpFilter(filter){
+  if(!JUMP_FILTERS.includes(filter)) return;
+  jumpState.filter = filter;
+  renderJumpView();
+}
+
+// 印を付ける・外す（押した印がすでに付いていれば外す）。画面はすぐ書き換え、失敗したら戻す
+function toggleJumpStatus(item, status, btn){
+  const previous = item.status;
+  const next = previous === status ? '' : status;
+  btn.disabled = true;
+  applyJumpStatus(item, next);
+  renderJumpView();
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      if(res && res.success){
+        showSuccess(res.message);
+        loadJumpView(true);
+      } else {
+        applyJumpStatus(item, previous);
+        renderJumpView();
+        showError(res && res.message ? res.message : '変更に失敗しました');
+      }
+    })
+    .withFailureHandler(function(error){
+      applyJumpStatus(item, previous);
+      renderJumpView();
+      showError(error && error.message ? error.message : '通信に失敗しました');
+    })
+    .setJumpStatusWeb(item.no, next);
+}
+
+//////////////////////////////
+// 絞り込み・整形（DOM を使わない）
+//////////////////////////////
+// 印を変えたときの所持の判定（所持冊数があれば印に関係なく持っている）
+function applyJumpStatus(item, status){
+  item.status = status;
+  item.ownedBy = item.volumes > 0 ? 'auto' : (status === '持っている' ? 'mark' : '');
+  item.owned = item.ownedBy !== '';
+  return item;
+}
+
+// 表示の区分（未所持は興味なしを除く。気になる・興味なしは持っていない作品だけ）
+function matchesJumpFilter(item, filter){
+  switch(filter){
+    case 'unowned': return !item.owned && item.status !== '興味なし';
+    case 'interested': return !item.owned && item.status === '気になる';
+    case 'dismissed': return !item.owned && item.status === '興味なし';
+    case 'owned': return item.owned;
+    default: return true;
+  }
+}
+
+function countJumpItems(items){
+  const counts = {};
+  JUMP_FILTERS.forEach(filter => {
+    counts[filter] = items.filter(item => matchesJumpFilter(item, filter)).length;
+  });
+  return counts;
+}
+
+function normalizeJumpKeyword(value){
+  return String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/g, '');
+}
+
+// options: { keyword: 作品名・作者に含まれる文字, ongoingOnly: 連載中だけ }
+function filterJumpItems(items, filter, options = {}){
+  const keyword = normalizeJumpKeyword(options.keyword);
+  return items.filter(item =>
+    matchesJumpFilter(item, filter) &&
+    (!options.ongoingOnly || item.ongoing) &&
+    (!keyword || normalizeJumpKeyword(`${item.name}${item.author}`).includes(keyword))
+  );
+}
+
+// 開始年ごとにまとめる（新しい年から。年の中は連載開始順）
+function groupJumpItemsByYear(items){
+  const groups = new Map();
+  items.forEach(item => {
+    if(!groups.has(item.startYear)) groups.set(item.startYear, []);
+    groups.get(item.startYear).push(item);
+  });
+  return Array.from(groups.entries())
+    .sort((a, b) => b[0] - a[0])
+    .map(([year, list]) => ({ year, items: list.slice().sort((a, b) => a.no - b.no) }));
+}
+
+// 「2004.01」→「2004年1号」、「2001.36/37」→「2001年36/37号」
+function formatJumpIssue(value){
+  const match = String(value || '').match(/^(\d{4})\.(.+)$/);
+  if(!match) return String(value || '');
+  return `${match[1]}年${match[2].split('/').map(n => String(parseInt(n, 10) || n)).join('/')}号`;
+}
+
+// 連載期間（「2004年1号〜2006年24号」「2020年31号〜連載中」）
+function formatJumpPeriod(item){
+  return `${formatJumpIssue(item.start)}〜${item.ongoing ? '連載中' : formatJumpIssue(item.end)}`;
+}
+
+// URL の「//」は「\/\/」と書く（GAS が HTML を配信するとき、文字列の中でも「//」以降をコメントとして消すため）
+function buildJumpShopUrl(name){
+  return 'https:\/\/books.rakuten.co.jp/search?sitem=' + encodeURIComponent(name) + '&g=001';
+}
+
+//////////////////////////////
+// 描画
+//////////////////////////////
+function renderJumpView(){
+  const items = jumpState.items;
+  if(!items) return;
+
+  const counts = countJumpItems(items);
+  document.querySelectorAll('#JumpView [data-jump-filter]').forEach(button => {
+    const filter = button.dataset.jumpFilter;
+    button.classList.toggle('active', filter === jumpState.filter);
+    button.textContent = `${JUMP_FILTER_LABELS[filter]} ${counts[filter]}`;
+  });
+
+  const visible = filterJumpItems(items, jumpState.filter, {
+    keyword: document.getElementById('jumpKeywordInput').value,
+    ongoingOnly: document.getElementById('jumpOngoingOnly').checked
+  });
+  document.getElementById('jumpSummary').textContent =
+    `全${items.length}作品のうち、持っている ${counts.owned}作品・持っていない ${items.length - counts.owned}作品（表示 ${visible.length}作品）`;
+
+  const container = document.getElementById('jumpGroups');
+  container.innerHTML = '';
+  if(visible.length === 0){
+    const empty = document.createElement('p');
+    empty.className = 'detail-empty';
+    empty.textContent = '該当する作品はありません';
+    container.appendChild(empty);
+    return;
+  }
+
+  groupJumpItemsByYear(visible).forEach(group => {
+    const heading = document.createElement('h4');
+    heading.className = 'release-heading';
+    heading.textContent = `${group.year}年 `;
+    const count = document.createElement('span');
+    count.className = 'release-count';
+    count.textContent = `${group.items.length}作品`;
+    heading.appendChild(count);
+    container.appendChild(heading);
+
+    const grid = document.createElement('div');
+    grid.className = 'jump-cards';
+    group.items.forEach(item => grid.appendChild(createJumpCard(item)));
+    container.appendChild(grid);
+  });
+}
+
+function createJumpCard(item){
+  const card = document.createElement('div');
+  card.className = 'wish-group jump-card';
+  if(item.owned) card.classList.add('is-owned');
+  else if(item.status === '気になる') card.classList.add('is-interested');
+  else if(item.status === '興味なし') card.classList.add('is-dismissed');
+
+  const head = document.createElement('div');
+  head.className = 'jump-card-head';
+  const name = document.createElement('strong');
+  name.textContent = item.name;
+  head.appendChild(name);
+  if(item.ongoing) head.appendChild(createReleaseBadge('連載中', 'is-wished'));
+  if(item.ownedBy === 'auto') head.appendChild(createReleaseBadge(`所持 ${item.volumes}冊`, 'is-done'));
+  if(item.ownedBy === 'mark') head.appendChild(createReleaseBadge('持っている', 'is-done'));
+  if(!item.owned && item.status) head.appendChild(createReleaseBadge(item.status, item.status === '気になる' ? 'is-novel' : 'is-stale'));
+  card.appendChild(head);
+
+  const meta = document.createElement('div');
+  meta.className = 'jump-card-meta';
+  meta.textContent = `${item.author}　${formatJumpPeriod(item)}`;
+  card.appendChild(meta);
+
+  if(item.titleId){
+    const link = document.createElement('div');
+    link.className = 'jump-card-meta';
+    link.appendChild(document.createTextNode(item.volumes > 0 ? '作品: ' : '作品一覧に登録済み（0冊）: '));
+    link.appendChild(createCellLink(item.titleName, function(){ openTitleDetail(item.titleId); }));
+    card.appendChild(link);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'recommend-actions';
+  if(!item.owned || item.ownedBy === 'mark'){
+    if(!item.owned){
+      actions.appendChild(createJumpButton(item, '気になる', 'is-interested'));
+      actions.appendChild(createJumpButton(item, '興味なし', 'is-active'));
+    }
+    actions.appendChild(createJumpButton(item, '持っている', 'is-active'));
+  }
+  if(!item.owned) actions.appendChild(createReleaseShopLink(buildJumpShopUrl(item.name)));
+  if(actions.childNodes.length > 0) card.appendChild(actions);
+
+  return card;
+}
+
+// 印のボタン（付いている印は色付きで表示し、押すと外す）
+function createJumpButton(item, status, activeClass){
+  const active = item.status === status;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `recommend-action ${active ? activeClass : ''}`;
+  button.textContent = active ? `✓ ${status}` : status;
+  button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  button.addEventListener('click', function(){ toggleJumpStatus(item, status, button); });
+  return button;
+}
+
+window.loadJumpView = loadJumpView;
+window.setJumpFilter = setJumpFilter;
+window.renderJumpView = renderJumpView;
+</script>

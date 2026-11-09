@@ -1500,6 +1500,23 @@
   .recommend-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
   .recommend-action { margin: 0; padding: 4px 12px; font-size: 0.85rem; }
   .recommend-action.is-interested { background: var(--entry); color: #fff; }
+
+  /* ジャンプ作品 */
+  .jump-filter { flex-wrap: wrap; }
+  .jump-filter button { flex: 0 1 auto; }
+  .jump-filter button.active { background: var(--book); color: #fff; }
+  .jump-ongoing { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem; color: var(--text-muted); white-space: nowrap; }
+  .jump-ongoing input { width: auto; }
+  .jump-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 10px; align-items: start; }
+  .jump-card { border-left-color: var(--book); }
+  .jump-card.is-interested { border-left-color: var(--entry); }
+  .jump-card.is-dismissed { border-left-color: var(--border); opacity: 0.75; }
+  .jump-card.is-owned { border-left-color: var(--status-ok); }
+  .jump-card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 0; }
+  .jump-card-head strong { margin-right: 4px; }
+  .jump-card-meta { margin-top: 4px; font-size: 0.85rem; color: var(--text-muted); }
+  .jump-card .recommend-actions { margin-top: 6px; }
+  .recommend-action.is-active { background: var(--text-muted); color: var(--surface); }
   .recommend-dismissed { margin-top: 12px; }
 
   /* 読書状況 */

@@ -18,7 +18,8 @@ const SHEETS = {
   RELEASE:       'M_Release',
   RELEASE_CHECK: 'M_ReleaseCheck',
   READ:          'M_Read',
-  RECOMMEND:     'M_Recommend'
+  RECOMMEND:     'M_Recommend',
+  JUMP_CHECK:    'M_JumpCheck'
 };
 
 // ----------------------
