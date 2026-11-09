@@ -237,6 +237,16 @@ clasp update-deployment <デプロイID> -d "変更内容"
 - `@HEAD` のデプロイはテスト用（`/dev`）なので消さない
 - `oauthScopes`（`appsscript.json`）を変えた／外部 API 呼び出しを追加したときは、初回アクセス時に Google の権限承認画面が出る。自分のアカウントで許可する
 
+### 2-8. iPhone のホーム画面に追加する（入口ページ）
+
+GAS のページそのものにはアイコンを付けられないので、GitHub Pages の入口ページ（`pages/`）をホーム画面に追加する。ホーム画面のアイコン（`?launch=1` 付きの URL）から開くと本番の `/exec` URL へ移る（設計書 01 章 1.6）。
+
+- 配信先: `https://carrot-99.github.io/PersonalLibrary/`
+- 初回の設定: GitHub のリポジトリの **Settings → Pages → Source を「GitHub Actions」** にする。main の `pages/` が変わると `.github/workflows/pages.yml` が配信する（Actions タブの「pages」から手動でも実行できる）
+- 追加のしかた: iPhone の Safari で上の URL を開き（案内が出て、URL が `?launch=1` 付きに変わる）、共有ボタン →「ホーム画面に追加」。🥕 のアイコンと「にんじん図書館」の名前で追加される。アプリはホーム画面のアイコンから Safari で開く
+- 本番の URL が変わったとき（`create-deployment` をした等）は、`pages/index.html` の `APP_URL` を書き換えて main にマージする
+- アイコンを作り直すときは、Noto Emoji の 🥕（`png/512/emoji_u1f955.png`、`v2.047`）を背景 `#fff1e0` の正方形の中央に 66% の大きさで置き、180・192・512px の PNG にする
+
 ---
 
 ## 3. 設定・秘密情報
