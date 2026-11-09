@@ -27,20 +27,33 @@ const jumpSheets = (extra = {}) => Object.assign(baseSheets({
 
 const findItem = (items, name) => items.find(item => item.name === name);
 
-test('JUMP_TITLES: 2000 年以降に始まった作品だけで、No が重複せず、開始・終了が「年.号」の形', () => {
+test('JUMP_TITLES: 創刊からの作品が No 順に並び、No が重複せず、開始・終了が「年.号」の形', () => {
   const { gas } = loadServer(jumpSheets());
   const items = plain(gas.getJumpViewWeb()).items;
-  assert.ok(items.length >= 300);
+  assert.ok(items.length >= 780);
   assert.equal(new Set(items.map(item => item.no)).size, items.length);
-  items.forEach(item => {
-    assert.match(item.start, /^\d{4}\.\d{2}(\/\d{2})?$/, item.name);
-    assert.ok(item.ongoing || /^\d{4}\.\d{2}(\/\d{2})?$/.test(item.end), item.name);
-    assert.ok(item.startYear >= 2000, item.name);
+  items.forEach((item, i) => {
+    if(i > 0) assert.ok(items[i - 1].no < item.no, item.name);
+    assert.match(item.start, /^\d{4}\.\d{1,2}(\/\d{1,2})?$/, item.name);
+    assert.ok(item.ongoing || /^\d{4}\.\d{1,2}(\/\d{1,2})?$/.test(item.end), item.name);
+    assert.ok(item.startYear >= 1968, item.name);
     assert.ok(item.name && item.author, String(item.no));
+    // 全巻数は完結済みの作品だけ
+    assert.ok(Number.isInteger(item.totalVolumes) && item.totalVolumes >= 0, item.name);
+    if(item.ongoing) assert.equal(item.totalVolumes, 0, item.name);
   });
-  assert.ok(findItem(items, 'BLEACH'));
+  assert.equal(items[0].startYear, 1968);
   assert.ok(findItem(items, '鬼滅の刃'));
-  assert.equal(findItem(items, 'ONE PIECE'), undefined); // 1997 年開始
+  assert.equal(findItem(items, 'ONE PIECE').ongoing, true);
+  assert.equal(findItem(items, 'HUNTER×HUNTER').ongoing, true);
+  assert.equal(findItem(items, 'BLEACH').totalVolumes, 74);
+  assert.equal(findItem(items, 'SLAM DUNK').totalVolumes, 31);
+  assert.equal(findItem(items, 'ONE PIECE').totalVolumes, 0);
+  // 作品名・作者に Wikipedia の文字参照（&#9825; など）や記法が残っていない
+  items.forEach(item => assert.doesNotMatch(`${item.name}${item.author}`, /&#?[0-9a-z]+;|\[\[|\]\]|\{\{|\}\}|'''/i, item.name));
+  assert.ok(findItem(items, 'ジャングルの王者ターちゃん♡'));
+  // 合併号の「･」は「/」に直している
+  assert.equal(findItem(items, 'あすなろ旋風').end, '1975.4/5');
 });
 
 test('getJumpMatchKeys: 末尾の副題を除いた名前も照合キーにする', () => {
@@ -49,6 +62,8 @@ test('getJumpMatchKeys: 末尾の副題を除いた名前も照合キーにす�
   assert.deepEqual(plain(gas.getJumpMatchKeys('BORUTO -ボルト- -NARUTO NEXT GENERATIONS-')),
     ['borutoボルトnarutonextgenerations', 'borutoボルト', 'boruto']);
   assert.deepEqual(plain(gas.getJumpMatchKeys('ǝnígmǝ【エニグマ】')), ['ǝnígmǝエニグマ', 'ǝnígmǝ']);
+  // ハートは除く（付けずに登録した作品とも一致する）
+  assert.deepEqual(plain(gas.getJumpMatchKeys('ジャングルの王者ターちゃん♡')), plain(gas.getJumpMatchKeys('ジャングルの王者ターちゃん')));
   // 副題が末尾にない名前はそのまま（「NARUTO」と取り違えない）
   assert.deepEqual(plain(gas.getJumpMatchKeys('NARUTO -ナルト- 外伝〜七代目火影と緋色の花つ月〜')),
     ['narutoナルト外伝七代目火影ト緋色ノ花ツ月', 'narutoナルト外伝']);
@@ -139,7 +154,7 @@ test('setJumpStatusWeb: 印を付け直し・外す（シートがなければ�
 
 test('setJumpStatusWeb: 一覧にない作品・知らない印は変えない', () => {
   const { gas, ss } = loadServer(jumpSheets());
-  assert.equal(gas.setJumpStatusWeb(1, '気になる').message, '作品が見つかりません');
+  assert.equal(gas.setJumpStatusWeb(99999, '気になる').message, '作品が見つかりません');
   assert.match(gas.setJumpStatusWeb(655, '読みたい').message, /印は 気になる \/ 興味なし \/ 持っている から選んでください/);
   assert.equal(ss.getSheetByName('M_JumpCheck'), null);
 });
@@ -155,7 +170,7 @@ test('setJumpStatusWeb: ロックが取れなければ変えない', () => {
 //////////////////////////////
 const ITEM = (no, name, extra = {}) => Object.assign({
   no, name, author: '作者', start: '2020.01', end: '2021.10', startYear: 2020, endYear: 2021,
-  ongoing: false, status: '', owned: false, ownedBy: '', titleId: '', titleName: '', volumes: 0
+  ongoing: false, totalVolumes: 0, status: '', owned: false, ownedBy: '', titleId: '', titleName: '', volumes: 0
 }, extra);
 
 test('Jump.html: 区分ごとの絞り込みと件数（未所持は興味なしを除く）', () => {
@@ -188,6 +203,10 @@ test('Jump.html: 作品名・作者の文字と連載中で絞り込む（全角
   assert.deepEqual(names({ keyword: '大場' }), ['DEATH NOTE']);
   assert.deepEqual(names({ keyword: 'death note' }), ['DEATH NOTE']);
   assert.deepEqual(names({ ongoingOnly: true }), ['SAKAMOTO DAYS']);
+  // 年代（開始年が 1990〜1999 年）
+  const byYear = [ITEM(1, '1989', { startYear: 1989 }), ITEM(2, '1990', { startYear: 1990 }), ITEM(3, '1999', { startYear: 1999 }), ITEM(4, '2000', { startYear: 2000 })];
+  assert.deepEqual(client.filterJumpItems(byYear, 'all', { decade: '1990' }).map(i => i.name), ['1990', '1999']);
+  assert.equal(client.filterJumpItems(byYear, 'all', { decade: '' }).length, 4);
   assert.deepEqual(names({ keyword: '' }).length, 3);
 });
 
@@ -219,6 +238,11 @@ test('Jump.html: 連載期間の表示と、印を変えたときの所持の判
   const auto = ITEM(2, 'B', { volumes: 2 });
   client.applyJumpStatus(auto, '');
   assert.equal(auto.ownedBy, 'auto');
+
+  // 所持冊数のバッジ
+  assert.equal(client.formatJumpOwnedVolumes(ITEM(1, 'A', { volumes: 5, totalVolumes: 20 })), '所持 5/20冊');
+  assert.equal(client.formatJumpOwnedVolumes(ITEM(1, 'A', { volumes: 20, totalVolumes: 20 })), '全20巻所持');
+  assert.equal(client.formatJumpOwnedVolumes(ITEM(1, 'A', { volumes: 3 })), '所持 3冊');
 
   assert.equal(client.buildJumpShopUrl('鬼滅の刃'),
     'https://books.rakuten.co.jp/search?sitem=%E9%AC%BC%E6%BB%85%E3%81%AE%E5%88%83&g=001');

@@ -1,7 +1,7 @@
 <!-- Jump.html -->
 <script>
 //////////////////////////////
-// ジャンプ作品（2000 年以降に連載が始まった週刊少年ジャンプの作品）
+// ジャンプ作品（週刊少年ジャンプの連載作品）
 //////////////////////////////
 const JUMP_FILTERS = ['unowned', 'interested', 'dismissed', 'owned', 'all'];
 const JUMP_FILTER_LABELS = { unowned: '未所持', interested: '気になる', dismissed: '興味なし', owned: '持っている', all: 'すべて' };
@@ -88,12 +88,14 @@ function normalizeJumpKeyword(value){
   return String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/g, '');
 }
 
-// options: { keyword: 作品名・作者に含まれる文字, ongoingOnly: 連載中だけ }
+// options: { keyword: 作品名・作者に含まれる文字, ongoingOnly: 連載中だけ, decade: 連載開始の年代（1990 なら 1990〜1999 年。空はすべて） }
 function filterJumpItems(items, filter, options = {}){
   const keyword = normalizeJumpKeyword(options.keyword);
+  const decade = parseInt(options.decade, 10);
   return items.filter(item =>
     matchesJumpFilter(item, filter) &&
     (!options.ongoingOnly || item.ongoing) &&
+    (isNaN(decade) || (item.startYear >= decade && item.startYear < decade + 10)) &&
     (!keyword || normalizeJumpKeyword(`${item.name}${item.author}`).includes(keyword))
   );
 }
@@ -122,6 +124,14 @@ function formatJumpPeriod(item){
   return `${formatJumpIssue(item.start)}〜${item.ongoing ? '連載中' : formatJumpIssue(item.end)}`;
 }
 
+// 所持冊数のバッジ（全巻数が分かれば「所持 5/20冊」、そろっていれば「全20巻所持」）
+function formatJumpOwnedVolumes(item){
+  if(item.totalVolumes > 0){
+    return item.volumes >= item.totalVolumes ? `全${item.totalVolumes}巻所持` : `所持 ${item.volumes}/${item.totalVolumes}冊`;
+  }
+  return `所持 ${item.volumes}冊`;
+}
+
 // URL の「//」は「\/\/」と書く（GAS が HTML を配信するとき、文字列の中でも「//」以降をコメントとして消すため）
 function buildJumpShopUrl(name){
   return 'https:\/\/books.rakuten.co.jp/search?sitem=' + encodeURIComponent(name) + '&g=001';
@@ -143,7 +153,8 @@ function renderJumpView(){
 
   const visible = filterJumpItems(items, jumpState.filter, {
     keyword: document.getElementById('jumpKeywordInput').value,
-    ongoingOnly: document.getElementById('jumpOngoingOnly').checked
+    ongoingOnly: document.getElementById('jumpOngoingOnly').checked,
+    decade: document.getElementById('jumpDecadeSelect').value
   });
   document.getElementById('jumpSummary').textContent =
     `全${items.length}作品のうち、持っている ${counts.owned}作品・持っていない ${items.length - counts.owned}作品（表示 ${visible.length}作品）`;
@@ -188,14 +199,17 @@ function createJumpCard(item){
   name.textContent = item.name;
   head.appendChild(name);
   if(item.ongoing) head.appendChild(createReleaseBadge('連載中', 'is-wished'));
-  if(item.ownedBy === 'auto') head.appendChild(createReleaseBadge(`所持 ${item.volumes}冊`, 'is-done'));
+  if(item.ownedBy === 'auto'){
+    const partial = item.totalVolumes > 0 && item.volumes < item.totalVolumes;
+    head.appendChild(createReleaseBadge(formatJumpOwnedVolumes(item), partial ? 'is-stale' : 'is-done'));
+  }
   if(item.ownedBy === 'mark') head.appendChild(createReleaseBadge('持っている', 'is-done'));
   if(!item.owned && item.status) head.appendChild(createReleaseBadge(item.status, item.status === '気になる' ? 'is-novel' : 'is-stale'));
   card.appendChild(head);
 
   const meta = document.createElement('div');
   meta.className = 'jump-card-meta';
-  meta.textContent = `${item.author}　${formatJumpPeriod(item)}`;
+  meta.textContent = [item.author, formatJumpPeriod(item), item.totalVolumes > 0 ? `全${item.totalVolumes}巻` : ''].filter(Boolean).join('　');
   card.appendChild(meta);
 
   if(item.titleId){
