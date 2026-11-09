@@ -67,6 +67,7 @@ PersonalLibrary/
 ├── build.js                 ビルドスクリプト（src → build へフラット化コピー）
 ├── build/                   ビルド成果物（clasp で GAS へ push する対象）
 ├── docs/design/             本設計書
+├── pages/                   ホーム画面に追加するための入口ページ（GitHub Pages で配信。1.6 参照）
 └── src/
     ├── appsscript.json      GAS マニフェスト
     ├── server/              サーバーサイド（GAS）
@@ -158,7 +159,22 @@ node build.js
 
 初回は Apps Script エディタから `testAnthropicConnection()` を実行し、外部通信の権限承認と API キー・モデル設定の疎通確認を行います。今期のアニメは `testAnnictConnection()` でトークンの疎通確認を行います。漫画・ラノベの発売日は `testRakutenConnection()` / `testRakutenLightNovels()` で楽天の認証と照合結果を確認し、`setupReleaseTrigger()` で毎日の取得トリガーを設定します。
 
-## 1.6 非機能面の前提
+## 1.6 ホーム画面に追加するための入口ページ（`pages/`）
+
+GAS の Web アプリは Google のページ（`script.google.com`）の中に iframe で表示されるため、iPhone の「ホーム画面に追加」で使われるアイコン（`apple-touch-icon`）や名前を指定できない（`addMetaTag` で指定できるのは `viewport` など一部のみ）。そこで、アイコンと名前を持つ静的な入口ページを GitHub Pages で配信し、ホーム画面のアイコンから開いたら本番 URL（`/exec`）へ移る（`location.replace`）。
+
+普通に開いたときはすぐには移らない（移ると「ホーム画面に追加」を押す前にアプリのページになってしまうため）。案内とアプリへのリンクを出し、URL を `?launch=1` 付きに書き換える（`history.replaceState`）。Safari の「ホーム画面に追加」はいまの URL を登録するので、追加したアイコンは `?launch=1` 付きで開き、すぐ本番 URL へ移る。
+
+| ファイル | 内容 |
+|---|---|
+| `pages/index.html` | 入口ページ。`APP_URL` に本番デプロイの `/exec` URL を書く（アクセスは「自分のみ」なので URL が知られても他の人は使えない）。移らないとき用のリンクも出す |
+| `pages/manifest.webmanifest` | Android 用。`display` は `browser`、`start_url` は `./?launch=1` |
+| `pages/icons/` | 🥕 のアイコン（180・192・512px）。Google Noto Emoji（Apache License 2.0、`v2.047`）の画像を薄いオレンジの背景に置いたもの |
+| `.github/workflows/pages.yml` | main の `pages/` が変わったら GitHub Pages に配信（Settings → Pages の Source は「GitHub Actions」） |
+
+全画面表示（`apple-mobile-web-app-capable`）は付けない。ホーム画面から全画面で開くと Safari とログイン情報（Cookie）が別になり、Google へのログインのやり直しや、別ドメイン（`script.google.com`）へ移ったところでブラウザ表示に戻る問題が起きるため。ホーム画面のアイコンからは Safari で開く。
+
+## 1.7 非機能面の前提
 
 | 観点 | 現行の扱い |
 |---|---|

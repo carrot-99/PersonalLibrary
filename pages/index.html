@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>にんじん図書館</title>
+  <!--
+    ホーム画面に追加するための入口ページ（GitHub Pages で配信）。
+    GAS の Web アプリは Google のページの中（iframe）で表示されるため、アイコンや名前を指定できない。
+    このページでアイコン・名前を持たせ、ホーム画面のアイコン（?launch=1 付きの URL）から開いたら GAS の本番 URL（/exec）へ移る。
+    apple-mobile-web-app-capable（全画面表示）は付けない。全画面で開くと Safari とログイン情報が別になり、
+    Google へのログインのやり直しや、別ドメインへの移動でブラウザ表示に戻る問題が起きるため。
+  -->
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="./icons/icon-192.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="にんじん図書館">
+  <meta name="theme-color" content="#fff1e0">
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+      background: #fff1e0;
+      color: #431407;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: #1c1917; color: #fed7aa; }
+    }
+    img { width: 96px; height: 96px; border-radius: 22px; }
+    p { text-align: center; margin: 0; }
+    #launching, #guide { display: flex; flex-direction: column; gap: 8px; }
+    [hidden] { display: none !important; }
+    a { color: #ea580c; }
+  </style>
+</head>
+<body>
+  <img src="./icons/apple-touch-icon.png" alt="">
+  <div id="launching" hidden>
+    <p>にんじん図書館を開いています…</p>
+  </div>
+  <div id="guide" hidden>
+    <p><strong>にんじん図書館</strong></p>
+    <p>Safari の共有ボタン →「ホーム画面に追加」で、<br>このアイコンからアプリを開けます。</p>
+  </div>
+  <p><a id="appLink" href="#">アプリを開く</a></p>
+  <script>
+    // GAS の本番デプロイの URL（アクセス設定は「自分のみ」なので、URL が知られても他の人は使えない）
+    var APP_URL = 'https://script.google.com/macros/s/__DEPLOYMENT_ID__/exec';
+    document.getElementById('appLink').href = APP_URL;
+    if (/[?&]launch=1(&|$)/.test(location.search)) {
+      // ホーム画面のアイコンから開いたとき：すぐアプリへ移る（履歴に入口ページを残さない）
+      document.getElementById('launching').hidden = false;
+      location.replace(APP_URL);
+    } else {
+      // 普通に開いたとき：案内を出し、URL を ?launch=1 付きにしておく。
+      // 「ホーム画面に追加」はいまの URL を登録するので、追加したアイコンからは上の分岐ですぐ移る
+      document.getElementById('guide').hidden = false;
+      history.replaceState(null, '', location.pathname + '?launch=1');
+    }
+  </script>
+</body>
+</html>

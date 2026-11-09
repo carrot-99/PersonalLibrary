@@ -7,7 +7,7 @@
 
 - **ブランチ**: 機能追加は `feature/<lowerCamelCase>`、バグ修正は `bugfix/<lowerCamelCase>`。main から切る。main へ直接コミットしない
 - **コミット前に必ずオーナーの動作確認を待つ**: 実装 → `node build.js` → `clasp push` → `/dev` URL での確認手順を伝えて止まる。OK が出てからコミット
-- **編集は `src/` のみ**。`build/` は `node build.js` の生成物。コミット時は `src/` と `build/` をそろえる
+- **編集は `src/` のみ**（ホーム画面に追加するための入口ページだけは `pages/`。GitHub Pages で配信）。`build/` は `node build.js` の生成物。コミット時は `src/` と `build/` をそろえる
 - `src/` 配下で**ファイル名を重複させない**（`build/` にフラット化されるため）。新しい HTML は `src/client/Index.html` で `include`
 - 本番デプロイ（`clasp update-deployment` / `create-deployment`）は**オーナーの指示があるときだけ**。`create-deployment` は URL が変わるので使わない
 - API キー等は**スクリプトプロパティ**に置き、リポジトリ・クライアント HTML に書かない
