@@ -52,7 +52,7 @@
   <p><a id="appLink" href="#">アプリを開く</a></p>
   <script>
     // GAS の本番デプロイの URL（アクセス設定は「自分のみ」なので、URL が知られても他の人は使えない）
-    var APP_URL = 'https://script.google.com/macros/s/__DEPLOYMENT_ID__/exec';
+    var APP_URL = 'https://script.google.com/macros/s/AKfycbzSZM7O30QFUgX8xEPolEl0aM0jLGkS8hQ-S6ZebujQZigKSK4Zbs96nlXQCo24kz0x/exec';
     document.getElementById('appLink').href = APP_URL;
     if (/[?&]launch=1(&|$)/.test(location.search)) {
       // ホーム画面のアイコンから開いたとき：すぐアプリへ移る（履歴に入口ページを残さない）
