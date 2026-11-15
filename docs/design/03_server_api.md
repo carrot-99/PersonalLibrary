@@ -648,6 +648,19 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 ---
 
 
+## 3.9.8 オフラインの所持確認（`server/OfflineService.js`）
+
+GitHub Pages の所持確認ページ（1.6）に渡すデータを作ります。読み取りのみで、シートは変えません。
+
+| 関数 | 内容 |
+|---|---|
+| `getOfflineSnapshotWeb()` | 画面用。戻り値 `{ success, pageUrl, snapshot }`。`pageUrl` は所持確認ページの URL（定数 `OFFLINE_PAGE_URL`。スクリプトプロパティ `OFFLINE_PAGE_URL` があればそちら）。`snapshot` は `{ v: 版（1）, at: 作成日時 yyyy/MM/dd HH:mm, count: 所持冊数, t: 作品の配列（作品名順） }`。作品は `{ n: 表示名（buildTitleLabelMap）, k: 種別, c: 完結状態, s: シリーズ名（作品名と同じなら省く）, v: 所持巻, b: [[Box の表示名（BoxID 保管場所。Box なしは「Box なし」）, 巻]], u: 未読・読書中の巻, w: 欲しい巻, r: 発売済で未所持の巻, x: [[巻, 発売日]] 発売予定 }` で、空の項目は省く（URL に入れるので小さくする）。`r` / `x` は `getReleaseViewWeb` の `unowned` / `upcoming`（失敗しても他の項目は返す）。書籍のない作品も入れる（「作品だけ登録」と出す） |
+| `compactVolumes(volumes)` | 巻の一覧を短くする。数字の連続は `[始め, 終わり]`、1 巻だけの数字は数値、数字以外の巻は文字列で後ろに（例 `['1','2','3','5','外伝']` → `[[1, 3], 5, '外伝']`）。重複は除く |
+
+データの版（`v`）を変えるときは、所持確認ページ（`pages/lookup.js` の `SNAPSHOT_VERSION`）も同時に直す（版が違うデータは保存しない）。
+
+---
+
 ## 3.10 API 呼び出し元一覧
 
 | API | 呼び出し元（クライアント関数） |
@@ -657,6 +670,7 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 | `updateTitleAuthorWeb` / `fillTitleAuthorsWeb` | `openTitleAuthorEditor`（作品の詳細の作者の [編集]）/ `fillTitleAuthors`（作品一覧の [作者・出版社を補完]） |
 | `getWishList` / `addWishes` / `deleteWish` | `loadWishListView`・`reloadWishList` / `addWishFromForm`・`addPhotoRowToWishList`・`addReleaseToWish`（発売予定・ホーム）/ `deleteWishItem` |
 | `getHomeDataWeb` | `loadHomeView`（ホームを開いたとき・起動時・欲しい巻への追加や読了の後） |
+| `getOfflineSnapshotWeb` | `prepareOfflineSync`（ホームの「オフライン所持確認」の [データを用意]） |
 | `setReadStatusWeb` | `setReadStatus`（書籍一覧の [にする]（まとめて変更）、作品の詳細・ホームの [n巻を読了]） |
 | `getReleaseViewWeb` / `updateReleasesWeb` | `loadReleaseView`（発売予定を開いたとき・取得や欲しい巻への追加の後）/ `fetchReleases`（[発売情報を取得]・[続きを取得]・作品ごとの [再取得]） |
 | `updateReleasesByTrigger` | 毎日 5 時台の時間主導トリガー（`setupReleaseTrigger` で設定） |

@@ -68,7 +68,7 @@ PersonalLibrary/
 ├── build.js                 ビルドスクリプト（src → build へフラット化コピー）
 ├── build/                   ビルド成果物（clasp で GAS へ push する対象）
 ├── docs/design/             本設計書
-├── pages/                   ホーム画面に追加するための入口ページ（GitHub Pages で配信。1.6 参照）
+├── pages/                   ホーム画面に追加する入口ページ兼オフラインの所持確認ページ（GitHub Pages で配信。1.6 参照）
 └── src/
     ├── appsscript.json      GAS マニフェスト
     ├── server/              サーバーサイド（GAS）
@@ -86,6 +86,7 @@ PersonalLibrary/
     │   ├── AnimeSeasonService.js 今期のアニメ一覧（Annict API から取得・登録状況の照合）
     │   ├── ReleaseService.js    連載中の漫画・ラノベの発売日（楽天ブックス API から取得・所持巻との照合）
     │   ├── HomeService.js       ホーム画面（積読・発売予定・欲しい巻・視聴中のアニメをまとめて取得）
+    │   ├── OfflineService.js    オフラインの所持確認ページに渡すデータ（1.6）
     │   ├── ReadService.js       M_Read（書籍の読書状況）関連 API
     │   ├── RecommendService.js  おすすめの漫画（AI に依頼・楽天で実在を確認・M_Recommend に保存）
     │   ├── JumpService.js       ジャンプ作品（作品一覧との照合・印を M_JumpCheck に保存）
@@ -97,7 +98,7 @@ PersonalLibrary/
         ├── Styles.html          CSS
         ├── Common.html          共通 JS
         ├── Scripts.html         空テンプレート（未使用）
-        ├── home/     Home.html(JS)    / HomeView
+        ├── home/     Home.html(JS)・Offline.html(JS) / HomeView
         ├── library/  Library.html(JS) / PhotoImport.html(JS) / Wish.html(JS) / Release.html(JS) / Recommend.html(JS) / Jump.html(JS) / PhotoImportView / WishListView / ReleaseView / RecommendView / JumpView / LibraryListView
         ├── title/    Title.html(JS)   / TitleView / TitleListView
         ├── series/   Series.html(JS)  / SeriesView / SeriesListView
@@ -162,20 +163,49 @@ node build.js
 
 初回は Apps Script エディタから `testAnthropicConnection()` を実行し、外部通信の権限承認と API キー・モデル設定の疎通確認を行います。今期のアニメは `testAnnictConnection()` でトークンの疎通確認を行います。漫画・ラノベの発売日は `testRakutenConnection()` / `testRakutenLightNovels()` で楽天の認証と照合結果を確認し、`setupReleaseTrigger()` で毎日の取得トリガーを設定します。
 
-## 1.6 ホーム画面に追加するための入口ページ（`pages/`）
+## 1.6 ホーム画面の入口ページ兼オフラインの所持確認ページ（`pages/`）
 
-GAS の Web アプリは Google のページ（`script.google.com`）の中に iframe で表示されるため、iPhone の「ホーム画面に追加」で使われるアイコン（`apple-touch-icon`）や名前を指定できない（`addMetaTag` で指定できるのは `viewport` など一部のみ）。そこで、アイコンと名前を持つ静的な入口ページを GitHub Pages で配信し、ホーム画面のアイコンから開いたら本番 URL（`/exec`）へ移る（`location.replace`）。
+GAS の Web アプリは Google のページ（`script.google.com`）の中に iframe で表示されるため、次の 2 つができない。
 
-普通に開いたときはすぐには移らない（移ると「ホーム画面に追加」を押す前にアプリのページになってしまうため）。案内とアプリへのリンクを出し、URL を `?launch=1` 付きに書き換える（`history.replaceState`）。Safari の「ホーム画面に追加」はいまの URL を登録するので、追加したアイコンは `?launch=1` 付きで開き、すぐ本番 URL へ移る。
+- iPhone の「ホーム画面に追加」で使われるアイコン（`apple-touch-icon`）や名前の指定（`addMetaTag` で指定できるのは `viewport` など一部のみ）
+- 回線がない・遅いときの表示。開くたびに Google のログイン確認・リダイレクト・全画面分の HTML の読み込みが要り、ページを端末に保存する Service Worker も使えない。本屋など回線の悪い場所で「この巻を持っているか」を確かめられなかった
+
+そこで、アイコンと名前を持つ静的なページを GitHub Pages で配信し、**所持確認だけはこのページで回線なしでもできる**ようにする。登録・編集などはページの [アプリを開く] から本番 URL（`/exec`）で行う。
+
+### 仕組み
+
+```
+[GAS のアプリ] ホーム「📱 オフライン所持確認」
+   [データを用意] → getOfflineSnapshotWeb（作品ごとの所持巻・Box・未読・欲しい巻・発売情報）
+   → 圧縮（deflate-raw）して base64url にし、所持確認ページの URL の #sync= 以降に入れたリンクを作る
+   [所持確認ページに保存 →] で新しいタブに開く
+        ▼
+[所持確認ページ（GitHub Pages）]
+   #sync= を読み取って localStorage に保存し、URL から消す（履歴・ホーム画面のアイコンに残さない）
+   ページ自体は Service Worker（sw.js）が端末に保存するので、以後は回線がなくても開ける
+```
+
+- **蔵書のデータは GitHub に置かない**。URL の `#` 以降はサーバーに送られないので、GitHub Pages に届くのはページの読み込みだけ。データは端末の中（所持確認ページの `localStorage`）にだけある
+- データの大きさは 3000 作品で URL 約 42KB（圧縮前の JSON 約 310KB）。Safari の URL の長さの上限には十分収まる
+- 同期は手動。所持確認ページはデータの作成日時を出し、14 日以上前なら更新を促す。GAS のホームも、その端末から最後に保存してから 7 日以上たつと赤字で出す
+- データの消去: Safari は、しばらく使われないサイトのデータ（`localStorage`・Service Worker の保存）を消すことがある（6.2 R-19）。保存時に `navigator.storage.persist()` で消さないよう頼み、結果をページの下に出す。消えてもアプリから保存し直せば戻る
+
+### ファイル
 
 | ファイル | 内容 |
 |---|---|
-| `pages/index.html` | 入口ページ。`APP_URL` に本番デプロイの `/exec` URL を書く（アクセスは「自分のみ」なので URL が知られても他の人は使えない）。移らないとき用のリンクも出す |
+| `pages/index.html` | 入口ページ兼所持確認ページの画面。`APP_URL` に本番デプロイの `/exec` URL を書く（アクセスは「自分のみ」なので URL が知られても他の人は使えない） |
+| `pages/lookup.js` | 所持確認ページの処理（データの読み取り・保存、検索、表示）。DOM を使わない関数は `tests/offlineLookup.test.js` で確かめる |
+| `pages/sw.js` | Service Worker。ページ・`lookup.js`・アイコンを端末に保存し、保存してある分をすぐ返して裏で取り直す（stale-while-revalidate）。**`pages/` を変えたら `CACHE_NAME` の版を上げる**（上げないと、古いページが一度表示されてから新しくなる） |
 | `pages/manifest.webmanifest` | Android 用。`display` は `browser`、`start_url` は `./?launch=1` |
 | `pages/icons/` | 🥕 のアイコン（180・192・512px）。Google Noto Emoji（Apache License 2.0、`v2.047`）の画像を薄いオレンジの背景に置いたもの |
+| `src/server/OfflineService.js` | `getOfflineSnapshotWeb`（データの作成。3.9.8） |
+| `src/client/home/Offline.html` | GAS のホームの「オフライン所持確認」（データの圧縮とリンクの作成） |
 | `.github/workflows/pages.yml` | main の `pages/` が変わったら GitHub Pages に配信（Settings → Pages の Source は「GitHub Actions」） |
 
-全画面表示（`apple-mobile-web-app-capable`）は付けない。ホーム画面から全画面で開くと Safari とログイン情報（Cookie）が別になり、Google へのログインのやり直しや、別ドメイン（`script.google.com`）へ移ったところでブラウザ表示に戻る問題が起きるため。ホーム画面のアイコンからは Safari で開く。
+以前はホーム画面のアイコン（`?launch=1` 付き）から開くとすぐ本番 URL へ移っていたが、所持確認を先に出すため移らないようにした（`?launch=1` は残しても害はない）。
+
+全画面表示（`apple-mobile-web-app-capable`）は付けない。ホーム画面から全画面で開くと Safari とログイン情報（Cookie）・保存したデータが別になり、Google へのログインのやり直しや、別ドメイン（`script.google.com`）へ移ったところでブラウザ表示に戻る問題が起きるため。また、GAS のアプリから開いた所持確認ページ（Safari）で保存したデータが、全画面のページからは見えなくなる。ホーム画面のアイコンからは Safari で開く。
 
 ## 1.7 非機能面の前提
 

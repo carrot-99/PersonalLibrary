@@ -237,14 +237,18 @@ clasp update-deployment <デプロイID> -d "変更内容"
 - `@HEAD` のデプロイはテスト用（`/dev`）なので消さない
 - `oauthScopes`（`appsscript.json`）を変えた／外部 API 呼び出しを追加したときは、初回アクセス時に Google の権限承認画面が出る。自分のアカウントで許可する
 
-### 2-8. iPhone のホーム画面に追加する（入口ページ）
+### 2-8. iPhone のホーム画面に追加する（入口ページ兼オフラインの所持確認ページ）
 
-GAS のページそのものにはアイコンを付けられないので、GitHub Pages の入口ページ（`pages/`）をホーム画面に追加する。ホーム画面のアイコン（`?launch=1` 付きの URL）から開くと本番の `/exec` URL へ移る（設計書 01 章 1.6）。
+GAS のページそのものにはアイコンを付けられず、回線がないと開けないので、GitHub Pages のページ（`pages/`）をホーム画面に追加する。このページは一度開けば回線がなくても開け、保存した所持巻を作品名で探せる。登録・編集は [アプリを開く] から本番の `/exec` URL で行う（設計書 01 章 1.6）。
 
 - 配信先: `https://carrot-99.github.io/PersonalLibrary/`
 - 初回の設定: GitHub のリポジトリの **Settings → Pages → Source を「GitHub Actions」** にする。main の `pages/` が変わると `.github/workflows/pages.yml` が配信する（Actions タブの「pages」から手動でも実行できる）
-- 追加のしかた: iPhone の Safari で上の URL を開き（案内が出て、URL が `?launch=1` 付きに変わる）、共有ボタン →「ホーム画面に追加」。🥕 のアイコンと「にんじん図書館」の名前で追加される。アプリはホーム画面のアイコンから Safari で開く
+- 追加のしかた: iPhone の Safari で上の URL を開き、共有ボタン →「ホーム画面に追加」。🥕 のアイコンと「にんじん図書館」の名前で追加される。アイコンからは Safari で開く
+- データの保存（回線の良いときに。古くなったら同じ手順で上書き）: アプリのホームの「📱 オフライン所持確認」で [データを用意] → [所持確認ページに保存 →]。所持確認ページが新しいタブで開き「保存しました」と出れば OK。**ホーム画面のアイコンから開くページと同じ Safari に保存される**ので、iPhone の Safari でアプリを開いて行う
+- データが消えたとき（Safari はしばらく開かれないサイトのデータを消すことがある。設計書 06 章 R-19）: 上の手順で保存し直す。ページの下に「消されにくい設定です」と出ていれば消えにくい
+- `pages/` を変えたら `pages/sw.js` の `CACHE_NAME` の版（`ninjin-lookup-v1` の数字）を上げる。上げないと端末に保存された古いページが使われ続ける
 - 本番の URL が変わったとき（`create-deployment` をした等）は、`pages/index.html` の `APP_URL` を書き換えて main にマージする
+- 所持確認ページを手元で試すとき: `pages/` を配信し（例 `cd pages && python3 -m http.server 8000`）、スクリプトプロパティ `OFFLINE_PAGE_URL` に `http://localhost:8000/` を入れると、[所持確認ページに保存 →] がそこを開く。試し終わったらプロパティを消す
 - アイコンを作り直すときは、Noto Emoji の 🥕（`png/512/emoji_u1f955.png`、`v2.047`）を背景 `#fff1e0` の正方形の中央に 66% の大きさで置き、180・192・512px の PNG にする
 
 ---
@@ -262,6 +266,7 @@ GAS エディタ → プロジェクトの設定 → **スクリプト プロパ
 | `ANTHROPIC_EFFORT` | - | 推論の effort。省略時 `medium` |
 | `ANNICT_ACCESS_TOKEN` | ○ | 今期のアニメ（`AnimeSeasonService.js`）で使う Annict の個人用アクセストークン。下記「Annict のトークン」参照 |
 | `RAKUTEN_APPLICATION_ID` / `RAKUTEN_ACCESS_KEY` | ○ | 漫画の発売日（`ReleaseService.js`）・おすすめの実在の確認（`RecommendService.js`）・作品の作者・出版社の取得（`TitleAuthorService.js`）で使う楽天ウェブサービスのアプリ ID とアクセスキー。下記「楽天ウェブサービスのアプリ ID・アクセスキー」参照 |
+| `OFFLINE_PAGE_URL` | - | オフラインの所持確認ページの URL。省略時 `https://carrot-99.github.io/PersonalLibrary/`。手元で試すときだけ設定する（2-8） |
 
 - 予算目安: 月 100 円以内（写真の解析を月 5 回程度で Sonnet なら約 30 円。おすすめは画像を送らないので 1 回あたりはそれより安い。[おすすめを探す] を押したときだけ費用がかかる）。精度が足りなければ `ANTHROPIC_MODEL` を上位モデルに、コストを下げたいなら下位モデルに変える（コード変更不要）
 - 接続確認: GAS エディタで関数 `testAnthropicConnection` を選んで実行
