@@ -1417,6 +1417,18 @@
   .release-item { flex-wrap: wrap; }
   .release-day { flex: 0 0 5.5em; font-weight: bold; color: var(--accent); }
   .wish-item > .release-title { flex: 1 1 12em; min-width: 0; }
+  /* ホームのオフライン所持確認（Offline.html） */
+  .offline-sync { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 10px 0; padding: 10px 12px; border: 1px solid var(--border); border-left: 4px solid var(--brand); border-radius: 10px; background: var(--surface); }
+  .offline-sync-text { flex: 1 1 16em; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-size: 0.9rem; }
+  .offline-sync-status { color: var(--text-muted); }
+  .offline-sync-status.is-stale { color: var(--danger-strong); }
+  .offline-sync-message { flex-basis: 100%; color: var(--text-muted); }
+  .offline-sync-message:empty { display: none; }
+  .offline-sync-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .offline-sync-actions > button, .offline-sync-actions > a { margin: 0; padding: 8px 14px; font-size: 0.95rem; font-weight: 600; line-height: 1.4; border-radius: var(--radius-sm); }
+  a.offline-sync-link { display: inline-block; background: var(--primary); color: var(--on-primary); text-decoration: none; }
+  a.offline-sync-link:hover { background: var(--primary-hover); color: var(--on-primary); }
+  a.offline-sync-link[hidden] { display: none; }
   .release-badge {
     display: inline-block;
     margin-left: 6px;

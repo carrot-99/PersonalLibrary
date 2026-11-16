@@ -14,6 +14,7 @@ let homeSectionsReady = false;
 // options.refresh: 欲しい巻に追加した後（表示中のまま取り直す）
 function loadHomeView(options = {}){
   setupHomeSections();
+  renderOfflineSyncStatus();
   callGASCached('home', 'getHomeDataWeb', function(res){
     if(!res || !res.success) return showError(res && res.message ? res.message : 'ホームの読み込みに失敗しました');
     renderHome(res);

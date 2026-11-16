@@ -1,0 +1,110 @@
+<!-- Offline.html -->
+<script>
+//////////////////////////////
+// オフラインの所持確認ページ（GitHub Pages）へデータを渡す（ホームの「オフライン所持確認」欄）
+// 1. [データを用意] で getOfflineSnapshotWeb を呼び、圧縮して URL の # 以降に入れたリンクを作る
+// 2. リンクを押すと所持確認ページが新しいタブで開き、データをその端末に保存する
+//    （# 以降はサーバーに送られないので、蔵書のデータは GitHub に届かない）
+// リンクを分けるのは、データを用意する間（非同期）にボタンを押した扱いが切れ、ページを開けなくなるため
+//////////////////////////////
+const OFFLINE_SYNCED_STORAGE_KEY = 'personalLibrary.offlineSyncedAt';
+// これより古いと更新を促す（日数）
+const OFFLINE_STALE_DAYS = 7;
+
+function prepareOfflineSync(){
+  const button = document.getElementById('offlineSyncButton');
+  const link = document.getElementById('offlineSyncLink');
+  button.disabled = true;
+  link.hidden = true;
+  setOfflineSyncMessage('データを用意しています...');
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      if(!res || !res.success){
+        button.disabled = false;
+        setOfflineSyncMessage('');
+        return showError(res && res.message ? res.message : 'オフライン用のデータを用意できませんでした');
+      }
+      encodeOfflineSnapshot(res.snapshot).then(function(encoded){
+        link.href = buildOfflineSyncUrl(res.pageUrl, encoded);
+        link.hidden = false;
+        button.disabled = false;
+        setOfflineSyncMessage(`${res.snapshot.t.length}作品・${res.snapshot.count}冊を用意しました。[所持確認ページに保存 →] を押すと保存します`);
+      }).catch(function(error){
+        button.disabled = false;
+        setOfflineSyncMessage('');
+        showError('オフライン用のデータを圧縮できませんでした: ' + (error && error.message ? error.message : error));
+      });
+    })
+    .withFailureHandler(function(error){
+      button.disabled = false;
+      setOfflineSyncMessage('');
+      showError(error && error.message ? error.message : '通信に失敗しました');
+    })
+    .getOfflineSnapshotWeb();
+}
+
+// リンクを押したとき（所持確認ページが開く）。押した日時を覚えて、次から「最終更新」に出す
+function markOfflineSynced(){
+  try { localStorage.setItem(OFFLINE_SYNCED_STORAGE_KEY, String(Date.now())); } catch(e) {}
+  document.getElementById('offlineSyncLink').hidden = true;
+  setOfflineSyncMessage('');
+}
+
+function setOfflineSyncMessage(text){
+  document.getElementById('offlineSyncMessage').textContent = text;
+  renderOfflineSyncStatus();
+}
+
+function renderOfflineSyncStatus(){
+  let syncedAt = null;
+  try { syncedAt = Number(localStorage.getItem(OFFLINE_SYNCED_STORAGE_KEY)) || null; } catch(e) {}
+  const status = describeOfflineSyncStatus(syncedAt, Date.now());
+  const el = document.getElementById('offlineSyncStatus');
+  el.textContent = status.text;
+  el.classList.toggle('is-stale', status.stale);
+}
+
+//////////////////////////////
+// DOM を使わない処理
+//////////////////////////////
+// 最終更新の表示。syncedAt: 前回保存した日時（ミリ秒。なければ null）
+function describeOfflineSyncStatus(syncedAt, now){
+  if(!syncedAt) return { text: 'この端末からはまだ保存していません', stale: true };
+  const days = Math.floor((now - syncedAt) / 86400000);
+  const date = new Date(syncedAt);
+  const label = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+  return {
+    text: `最終更新: ${label}${days >= 1 ? `（${days}日前）` : '（今日）'}`,
+    stale: days >= OFFLINE_STALE_DAYS
+  };
+}
+
+// データを URL に入れられる文字列にする。
+// 圧縮できるブラウザ（CompressionStream）は "d." + deflate-raw で圧縮した base64url、できなければ "j." + JSON の base64url
+// 読み取りは pages/lookup.js の decodeSnapshot
+function encodeOfflineSnapshot(snapshot){
+  const bytes = new TextEncoder().encode(JSON.stringify(snapshot));
+  if(typeof CompressionStream !== 'function') return Promise.resolve('j.' + toBase64Url(bytes));
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+  return new Response(stream).arrayBuffer().then(buffer => 'd.' + toBase64Url(new Uint8Array(buffer)));
+}
+
+function toBase64Url(bytes){
+  let binary = '';
+  const CHUNK = 0x8000;
+  for(let i = 0; i < bytes.length; i += CHUNK){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+  // 「/」は正規表現にすると GAS の配信時にコメント扱いされるので split で置き換える
+  return btoa(binary).split('+').join('-').split('/').join('_').replace(/=+$/, '');
+}
+
+function buildOfflineSyncUrl(pageUrl, encoded){
+  return String(pageUrl).split('#')[0] + '#sync=' + encoded;
+}
+
+window.prepareOfflineSync = prepareOfflineSync;
+window.markOfflineSynced = markOfflineSynced;
+window.renderOfflineSyncStatus = renderOfflineSyncStatus;
+</script>

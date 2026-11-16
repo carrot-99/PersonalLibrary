@@ -25,6 +25,19 @@
 
   <div id="homeReleaseStatus" class="release-status"></div>
 
+  <!-- オフライン所持確認（回線が悪い場所でも所持巻を見られる GitHub Pages のページにデータを渡す。Offline.html） -->
+  <div class="offline-sync book-only">
+    <div class="offline-sync-text">
+      <strong>📱 オフライン所持確認</strong>
+      <span id="offlineSyncStatus" class="offline-sync-status"></span>
+      <span id="offlineSyncMessage" class="offline-sync-message"></span>
+    </div>
+    <div class="offline-sync-actions">
+      <button type="button" id="offlineSyncButton" class="anime-season-button" onclick="prepareOfflineSync()">データを用意</button>
+      <a id="offlineSyncLink" class="anime-season-button offline-sync-link" target="_blank" rel="noopener" hidden onclick="markOfflineSynced()">所持確認ページに保存 →</a>
+    </div>
+  </div>
+
   <div class="home-sections">
     <details class="home-section" data-section="reading" open>
       <summary><h4 class="release-heading"><span class="home-icon" aria-hidden="true">📖</span>積読 <span id="homeReadingCount" class="release-count"></span>
