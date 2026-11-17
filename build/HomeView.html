@@ -1,5 +1,5 @@
 <!-- HomeView.html -->
-<!-- ホーム（書籍・アニメ共通。起動時に開く）。発売予定・未所持の巻・欲しい巻・視聴中のアニメをまとめて表示 -->
+<!-- ホーム（書籍・アニメ共通。起動時に開く）。発売予定・未所持の巻・欲しい巻・気になる作品・視聴中のアニメをまとめて表示 -->
 <!-- 各欄は 1 枚のパネル（.home-section。上端の色は data-section ごと）。見出しを押すとたためる（<details>。開閉はこのブラウザに保存。setupHomeSections） -->
 <div id="HomeView" class="view" style="display:none;">
   <h3>ホーム</h3>
@@ -74,6 +74,13 @@
       <summary><h4 class="release-heading"><span class="home-icon" aria-hidden="true">⭐</span>欲しい巻リスト <span id="homeWishCount" class="release-count"></span>
         <a href="#" class="home-more" onclick="event.preventDefault(); event.stopPropagation(); showTab('WishListView');">欲しい巻リスト →</a></h4></summary>
       <div id="homeWishes" class="wish-groups"></div>
+    </details>
+
+    <!-- 気になる作品（登録済みでないもの。新しい順） -->
+    <details class="home-section" data-section="interests" open>
+      <summary><h4 class="release-heading"><span class="home-icon" aria-hidden="true">💡</span>気になる作品 <span id="homeInterestCount" class="release-count"></span>
+        <a href="#" class="home-more" onclick="event.preventDefault(); event.stopPropagation(); showTab('InterestView');">気になる作品 →</a></h4></summary>
+      <div id="homeInterests" class="wish-groups"></div>
     </details>
 
     <details class="home-section" data-section="watching" open>

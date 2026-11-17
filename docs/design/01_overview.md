@@ -85,12 +85,13 @@ PersonalLibrary/
     │   ├── AnimeService.js      M_Anime / M_AnimeSeason / M_AnimeWatch（アニメ）関連 API
     │   ├── AnimeSeasonService.js 今期のアニメ一覧（Annict API から取得・登録状況の照合）
     │   ├── ReleaseService.js    連載中の漫画・ラノベの発売日（楽天ブックス API から取得・所持巻との照合）
-    │   ├── HomeService.js       ホーム画面（積読・発売予定・欲しい巻・視聴中のアニメをまとめて取得）
+    │   ├── HomeService.js       ホーム画面（積読・発売予定・欲しい巻・気になる作品・視聴中のアニメをまとめて取得）
     │   ├── OfflineService.js    オフラインの所持確認ページに渡すデータ（1.6）
     │   ├── ReadService.js       M_Read（書籍の読書状況）関連 API
     │   ├── RecommendService.js  おすすめの漫画（AI に依頼・楽天で実在を確認・M_Recommend に保存）
     │   ├── JumpService.js       ジャンプ作品（作品一覧との照合・印を M_JumpCheck に保存）
     │   ├── JumpTitles.js        週刊少年ジャンプの連載作品一覧（全巻数付き）の定数
+    │   ├── InterestService.js   気になる作品（M_Interest。おすすめ・ジャンプの「気になる」もまとめ、登録済みを照合）
     │   └── Code.js              旧実装（全行コメントアウト済み）
     └── client/              クライアントサイド（HTML テンプレート）
         ├── Index.html           ベースレイアウト
@@ -99,6 +100,7 @@ PersonalLibrary/
         ├── Common.html          共通 JS
         ├── Scripts.html         空テンプレート（未使用）
         ├── home/     Home.html(JS)・Offline.html(JS) / HomeView
+        ├── interest/ Interest.html(JS) / InterestView
         ├── library/  Library.html(JS) / PhotoImport.html(JS) / Wish.html(JS) / Release.html(JS) / Recommend.html(JS) / Jump.html(JS) / PhotoImportView / WishListView / ReleaseView / RecommendView / JumpView / LibraryListView
         ├── title/    Title.html(JS)   / TitleView / TitleListView
         ├── series/   Series.html(JS)  / SeriesView / SeriesListView

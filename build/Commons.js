@@ -19,7 +19,8 @@ const SHEETS = {
   RELEASE_CHECK: 'M_ReleaseCheck',
   READ:          'M_Read',
   RECOMMEND:     'M_Recommend',
-  JUMP_CHECK:    'M_JumpCheck'
+  JUMP_CHECK:    'M_JumpCheck',
+  INTEREST:      'M_Interest'
 };
 
 // ----------------------

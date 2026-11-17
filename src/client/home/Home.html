@@ -102,6 +102,7 @@ function renderHome(data){
   renderHomeReleases('homeMonth', 'homeMonthCount', release.thisMonth || [], '今月発売の巻はありません', later);
   renderHomeUnowned(release.unowned || []);
   renderHomeWishes(data.wishes || []);
+  renderHomeInterests(data.interests || []);
   renderHomeWatching(data.watching || [], data.plannedCount || 0);
 }
 
@@ -279,6 +280,33 @@ function renderHomeWishes(wishes){
     return line;
   });
   const rest = groups.length - HOME_LIST_LIMIT;
+  container.appendChild(createHomeCard('', lines, rest > 0 ? `ほか ${rest}作品` : ''));
+}
+
+// 気になる作品（登録済みでないもの）。種別＋作品名、メモ
+function renderHomeInterests(items){
+  const container = document.getElementById('homeInterests');
+  container.innerHTML = '';
+  document.getElementById('homeInterestCount').textContent = `${items.length}作品`;
+  if(items.length === 0) return renderHomeEmpty(container, '気になる作品はまだありません');
+
+  const lines = items.slice(0, HOME_LIST_LIMIT).map(item => {
+    const line = document.createElement('div');
+    line.className = 'wish-item release-item';
+    const text = document.createElement('span');
+    text.className = 'release-title';
+    text.appendChild(createInterestTypeBadge(item.type));
+    text.appendChild(createCellLink(item.name, function(){ showTab('InterestView'); }));
+    line.appendChild(text);
+    if(item.memo){
+      const memo = document.createElement('span');
+      memo.className = 'wish-item-date';
+      memo.textContent = item.memo.length > 30 ? `${item.memo.slice(0, 30)}…` : item.memo;
+      line.appendChild(memo);
+    }
+    return line;
+  });
+  const rest = items.length - HOME_LIST_LIMIT;
   container.appendChild(createHomeCard('', lines, rest > 0 ? `ほか ${rest}作品` : ''));
 }
 

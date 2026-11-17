@@ -1,0 +1,35 @@
+<!-- InterestView.html -->
+<!-- 気になる作品（書籍・アニメ共通。まだ持っていない・見ていない漫画・ラノベ・アニメを作品単位で記録する） -->
+<!-- おすすめ・ジャンプ作品で「気になる」にした作品もまとめて表示。作品一覧・アニメ一覧に同じ名前の作品があれば「登録済み」に分ける -->
+<div id="InterestView" class="view" style="display:none;">
+  <h3>気になる作品</h3>
+
+  <div class="photo-import-panel wish-form">
+    <p class="photo-import-note">気になる漫画・ラノベ・アニメを作品単位で記録しておけます。おすすめ・ジャンプ作品で「気になる」にした作品もここに並びます。作品一覧・アニメ一覧に同じ名前の作品を登録すると「登録済み」に移ります。</p>
+    <input id="interestNameInput" placeholder="作品名" autocomplete="off">
+    <select id="interestTypeSelect" aria-label="種別">
+      <option value="漫画">漫画</option>
+      <option value="ラノベ">ラノベ</option>
+      <option value="アニメ">アニメ</option>
+    </select>
+    <input id="interestMemoInput" placeholder="メモ（任意） 例: 友だちのおすすめ・2026年春アニメ化">
+    <div class="interest-form-actions">
+      <button id="interestSaveButton" type="button" onclick="saveInterestFromForm()">気になる作品に追加</button>
+      <button id="interestCancelButton" type="button" class="interest-cancel" style="display:none;" onclick="resetInterestForm()">キャンセル</button>
+    </div>
+  </div>
+
+  <div class="list-mode-switch jump-filter interest-filter" role="group" aria-label="表示する種別">
+    <button type="button" data-interest-filter="" onclick="setInterestFilter('')">すべて</button>
+    <button type="button" data-interest-filter="漫画" onclick="setInterestFilter('漫画')">漫画</button>
+    <button type="button" data-interest-filter="ラノベ" onclick="setInterestFilter('ラノベ')">ラノベ</button>
+    <button type="button" data-interest-filter="アニメ" onclick="setInterestFilter('アニメ')">アニメ</button>
+  </div>
+
+  <div id="interestSummary" class="photo-import-summary"></div>
+  <div id="interestList" class="jump-cards"></div>
+
+  <h4 class="release-heading">登録済み <span id="interestRegisteredCount" class="release-count"></span></h4>
+  <p class="photo-import-note">作品一覧・アニメ一覧に同じ名前の作品があります。不要になったら削除してください（おすすめ・ジャンプ作品の分は、それぞれの画面で印を外すと消えます）。</p>
+  <div id="interestRegistered" class="jump-cards"></div>
+</div>
