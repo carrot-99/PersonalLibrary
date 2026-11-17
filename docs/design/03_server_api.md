@@ -573,7 +573,7 @@ Annict API（`GET https://api.annict.com/v1/works`）から期ごとの作品を
 
 | 関数 | 内容 |
 |---|---|
-| `getHomeDataWeb()` | 画面用。戻り値 `{ success, release, wishes, watching, plannedCount, reading, recentRead }`。`reading` は `getUnreadSummary()`、`recentRead` は `getRecentReadSummary(今日)`（3.9.5）。`release` は `getReleaseViewWeb` の結果を分けたもの `{ success, configured, lastFetchedAt, thisWeek, thisMonth, laterCount, unowned }`（`thisWeek` / `thisMonth` の要素は `upcoming`、`unowned` は「完結済みかも」を除いた `unowned`。発売予定の取得に失敗したときは `{ success: false, message }` で、他の欄は返す）。`wishes` は `getWishList()`、`watching` は `getAnimeData()` の `seasons` のうち状況が `視聴中` のもの（最近更新した順）、`plannedCount` は `視聴予定` の件数 |
+| `getHomeDataWeb()` | 画面用。戻り値 `{ success, release, wishes, watching, plannedCount, reading, recentRead, interests }`。`interests` は `getInterestViewWeb()` の `items` のうち登録済みでないもの（3.9.9）。`reading` は `getUnreadSummary()`、`recentRead` は `getRecentReadSummary(今日)`（3.9.5）。`release` は `getReleaseViewWeb` の結果を分けたもの `{ success, configured, lastFetchedAt, thisWeek, thisMonth, laterCount, unowned }`（`thisWeek` / `thisMonth` の要素は `upcoming`、`unowned` は「完結済みかも」を除いた `unowned`。発売予定の取得に失敗したときは `{ success: false, message }` で、他の欄は返す）。`wishes` は `getWishList()`、`watching` は `getAnimeData()` の `seasons` のうち状況が `視聴中` のもの（最近更新した順）、`plannedCount` は `視聴予定` の件数 |
 | `splitHomeReleases(upcoming, today)` | 発売予定（発売日順）を分ける。戻り値 `{ thisWeek, thisMonth, laterCount }`。今週: 日付まで分かっていて今日から 7 日以内（今日を含む。`HOME_WEEK_DAYS`、月をまたいでもよい）。今月: 今週以外で今月中（「11月下旬」「11月頃」など日付のないものを含む）。それ以外は件数だけ |
 
 ---
@@ -673,6 +673,23 @@ GitHub Pages の所持確認ページ（1.6）に渡すデータを作ります�
 
 ---
 
+## 3.9.9 気になる作品（`server/InterestService.js`）
+
+まだ持っていない・見ていない漫画・ラノベ・アニメを作品単位で `M_Interest`（2.3.14）に記録します。おすすめ・ジャンプ作品で「気になる」にした作品も、元のシートから読んで一緒に返します。
+
+| 関数 | 内容 |
+|---|---|
+| `getInterestViewWeb()` | 画面用。戻り値 `{ success, items: [{ key, id, source, name, type, memo, author, url, date, dateValue, registered }] }`。`source` は `manual`（`M_Interest`）/ `recommend`（`M_Recommend` の状態 `気になる`。`memo` はおすすめの理由、`url` は楽天の商品ページ）/ `jump`（`M_JumpCheck` の状態 `気になる`。`author` は `JUMP_TITLES` の作者）。`id` は InterestID / RecommendID / ジャンプの No、`key` は `source:id`。おすすめ・ジャンプは種別 `漫画`。`date` は追加日（おすすめは作成日、ジャンプは印の更新日）で、新しい順に並べる。`registered` は作品一覧・アニメ一覧に同じ名前の作品があれば `{ kind: 'title' / 'anime', id, name }`、なければ `null` |
+| `addInterestWeb(name, type, memo)` | 追加（スクリプトロック）。戻り値 `success('「作品名」を気になる作品に追加しました')` ＋ `id`。エラー: 作品名が空・種別が `漫画` / `ラノベ` / `アニメ` 以外・`checkText` の規則（3.1.4。メモは 200 文字）/ 同じ種別・同じ名前（正規化して比較）を追加済み / 作品一覧・アニメ一覧に登録済み |
+| `updateInterestWeb(id, name, type, memo)` | 作品名・種別・メモを更新（追加日は変えない。スクリプトロック）。エラーは追加と同じ（登録済みのチェックはしない）＋ ID がない |
+| `deleteInterestWeb(id)` | 1 件削除（スクリプトロック） |
+
+- 登録済みの照合（`buildInterestIndex` / `findInterestRegistered`）: 照合キーはジャンプ作品と同じ `getJumpMatchKeys`（3.9.7）で、キーが 1 つでも完全に一致すれば同じ作品。漫画・ラノベは `M_Title` の種別が同じ作品を優先し、種別が未設定の作品とも一致にする。アニメは `M_Anime` の作品名と照合する。
+
+内部関数: `getInterestSheet()`（シート作成）、`getInterestRows()`、`checkInterestInput(name, type, memo)`、`findDuplicateInterest(name, type, exceptId)`。
+
+---
+
 ## 3.10 API 呼び出し元一覧
 
 | API | 呼び出し元（クライアント関数） |
@@ -689,6 +706,7 @@ GitHub Pages の所持確認ページ（1.6）に渡すデータを作ります�
 | `updateReleasesByTrigger` | 毎日 5 時台の時間主導トリガー（`setupReleaseTrigger` で設定） |
 | `getRecommendViewWeb` / `createRecommendationsWeb` / `setRecommendStatusWeb` | `loadRecommendView`（おすすめを開いたとき・作成や状態の変更の後）/ `createRecommendations`（[おすすめを探す]）/ `setRecommendStatus`（[気になる] [興味なし] [候補に戻す]） |
 | `getJumpViewWeb` / `setJumpStatusWeb` | `loadJumpView`（ジャンプ作品を開いたとき・印の変更の後）/ `toggleJumpStatus`（[気になる] [興味なし] [持っている]） |
+| `getInterestViewWeb` / `addInterestWeb` / `updateInterestWeb` / `deleteInterestWeb` | `loadInterestView`（気になる作品を開いたとき・追加や削除の後）/ `saveInterestFromForm`（[気になる作品に追加]・[更新]）/ `deleteInterestItem`（[削除]） |
 | `setupReleaseTrigger` | Apps Script エディタから手動実行（1 回だけ） |
 | `getWishKeys` | `appendTitleWishLine`（作品表示） |
 | `getTitleDetail` | `showTitle`, `onWishTitleInput`（欲しい巻リストの「次の巻」） |

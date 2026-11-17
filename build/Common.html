@@ -20,7 +20,7 @@ function init(){
 }
 
 // 書籍・アニメ共通の画面（開いてもモードを切り替えない）
-const COMMON_VIEW_IDS = ['HomeView', 'SeriesListView', 'SeriesView'];
+const COMMON_VIEW_IDS = ['HomeView', 'InterestView', 'SeriesListView', 'SeriesView'];
 
 // 戻り値: 'anime' / 'book'、共通の画面は null
 function getModeOfView(viewId){
@@ -245,6 +245,7 @@ function showTab(tabId){
     HomeView: function(){ loadHomeView(); },
     PhotoImportView: loadPhotoImportView,
     WishListView: loadWishListView,
+    InterestView: function(){ loadInterestView(); },
     ReleaseView: loadReleaseView,
     RecommendView: function(){ loadRecommendView(); },
     JumpView: function(){ loadJumpView(); },

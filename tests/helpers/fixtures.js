@@ -8,7 +8,11 @@ const HEADERS = {
   M_Title:   ['TitleID', '作品名', 'SeriesID', '種別', '完結', '予備'],
   M_Box:     ['BoxID', '保管場所'],
   M_Series:  ['SeriesID', 'シリーズ名'],
-  M_Wish:    ['WishID', 'TitleID', '巻数', 'メモ', '追加日']
+  M_Wish:    ['WishID', 'TitleID', '巻数', 'メモ', '追加日'],
+  M_Interest: ['InterestID', '作品名', '種別', 'メモ', '追加日'],
+  M_Recommend: ['RecommendID', '作品名', '作者', 'おすすめの理由', '似ている作品', '状態', '楽天URL', '画像URL', '確認', '作成日'],
+  M_JumpCheck: ['No', '作品名', '状態', '更新日'],
+  M_Anime:   ['AnimeID', '作品名', 'SeriesID']
 };
 
 // 基本のマスタ一式。overrides でシートごとのデータ行を差し替える

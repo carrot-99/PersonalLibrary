@@ -1,0 +1,226 @@
+<!-- Interest.html -->
+<script>
+//////////////////////////////
+// 気になる作品（書籍・アニメ共通）
+// getInterestViewWeb の items を、登録済みでないもの・登録済みに分けて表示する
+//////////////////////////////
+const INTEREST_TYPE_OPTIONS = ['漫画', 'ラノベ', 'アニメ'];
+const INTEREST_SOURCE_LABELS = { recommend: 'おすすめ', jump: 'ジャンプ' };
+
+const interestState = {
+  items: null,
+  filter: '',
+  editingId: ''
+};
+
+// refresh: true なら前回の結果を描画せず取り直すだけ（追加・更新・削除の後）
+function loadInterestView(refresh){
+  if(refresh !== true) resetInterestForm();
+  if(interestState.items) renderInterestView();
+  callGASCached('interest.view', 'getInterestViewWeb', function(res){
+    if(!res || !res.success) return showError(res && res.message ? res.message : '気になる作品の読み込みに失敗しました');
+    interestState.items = res.items || [];
+    renderInterestView();
+  }, { viewId: 'InterestView', refresh: refresh === true, errorMessage: '気になる作品の読み込みに失敗しました' });
+}
+
+function setInterestFilter(type){
+  interestState.filter = INTEREST_TYPE_OPTIONS.includes(type) ? type : '';
+  renderInterestView();
+}
+
+//////////////////////////////
+// 追加・更新・削除
+//////////////////////////////
+function saveInterestFromForm(){
+  const name = document.getElementById('interestNameInput').value.trim();
+  const type = document.getElementById('interestTypeSelect').value;
+  const memo = document.getElementById('interestMemoInput').value.trim();
+  const message = checkInterestInput(name, type, memo);
+  if(message) return showError(message);
+
+  const editingId = interestState.editingId;
+  const button = document.getElementById('interestSaveButton');
+  button.disabled = true;
+  const onDone = function(res){
+    button.disabled = false;
+    if(res && res.success){
+      showSuccess(res.message);
+      resetInterestForm();
+      loadInterestView(true);
+    } else {
+      showError(res && res.message ? res.message : '保存に失敗しました');
+    }
+  };
+  if(editingId){
+    callGAS('updateInterestWeb', onDone, editingId, name, type, memo);
+  } else {
+    callGAS('addInterestWeb', onDone, name, type, memo);
+  }
+}
+
+// 編集: 上のフォームに値を入れて [更新] にする
+function startInterestEdit(item){
+  interestState.editingId = item.id;
+  document.getElementById('interestNameInput').value = item.name;
+  document.getElementById('interestTypeSelect').value = INTEREST_TYPE_OPTIONS.includes(item.type) ? item.type : '漫画';
+  document.getElementById('interestMemoInput').value = item.memo || '';
+  document.getElementById('interestSaveButton').textContent = '更新';
+  document.getElementById('interestCancelButton').style.display = '';
+  const input = document.getElementById('interestNameInput');
+  input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  input.focus();
+}
+
+function resetInterestForm(){
+  interestState.editingId = '';
+  document.getElementById('interestNameInput').value = '';
+  document.getElementById('interestMemoInput').value = '';
+  // 種別はアニメモードならアニメを初期値にする
+  document.getElementById('interestTypeSelect').value = appMode === 'anime' ? 'アニメ' : '漫画';
+  document.getElementById('interestSaveButton').textContent = '気になる作品に追加';
+  document.getElementById('interestCancelButton').style.display = 'none';
+}
+
+function deleteInterestItem(item, btn){
+  btn.disabled = true;
+  callGAS('deleteInterestWeb', function(res){
+    if(res && res.success){
+      showSuccess(res.message);
+      if(interestState.editingId === item.id) resetInterestForm();
+      loadInterestView(true);
+    } else {
+      btn.disabled = false;
+      showError(res && res.message ? res.message : '削除に失敗しました');
+    }
+  }, item.id);
+}
+
+//////////////////////////////
+// 検証・絞り込み（DOM を使わない）
+//////////////////////////////
+// サーバーの checkInterestInput（InterestService.js）と同じ規則。戻り値: エラーメッセージ（問題なければ ''）
+function checkInterestInput(name, type, memo){
+  if(!INTEREST_TYPE_OPTIONS.includes(String(type || ''))) return `種別は ${INTEREST_TYPE_OPTIONS.join(' / ')} から選んでください`;
+  return checkTextInputs([
+    ['作品名', name, { required: true }],
+    ['メモ', memo, { max: MEMO_MAX_LENGTH }]
+  ]);
+}
+
+// 登録済みでないもの（pending）と登録済み（registered）に分ける。type を指定すればその種別だけ
+function splitInterestItems(items, type){
+  const visible = (items || []).filter(item => !type || item.type === type);
+  return {
+    pending: visible.filter(item => !item.registered),
+    registered: visible.filter(item => !!item.registered)
+  };
+}
+
+// 種別ごとの件数（登録済みでないもの。'' はすべて）
+function countInterestTypes(items){
+  const pending = (items || []).filter(item => !item.registered);
+  const counts = { '': pending.length };
+  INTEREST_TYPE_OPTIONS.forEach(type => { counts[type] = pending.filter(item => item.type === type).length; });
+  return counts;
+}
+
+//////////////////////////////
+// 描画
+//////////////////////////////
+function renderInterestView(){
+  const items = interestState.items;
+  if(!items) return;
+
+  const counts = countInterestTypes(items);
+  document.querySelectorAll('#InterestView [data-interest-filter]').forEach(button => {
+    const type = button.dataset.interestFilter;
+    button.classList.toggle('active', type === interestState.filter);
+    button.textContent = `${type || 'すべて'} ${counts[type]}`;
+  });
+
+  const split = splitInterestItems(items, interestState.filter);
+  document.getElementById('interestSummary').textContent = split.pending.length > 0
+    ? `${split.pending.length}作品`
+    : '気になる作品はまだありません';
+  document.getElementById('interestRegisteredCount').textContent = `${split.registered.length}作品`;
+
+  renderInterestCards('interestList', split.pending);
+  renderInterestCards('interestRegistered', split.registered);
+}
+
+function renderInterestCards(containerId, items){
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  items.forEach(item => container.appendChild(createInterestCard(item)));
+}
+
+function createInterestTypeBadge(type){
+  if(type === 'アニメ') return createReleaseBadge(type, 'is-type is-anime');
+  return createReleaseBadge(type || '種別なし', type === 'ラノベ' ? 'is-type is-novel' : 'is-type');
+}
+
+// 登録済みの作品を開く（作品はその詳細、アニメはアニメ一覧）
+function openInterestRegistered(registered){
+  if(registered.kind === 'anime') showTab('AnimeListView');
+  else openTitleDetail(registered.id);
+}
+
+function createInterestCard(item){
+  const card = document.createElement('div');
+  card.className = 'wish-group jump-card interest-card';
+  if(item.registered) card.classList.add('is-owned');
+
+  const head = document.createElement('div');
+  head.className = 'jump-card-head';
+  head.appendChild(createInterestTypeBadge(item.type));
+  const name = document.createElement('strong');
+  name.textContent = item.name;
+  head.appendChild(name);
+  if(INTEREST_SOURCE_LABELS[item.source]) head.appendChild(createReleaseBadge(INTEREST_SOURCE_LABELS[item.source], 'is-stale'));
+  card.appendChild(head);
+
+  const meta = document.createElement('div');
+  meta.className = 'jump-card-meta';
+  meta.textContent = [item.author, item.date ? `追加 ${item.date}` : ''].filter(Boolean).join('　');
+  if(meta.textContent) card.appendChild(meta);
+
+  if(item.memo){
+    const memo = document.createElement('div');
+    memo.className = 'jump-card-meta interest-memo';
+    memo.textContent = item.memo;
+    card.appendChild(memo);
+  }
+
+  if(item.registered){
+    const link = document.createElement('div');
+    link.className = 'jump-card-meta';
+    link.appendChild(document.createTextNode(item.registered.kind === 'anime' ? 'アニメ一覧: ' : '作品一覧: '));
+    link.appendChild(createCellLink(item.registered.name, function(){ openInterestRegistered(item.registered); }));
+    card.appendChild(link);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'recommend-actions';
+  if(!item.registered && item.type !== 'アニメ'){
+    const shop = createReleaseShopLink(item.url || buildJumpShopUrl(item.name));
+    actions.appendChild(shop);
+  }
+  if(item.source === 'manual'){
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'recommend-action';
+    edit.textContent = '編集';
+    edit.addEventListener('click', function(){ startInterestEdit(item); });
+    actions.appendChild(edit);
+    actions.appendChild(createDeleteButton(btn => deleteInterestItem(item, btn)));
+  } else {
+    const viewId = item.source === 'recommend' ? 'RecommendView' : 'JumpView';
+    actions.appendChild(createCellLink(`${INTEREST_SOURCE_LABELS[item.source]}で見る →`, function(){ showTab(viewId); }));
+  }
+  card.appendChild(actions);
+  return card;
+}
+
+window.loadInterestView = loadInterestView;
+</script>
