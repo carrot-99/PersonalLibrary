@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadClient, plain } = require('./helpers/gasHarness');
 
-const client = loadClient(['Common.html', 'title/Title.html', 'library/PhotoImport.html']);
+const client = loadClient(['Common.html', 'title/Title.html', 'library/PhotoImport.html', 'library/Library.html']);
 
 const rows = [
   { volume: '1', read: '読了' },
@@ -59,12 +59,6 @@ test('buildTitleVolumeGrid: 小数の巻（5.5 など）は数の順に間へ入
   ]);
 });
 
-test('getVolumeToggleStatus: 巻を押したときの読書状況（読了 → 未読、それ以外 → 読了）', () => {
-  assert.equal(client.getVolumeToggleStatus('read'), '未読');
-  assert.equal(client.getVolumeToggleStatus('unread'), '読了');
-  assert.equal(client.getVolumeToggleStatus('reading'), '読了');
-});
-
 test('pickVolumesToMarkRead: 選んだ巻まで（巻の順）の、まだ読了でない巻', () => {
   const owned = [
     { id: 'L1', volume: '1', read: '読了' },
@@ -96,4 +90,22 @@ test('pickPhotoReadKeys: 所持済みで読了でなく、外していない巻�
     { key: 'T1|4', owned: false, markRead: true }
   ], statuses);
   assert.deepEqual(Array.from(keys), ['T1|1']);
+});
+
+test('checkVolumeRename: 1 巻だけ・変わっていない・同じ作品の巻と重なるときはメッセージ', () => {
+  const owned = [{ id: 'L1', volume: '1' }, { id: 'L2', volume: '2' }, { id: 'L3', volume: '外伝' }];
+  assert.equal(client.checkVolumeRename(owned, 'L2', '2.5'), '');
+  assert.equal(client.checkVolumeRename(owned, 'L2', ' 上 '), '');
+  assert.equal(client.checkVolumeRename(owned, 'L2', '2'), '巻数が変わっていません');
+  assert.match(client.checkVolumeRename(owned, 'L2', '1'), /1 の巻が既に登録されています/);
+  assert.match(client.checkVolumeRename(owned, 'L2', '外伝'), /既に登録されています/);
+  assert.match(client.checkVolumeRename(owned, 'L2', '3-4'), /1 巻だけ/);
+  assert.match(client.checkVolumeRename(owned, 'L2', ''), /巻数を入力/);
+});
+
+test('appendVolumeToInput: 巻の追加の欄に巻を「, 」でつなぐ（同じ巻は足さない）', () => {
+  assert.equal(client.appendVolumeToInput('', '3'), '3');
+  assert.equal(client.appendVolumeToInput('3', '5'), '3, 5');
+  assert.equal(client.appendVolumeToInput('3,5', '3'), '3, 5');
+  assert.equal(client.appendVolumeToInput('1-2', ''), '1-2');
 });

@@ -1,5 +1,5 @@
 <!-- TitleView.html -->
-<!-- 作品の詳細。作品名・種別・完結の見出し、数字のまとめ（所持・抜け・積読・次の巻）、所持状況の詳細、巻の一覧（所持・読書・抜け・欲しい巻を色で）、巻ごとの Box の表 -->
+<!-- 作品の詳細。作品名・種別・完結の見出し、数字のまとめ（所持・抜け・積読・次の巻）、所持状況の詳細、巻の一覧（所持・読書・抜け・欲しい巻を色で。巻の読書状況・巻数の変更と巻の追加）、巻ごとの Box の表 -->
 <div id="TitleView" class="view">
   <button type="button" class="detail-back" style="display:none;" onclick="backFromDetail()">← 戻る</button>
   <h3>作品の詳細</h3>
@@ -30,7 +30,25 @@
       <span><i class="volume-chip is-missing"></i>未所持</span>
       <span><i class="volume-chip is-wish"></i>欲しい巻</span>
     </div>
-    <p class="volume-hint">持っている巻を押すと、読了 ⇄ 未読 を切り替えます。</p>
+    <p class="volume-hint">持っている巻を押すと、読書状況（未読・読書中・読了）と巻数を変更できます。持っていない巻を押すと、下の「巻を追加」に入ります。</p>
+    <div id="titleVolumeEditor" class="volume-editor" style="display:none;"></div>
+
+    <div class="volume-add">
+      <h5 class="volume-add-title">巻を追加</h5>
+      <div class="volume-add-fields">
+        <input id="titleVolumeAddInput" type="text" placeholder="巻数 例: 5 / 6-8 / 外伝" aria-label="追加する巻数">
+        <div class="volume-add-box">
+          <input id="titleVolumeAddBoxInput" list="titleVolumeAddBoxList" placeholder="Box（任意）" aria-label="Box">
+          <datalist id="titleVolumeAddBoxList"></datalist>
+        </div>
+        <select id="titleVolumeAddRead" aria-label="追加する巻の読書状況">
+          <option value="未読" selected>未読</option>
+          <option value="読書中">読書中</option>
+          <option value="読了">読了</option>
+        </select>
+        <button type="button" id="titleVolumeAddButton" onclick="addTitleVolumes()">追加</button>
+      </div>
+    </div>
   </section>
 
   <details id="titleTableSection" class="detail-section detail-panel title-table-section" style="display:none;">

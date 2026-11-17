@@ -63,42 +63,228 @@ function buildTitleStats(rows, completed){
   return stats;
 }
 
+// 作品の詳細で表示中の作品と巻（巻の編集・追加で使う）。selectedVolumeId は巻の一覧で選んだ書籍 ID
+const titleDetailState = { titleId: '', rows: [], selectedVolumeId: '' };
+
 // 巻の一覧（1 巻から最大巻まで並べ、所持・読書・抜け・欲しい巻を色で示す）
-// 持っている巻は押すと 読了 ⇄ 未読（読書中は読了）を切り替えて表示し直す（titleId があるとき）
+// 持っている巻を押すと巻の編集（読書状況・巻数の変更）を開き、持っていない巻を押すと巻の追加の欄にその巻を入れる（titleId があるとき）
 function renderTitleVolumeGrid(rows, wishVolumes, titleId){
   const section = document.getElementById('titleVolumeSection');
   const grid = document.getElementById('titleVolumeGrid');
   if(!section || !grid) return;
 
+  if(titleId && String(titleDetailState.titleId) !== String(titleId)){
+    titleDetailState.selectedVolumeId = '';
+  }
+  if(titleId){
+    titleDetailState.titleId = titleId;
+    titleDetailState.rows = rows || [];
+  }
+
   const cells = buildTitleVolumeGrid(rows, wishVolumes);
   grid.innerHTML = '';
+  section.classList.toggle('is-empty', cells.length === 0);
   if(cells.length === 0){
-    section.style.display = 'none';
+    // 本がなくても巻の追加は出す
+    section.style.display = titleId ? 'block' : 'none';
+    renderTitleVolumeEditor();
     return;
   }
   const STATE_LABELS = { read: '読了', reading: '読書中', unread: '未読', missing: '未所持', wish: '欲しい巻' };
   cells.forEach(cell => {
-    const clickable = Boolean(cell.id && titleId);
+    const clickable = Boolean(titleId);
     const chip = document.createElement(clickable ? 'button' : 'span');
-    chip.className = `volume-chip is-${cell.state}${cell.wished && cell.state !== 'wish' ? ' is-wished' : ''}`;
+    const selected = Boolean(cell.id) && cell.id === titleDetailState.selectedVolumeId;
+    chip.className = `volume-chip is-${cell.state}${cell.wished && cell.state !== 'wish' ? ' is-wished' : ''}${selected ? ' is-selected' : ''}`;
     chip.textContent = cell.label;
     chip.title = `${cell.label}${/^\d+(\.\d+)?$/.test(cell.label) ? '巻' : ''}: ${STATE_LABELS[cell.state]}${cell.wished && cell.state !== 'wish' ? '（欲しい巻）' : ''}`;
     if(clickable){
-      const next = getVolumeToggleStatus(cell.state);
       chip.type = 'button';
-      chip.title += `（押すと${next}に）`;
-      chip.addEventListener('click', function(){
-        setReadStatus([cell.id], next, function(){ showTitle(titleId); }, chip);
-      });
+      if(cell.id){
+        chip.title += '（押すと読書状況・巻数を変更）';
+        chip.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        chip.addEventListener('click', function(){
+          titleDetailState.selectedVolumeId = selected ? '' : cell.id;
+          renderTitleVolumeGrid(rows, wishVolumes, titleId);
+        });
+      } else {
+        chip.title += '（押すと巻の追加に入れる）';
+        chip.addEventListener('click', function(){ fillTitleVolumeAdd(cell.label); });
+      }
     }
     grid.appendChild(chip);
   });
   section.style.display = 'block';
+  renderTitleVolumeEditor();
 }
 
-// 巻の一覧で押したときの読書状況（DOM を使わない）。読了 → 未読、未読・読書中 → 読了
-function getVolumeToggleStatus(state){
-  return state === 'read' ? '未読' : '読了';
+// 巻の編集（巻の一覧で選んだ巻の読書状況・巻数を変える）。選んでいなければ隠す
+function renderTitleVolumeEditor(){
+  const editor = document.getElementById('titleVolumeEditor');
+  if(!editor) return;
+  const row = titleDetailState.rows.find(r => String(r.id) === String(titleDetailState.selectedVolumeId));
+  editor.innerHTML = '';
+  if(!row){
+    titleDetailState.selectedVolumeId = '';
+    editor.style.display = 'none';
+    return;
+  }
+  const titleId = titleDetailState.titleId;
+  const volume = String(row.volume ?? '').trim();
+  const reload = function(){ showTitle(titleId); };
+
+  const head = document.createElement('div');
+  head.className = 'volume-editor-head';
+  const name = document.createElement('strong');
+  name.textContent = `${volume}${/^\d+(\.\d+)?$/.test(volume) ? '巻' : ''}`;
+  head.appendChild(name);
+  if(row.box){
+    const box = document.createElement('span');
+    box.className = 'volume-editor-box';
+    box.textContent = `Box: ${row.box}`;
+    head.appendChild(box);
+  }
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'detail-back volume-editor-close';
+  close.textContent = '閉じる';
+  close.addEventListener('click', function(){
+    titleDetailState.selectedVolumeId = '';
+    document.querySelectorAll('#titleVolumeGrid .volume-chip.is-selected').forEach(chip => {
+      chip.classList.remove('is-selected');
+      chip.setAttribute('aria-pressed', 'false');
+    });
+    renderTitleVolumeEditor();
+  });
+  head.appendChild(close);
+  editor.appendChild(head);
+
+  // 読書状況（今の状況のボタンは押せない）
+  const statusLine = document.createElement('div');
+  statusLine.className = 'volume-editor-line';
+  const statusLabel = document.createElement('span');
+  statusLabel.className = 'volume-editor-label';
+  statusLabel.textContent = '読書状況';
+  statusLine.appendChild(statusLabel);
+  const statusGroup = document.createElement('div');
+  statusGroup.className = 'volume-status-group';
+  statusGroup.setAttribute('role', 'group');
+  statusGroup.setAttribute('aria-label', '読書状況');
+  ['未読', '読書中', '読了'].forEach(status => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    const current = (row.read || '未読') === status;
+    button.className = `volume-status-button${current ? ' is-current' : ''}`;
+    button.textContent = status;
+    button.disabled = current;
+    button.setAttribute('aria-pressed', current ? 'true' : 'false');
+    button.addEventListener('click', function(){
+      setReadStatus([row.id], status, reload, button);
+    });
+    statusGroup.appendChild(button);
+  });
+  statusLine.appendChild(statusGroup);
+  editor.appendChild(statusLine);
+
+  // 巻数の変更（1 巻だけ。数字以外の巻名も可）
+  const renameLine = document.createElement('div');
+  renameLine.className = 'volume-editor-line';
+  const renameLabel = document.createElement('label');
+  renameLabel.className = 'volume-editor-label';
+  renameLabel.textContent = '巻数';
+  renameLabel.htmlFor = 'titleVolumeRenameInput';
+  const input = document.createElement('input');
+  input.id = 'titleVolumeRenameInput';
+  input.value = volume;
+  input.placeholder = '例: 5 / 5.5 / 外伝';
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'read-action';
+  save.textContent = '変更';
+  const submit = function(){
+    const message = checkVolumeRename(titleDetailState.rows, row.id, input.value);
+    if(message) return showError(message);
+    save.disabled = true;
+    callGAS('renameLibraryVolumeWeb', function(res){
+      save.disabled = false;
+      if(!res || !res.success) return showError(res && res.message ? res.message : '巻数の変更に失敗しました');
+      showSuccess(res.message);
+      reload();
+    }, row.id, input.value.trim());
+  };
+  save.addEventListener('click', submit);
+  input.addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && !e.isComposing) submit();
+  });
+  renameLine.appendChild(renameLabel);
+  renameLine.appendChild(input);
+  renameLine.appendChild(save);
+  editor.appendChild(renameLine);
+
+  editor.style.display = 'block';
+}
+
+// 巻数の変更の入力の確認（DOM を使わない）。エラーメッセージを返す（問題なければ ''）
+// rows: getTitleDetail の行（id, volume）、id: 変更する書籍 ID、value: 新しい巻数
+function checkVolumeRename(rows, id, value){
+  const message = checkSingleVolumeInput(value);
+  if(message) return message;
+  const next = parseVolumeInput(value).values[0];
+  const others = (rows || []).filter(row => String(row.id) !== String(id));
+  const current = (rows || []).find(row => String(row.id) === String(id));
+  if(current && String(current.volume ?? '').trim() === next) return '巻数が変わっていません';
+  if(others.some(row => String(row.volume ?? '').trim() === next)){
+    return `同じ作品に ${next} の巻が既に登録されています`;
+  }
+  return '';
+}
+
+// 巻の追加の欄に巻を入れる（巻の一覧で持っていない巻を押したとき。入力済みなら「, 」でつなぐ）
+function fillTitleVolumeAdd(label){
+  const input = document.getElementById('titleVolumeAddInput');
+  if(!input) return;
+  input.value = appendVolumeToInput(input.value, label);
+  input.focus();
+}
+
+// 巻数の入力に巻を足す（DOM を使わない）。同じ巻が入っていれば足さない
+function appendVolumeToInput(current, label){
+  const text = String(current || '').trim();
+  const value = String(label || '').trim();
+  if(!value) return text;
+  if(!text) return value;
+  const tokens = text.split(',').map(token => token.trim()).filter(Boolean);
+  return tokens.includes(value) ? tokens.join(', ') : [...tokens, value].join(', ');
+}
+
+// 巻の追加（巻数式・Box は任意・読書状況）。追加したら作品の詳細を表示し直す
+function addTitleVolumes(){
+  const titleId = titleDetailState.titleId;
+  if(!titleId) return showError('作品を選択してください');
+  const volumeInput = document.getElementById('titleVolumeAddInput');
+  const boxInput = document.getElementById('titleVolumeAddBoxInput');
+  const readSelect = document.getElementById('titleVolumeAddRead');
+  const button = document.getElementById('titleVolumeAddButton');
+
+  const volume = volumeInput.value.trim();
+  const parsed = parseVolumeInput(volume);
+  if(!parsed.valid) return showError(parsed.message);
+  const boxText = boxInput.value.trim();
+  const boxId = boxText ? getAutocompleteValue('titleVolumeAddBoxInput') : '';
+  if(boxText && !boxId) return showError('Boxは候補から選んでください（Boxなしなら空欄）');
+  const owned = new Set(titleDetailState.rows.map(row => String(row.volume ?? '').trim()));
+  const duplicates = parsed.values.filter(value => owned.has(value));
+  if(duplicates.length > 0) return showError(`既に登録済みの巻があります: ${duplicates.join(', ')}`);
+
+  button.disabled = true;
+  callGAS('addNewVolumeWeb', function(res){
+    button.disabled = false;
+    if(!res || !res.success) return showError(res && res.message ? res.message : '巻の追加に失敗しました');
+    showSuccess(res.message);
+    volumeInput.value = '';
+    loadLibrarySummary('libraryGlobal');
+    showTitle(titleId);
+  }, titleId, volume, boxId, readSelect.value);
 }
 
 // 巻の一覧のデータ（DOM を使わない）。整数の巻は 1 から最大巻まで（未所持も含める）、小数の巻（5.5 など）は
@@ -551,5 +737,6 @@ function addTitleMaster(){
 window.showTitle = showTitle;
 window.loadTitleList = loadTitleList;
 window.addTitleMaster = addTitleMaster;
+window.addTitleVolumes = addTitleVolumes;
 
 </script>
