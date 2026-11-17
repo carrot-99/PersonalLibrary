@@ -90,13 +90,14 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 
 ## 3.3 書籍（`server/LibraryService.js`）
 
-### `addNewVolumeWeb(titleId, volume, boxId)` — 書籍登録（巻数式対応）
+### `addNewVolumeWeb(titleId, volume, boxId, readStatus)` — 書籍登録（巻数式対応）
 
 | 引数 | 型 | 説明 |
 |---|---|---|
 | `titleId` | string | 作品 ID（前後空白除去） |
 | `volume` | string | 巻数式（3.1.3） |
 | `boxId` | string | Box ID（任意。空なら Box なしで登録） |
+| `readStatus` | string | 登録した巻の読書状況（任意。省略・空なら `未読`。`未読` / `読書中` / `読了` 以外は `failure('読書状況は … のいずれかを指定してください')`） |
 
 処理:
 
@@ -106,7 +107,7 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 4. 解析した全巻について、`M_Library` に同一 (TitleID, 巻数) が存在するか確認。1 件でもあれば
    `failure('同じ作品に既に登録済みの巻数があります: <巻数一覧>')`（**全件登録しない**）
 5. 巻ごとに ID を採番し `[LibraryID, TitleID, BoxID, 巻数, 今日(Date)]` を `appendLibraryRows` で一括書き込み（`setValues` 1 回）
-6. 登録した巻を未読にする（`writeReadStatuses`。3.9.5）
+6. 登録した巻を `readStatus`（省略時は未読）にする（`writeReadStatuses`。3.9.5）
 7. 登録した巻を欲しい巻リストから外す（`removeWishesForLibrary`）
 8. `success('<titleId> に巻 <巻数一覧> を追加しました（<件数>件）')`（欲しい巻から外した場合は「。欲しい巻リストから n 件外しました」を付加）
 
@@ -156,6 +157,17 @@ GAS ではすべてのファイルがグローバルスコープを共有する�
 4. 自分以外に同一 (TitleID, 巻数) があれば `failure('同じ作品・巻数のデータが既に存在します')`
 5. `updateRowById` で 2 列目（TitleID）・3 列目（BoxID）・4 列目（巻数）を更新
 6. 読書状況の指定があり、今と違えば `M_Read` に書く（`未読` / `読書中` / `読了` 以外は手順 2 で `failure`）→ 成功は `success('更新成功しました')`
+
+### `renameLibraryVolumeWeb(libraryId, newVolume)` — 巻数の変更（作品の詳細）
+
+作品・Box・読書状況はそのままで、4 列目（巻数）だけを変えます（スクリプトロック）。
+
+1. `libraryId` 空 → `failure('IDが指定されていません')`
+2. `newVolume` を巻数式（3.1.3）で解析。不正 → 解析エラー、2 巻以上 → `failure('巻数は 1 巻だけ入力してください')`
+3. `libraryId` の行がなければ `failure('該当データが見つかりません')`。今の巻数と同じなら `failure('巻数が変わっていません')`
+4. 同じ作品の別の書籍に同じ巻数があれば `failure('同じ作品に <巻> の巻が既に登録されています')`
+5. `updateRowById` で巻数を更新し、変更後の巻を欲しい巻リストから外す（`removeWishesForLibrary`）
+6. `success('<作品の表示ラベル> の巻数を「<旧>」から「<新>」に変更しました')`（欲しい巻から外した場合は「。欲しい巻リストから n件外しました」を付加）
 
 ### `deleteLibraryMaster(id)` — 書籍削除
 
@@ -688,7 +700,8 @@ GitHub Pages の所持確認ページ（1.6）に渡すデータを作ります�
 | `getWishList` / `addWishes` / `deleteWish` | `loadWishListView`・`reloadWishList` / `addWishFromForm`・`addPhotoRowToWishList`・`addReleaseToWish`（発売予定・ホーム）/ `deleteWishItem` |
 | `getHomeDataWeb` | `loadHomeView`（ホームを開いたとき・起動時・欲しい巻への追加や読了の後） |
 | `getOfflineSnapshotWeb` | `prepareOfflineSync`（ホームの「オフライン所持確認」の [データを用意]） |
-| `setReadStatusWeb` | `setReadStatus`（書籍一覧の [にする]（まとめて変更）、作品の詳細・ホームの [n巻を読了]） |
+| `setReadStatusWeb` | `setReadStatus`（書籍一覧の [にする]（まとめて変更）、作品の詳細・ホームの [n巻を読了]、作品の詳細の巻の編集の [未読] [読書中] [読了]） |
+| `renameLibraryVolumeWeb` | `renderTitleVolumeEditor`（作品の詳細の巻の編集の [変更]） |
 | `getReleaseViewWeb` / `updateReleasesWeb` | `loadReleaseView`（発売予定を開いたとき・取得や欲しい巻への追加の後）/ `fetchReleases`（[発売情報を取得]・[続きを取得]・作品ごとの [再取得]） |
 | `updateReleasesByTrigger` | 毎日 5 時台の時間主導トリガー（`setupReleaseTrigger` で設定） |
 | `getRecommendViewWeb` / `createRecommendationsWeb` / `setRecommendStatusWeb` | `loadRecommendView`（おすすめを開いたとき・作成や状態の変更の後）/ `createRecommendations`（[おすすめを探す]）/ `setRecommendStatus`（[気になる] [興味なし] [候補に戻す]） |
@@ -707,7 +720,7 @@ GitHub Pages の所持確認ページ（1.6）に渡すデータを作ります�
 | `getTitleDetail` / `getBoxOverview` | `showTitle` / `showBox`（一覧・詳細のリンクからは `openTitleDetail` / `openBoxDetail` 経由。シリーズは `openSeriesDetail` → `showSeries` → `getSeriesOverview`） |
 | `getSeriesDetail` / `getBoxDetail` | サーバー内部から使用（`getSeriesOverview` / `getBoxOverview`） |
 | `getBoxListWithCounts` | `loadBoxList` |
-| `addNewVolumeWeb` | `addLibraryMaster`（書籍一覧の [追加]） |
+| `addNewVolumeWeb` | `addLibraryMaster`（書籍一覧の [追加]）、`addTitleVolumes`（作品の詳細の「巻を追加」） |
 | `addTitleMasterWeb` / `addSeriesMasterWeb` / `addBoxMasterWeb` | `addTitleMaster` / `addSeriesMaster` / `addBoxMaster` |
 | `update*Master` | `saveEdit`（一覧の `createListFilter` の `edit.update` で指定） |
 | `deleteLibraryMaster` | `deleteListRow`（書籍一覧の [削除]） |

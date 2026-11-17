@@ -208,3 +208,43 @@ test('getLibrarySummary: 書籍がなければ最終追加日は null', () => {
   const { gas } = loadServer(baseSheets({ M_Library: [] }));
   assert.equal(gas.getLibrarySummary().lastAdded, null);
 });
+
+test('addNewVolumeWeb: 読書状況を指定すると、その状況で登録する（省略時は未読・不正な値はエラー）', () => {
+  const { gas, ss } = loadServer(baseSheets());
+  const statuses = () => Object.fromEntries(ss.rows('M_Read').map(r => [r[0], r[1]]));
+
+  assert.equal(gas.addNewVolumeWeb('T000002', '2-3', '', '読了').success, true);
+  assert.equal(gas.addNewVolumeWeb('T000002', '4', '').success, true);
+  assert.deepEqual(statuses(), { L000004: '読了', L000005: '読了', L000006: '未読' });
+
+  assert.match(gas.addNewVolumeWeb('T000002', '5', '', '途中').message, /読書状況は/);
+  assert.equal(ss.rows('M_Library').length, 6);
+});
+
+test('renameLibraryVolumeWeb: 巻数だけを変え、作品・Box・読書状況はそのまま', () => {
+  const { gas, ss } = loadServer(baseSheets({
+    M_Wish: [['W000001', 'T000001', '2.5', '', '']]
+  }));
+  const res = gas.renameLibraryVolumeWeb('L000002', ' 2.5 ');
+  assert.equal(res.success, true, res.message);
+  assert.match(res.message, /巻数を「2」から「2.5」に変更しました。欲しい巻リストから1件外しました/);
+  assert.deepEqual(ss.rows('M_Library')[1].slice(0, 4), ['L000002', 'T000001', 'B01', '2.5']);
+  assert.equal(ss.rows('M_Wish').length, 0);
+
+  assert.equal(gas.renameLibraryVolumeWeb('L000002', '外伝').success, true);
+  assert.equal(ss.rows('M_Library')[1][3], '外伝');
+});
+
+test('renameLibraryVolumeWeb: 同じ作品の巻と重なる・変わらない・2 巻以上・不正な入力はエラー', () => {
+  const { gas, ss } = loadServer(baseSheets());
+  assert.match(gas.renameLibraryVolumeWeb('L000002', '1').message, /既に登録されています/);
+  assert.match(gas.renameLibraryVolumeWeb('L000002', '2').message, /変わっていません/);
+  assert.match(gas.renameLibraryVolumeWeb('L000002', '3-4').message, /1 巻だけ/);
+  assert.match(gas.renameLibraryVolumeWeb('L000002', '').message, /巻数を入力/);
+  assert.match(gas.renameLibraryVolumeWeb('L000002', '=1').message, /「=」で始められません/);
+  assert.match(gas.renameLibraryVolumeWeb('L999999', '5').message, /見つかりません/);
+  assert.match(gas.renameLibraryVolumeWeb('', '5').message, /IDが指定されていません/);
+  // 別の作品の同じ巻には変えられる
+  assert.equal(gas.renameLibraryVolumeWeb('L000003', '2').success, true);
+  assert.deepEqual(ss.rows('M_Library').map(r => r[3]), ['1', '2', '2']);
+});

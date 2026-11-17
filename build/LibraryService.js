@@ -77,12 +77,13 @@ function appendLibraryRows(rows){
 
 // ----------------------
 // 新刊追加（Box は任意。空ならBoxなしで登録する）
+// readStatus: 登録した本の読書状況（省略時は未読。作品の詳細の巻の追加で選べる）
 // ----------------------
-function addNewVolumeWeb(titleId, volume, boxId){
-  return withScriptLock(() => addNewVolumeCore(titleId, volume, boxId));
+function addNewVolumeWeb(titleId, volume, boxId, readStatus){
+  return withScriptLock(() => addNewVolumeCore(titleId, volume, boxId, readStatus));
 }
 
-function addNewVolumeCore(titleId, volume, boxId){
+function addNewVolumeCore(titleId, volume, boxId, readStatus){
 
   const normalizedTitleId = String(titleId || '').trim();
   boxId = String(boxId || '').trim();
@@ -94,6 +95,10 @@ function addNewVolumeCore(titleId, volume, boxId){
   const parsedVolume = parseVolumeExpression(volume);
   if(!parsedVolume.valid){
     return failure(parsedVolume.message);
+  }
+  const status = String(readStatus || '').trim() || READ_NEW_STATUS;
+  if(!READ_STATUSES.includes(status)){
+    return failure(`読書状況は ${READ_STATUSES.join(' / ')} のいずれかを指定してください`);
   }
 
   try{
@@ -130,8 +135,8 @@ function addNewVolumeCore(titleId, volume, boxId){
       return [lastId, normalizedTitleId, boxId, String(value), today];
     });
     appendLibraryRows(rows);
-    // 新しく登録した本は未読（ReadService.js）
-    writeReadStatuses(rows.map(row => row[0]), READ_NEW_STATUS);
+    // 新しく登録した本は未読（ReadService.js。readStatus を指定したときはその状況）
+    writeReadStatuses(rows.map(row => row[0]), status);
 
     const wishRemoved = removeWishesForLibrary(
       parsedVolume.values.map(value => ({ titleId: normalizedTitleId, volume: value }))
@@ -365,6 +370,63 @@ function updateLibraryMasterCore(id, values){
 
     return success('更新成功しました');
 
+  } catch(e){
+    return failure(e.message);
+  }
+}
+
+// ----------------------
+// 巻数の変更（作品の詳細から。作品・Box・読書状況はそのまま）
+// newVolume は 1 巻だけ（巻数式で検証する）。同じ作品に同じ巻があればエラー。変更後の巻が欲しい巻リストにあれば外す
+// ----------------------
+function renameLibraryVolumeWeb(libraryId, newVolume){
+  return withScriptLock(() => renameLibraryVolumeCore(libraryId, newVolume));
+}
+
+function renameLibraryVolumeCore(libraryId, newVolume){
+  const targetId = String(libraryId || '').trim();
+  if(!targetId){
+    return failure('IDが指定されていません');
+  }
+  const parsedVolume = parseVolumeExpression(newVolume);
+  if(!parsedVolume.valid){
+    return failure(parsedVolume.message);
+  }
+  if(parsedVolume.values.length !== 1){
+    return failure('巻数は 1 巻だけ入力してください');
+  }
+  const volume = parsedVolume.values[0];
+
+  try{
+    const libraryRows = getData(SHEETS.LIBRARY);
+    const currentRow = libraryRows.find(row => String(row[0]).trim() === targetId);
+    if(!currentRow){
+      return failure('該当データが見つかりません');
+    }
+    const titleId = String(currentRow[1]).trim();
+    const oldVolume = String(currentRow[3]).trim();
+    if(oldVolume === volume){
+      return failure('巻数が変わっていません');
+    }
+    const exists = libraryRows.some(row =>
+      String(row[0]).trim() !== targetId &&
+      String(row[1]).trim() === titleId &&
+      String(row[3]).trim() === volume
+    );
+    if(exists){
+      return failure(`同じ作品に ${volume} の巻が既に登録されています`);
+    }
+
+    if(!updateRowById(SHEETS.LIBRARY, targetId, { 4: volume })){
+      return failure('該当データが見つかりません');
+    }
+    const wishRemoved = removeWishesForLibrary([{ titleId, volume }]);
+
+    const label = buildTitleLabelMap(getData(SHEETS.TITLE)).get(titleId) || titleId;
+    return success(
+      `${label} の巻数を「${oldVolume}」から「${volume}」に変更しました` +
+      (wishRemoved > 0 ? `。欲しい巻リストから${wishRemoved}件外しました` : '')
+    );
   } catch(e){
     return failure(e.message);
   }

@@ -972,6 +972,7 @@ function populateBoxes(boxes){
     'Boxを選択'
   );
   populateAutocomplete('boxViewSelectInput', boxes, b => `${b.id} : ${b.place}`, 'id', 'Boxを入力');
+  populateAutocomplete('titleVolumeAddBoxInput', boxes, b => `${b.id} : ${b.place}`, 'id', 'Box（任意）');
 }
 
 ///////////////////////////////

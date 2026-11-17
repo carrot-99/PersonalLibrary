@@ -1731,10 +1731,37 @@
   .volume-chip.is-unread { background: var(--surface); border-color: var(--primary); color: var(--text); }
   .volume-chip.is-missing { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-subtle); font-weight: 500; }
   .volume-chip.is-wish { background: transparent; border: 1px dashed var(--anime); color: var(--anime-text); }
-  /* 持っている巻は押せる（読了 ⇄ 未読） */
+  /* 巻は押せる（持っている巻は巻の編集、持っていない巻は巻の追加へ） */
   button.volume-chip { margin: 0; min-height: 0; box-shadow: none; cursor: pointer; font-family: inherit; }
   button.volume-chip:hover { filter: brightness(1.15); outline: 2px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 1px; }
   .volume-chip.is-wished { box-shadow: inset 0 -3px 0 var(--anime); }
+  .volume-chip.is-selected { outline: 2px solid var(--primary); outline-offset: 2px; }
+  /* 作品の詳細: 巻の編集（読書状況・巻数の変更） */
+  .volume-editor { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+  .volume-editor-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .volume-editor-head strong { font-size: 1rem; }
+  .volume-editor-box { font-size: 0.8rem; color: var(--text-muted); }
+  .volume-editor-head .volume-editor-close { margin: 0 0 0 auto; padding: 3px 10px; font-size: 0.8rem; }
+  .volume-editor-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 6px; }
+  .volume-editor-label { min-width: 4.5em; font-size: 0.85rem; font-weight: 700; color: var(--text-muted); }
+  .volume-editor-line input { flex: 0 1 160px; width: auto; margin: 0; padding: 5px 10px; }
+  .volume-editor-line .read-action { margin: 0; padding: 5px 12px; }
+  .volume-status-group { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+  .volume-status-group .volume-status-button { margin: 0; padding: 4px 12px; font-size: 0.85rem; box-shadow: none; background: var(--neutral); color: var(--on-neutral); }
+  .volume-status-group .volume-status-button:hover:not(:disabled) { background: var(--neutral-hover); }
+  .volume-status-group .volume-status-button.is-current { background: var(--primary); color: #fff; opacity: 1; cursor: default; }
+  /* 作品の詳細: 巻を追加 */
+  .volume-add { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
+  #titleVolumeSection.is-empty .volume-add { margin-top: 0; padding-top: 0; border-top: none; }
+  #titleVolumeSection.is-empty .volume-legend,
+  #titleVolumeSection.is-empty .volume-hint { display: none; }
+  .volume-add-title { margin: 0 0 6px; font-size: 0.9rem; color: var(--text-muted); }
+  .volume-add-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .volume-add-fields > input { flex: 1 1 160px; width: auto; margin: 0; }
+  .volume-add-box { position: relative; flex: 1 1 160px; }
+  .volume-add-box input { width: 100%; margin: 0; }
+  .volume-add-fields select { flex: 0 0 auto; width: auto; margin: 0; }
+  .volume-add-fields button { margin: 0; }
   /* 作品の詳細の作者・出版社 */
   .title-publisher { color: var(--text-muted); }
   .ownership-line .title-author-edit { background: var(--neutral); color: var(--on-neutral); }
